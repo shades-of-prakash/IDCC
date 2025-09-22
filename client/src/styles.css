@@ -1,0 +1,14 @@
+@font-face {
+  font-family: "Geist";
+  src: url("/assets/fonts/Geist/Geist-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "Geist", sans-serif;
+}
