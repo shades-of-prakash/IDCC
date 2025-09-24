@@ -6,6 +6,5 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-mainlayout',
   imports: [NavbarComponent, RouterOutlet],
   templateUrl: './mainlayout.component.html',
-  styleUrl: './mainlayout.component.css',
 })
 export class MainlayoutComponent {}

@@ -3,7 +3,7 @@ import { MainlayoutComponent } from './layouts/mainlayout/mainlayout.component';
 import { UserloginComponent } from './pages/userlogin/userlogin.component';
 import { TestComponent } from './components/test/test.component';
 import { AdminlayoutComponent } from './layouts/adminlayout/adminlayout.component';
-import { HomeComponent } from './home/home.component';
+import { HomeComponent } from './pages/home/home.component';
 
 export const routes: Routes = [
   {
