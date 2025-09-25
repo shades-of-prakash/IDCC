@@ -4,6 +4,8 @@ import { UserloginComponent } from './pages/userlogin/userlogin.component';
 import { TestComponent } from './components/test/test.component';
 import { AdminlayoutComponent } from './layouts/adminlayout/adminlayout.component';
 import { HomeComponent } from './pages/home/home.component';
+import { AdminLoginComponent } from './pages/admin-login/admin-login.component';
+import { AdminAuthGuard } from './guard/admin-auth-guard.service';
 
 export const routes: Routes = [
   {
@@ -13,6 +15,10 @@ export const routes: Routes = [
   {
     path: 'user-login',
     component: UserloginComponent,
+  },
+  {
+    path: 'admin-login',
+    component: AdminLoginComponent,
   },
   {
     path: 'idcc',
@@ -26,6 +32,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
+    canActivate: [AdminAuthGuard],
     component: AdminlayoutComponent,
     children: [],
   },
