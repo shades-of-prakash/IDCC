@@ -11,7 +11,7 @@ export const routes: Routes = [
     component: HomeComponent,
   },
   {
-    path: 'userlogin',
+    path: 'user-login',
     component: UserloginComponent,
   },
   {
@@ -24,7 +24,6 @@ export const routes: Routes = [
       },
     ],
   },
-
   {
     path: 'admin',
     component: AdminlayoutComponent,
