@@ -1,12 +1,13 @@
 {
-  "name": "backend",
-  "scripts": {
-    "dev": "bun run --hot src/index.ts"
-  },
-  "dependencies": {
-    "hono": "^4.9.8"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  }
+	"name": "backend",
+	"scripts": {
+		"dev": "bun run --hot src/index.ts"
+	},
+	"dependencies": {
+		"hono": "^4.9.8",
+		"mongoose": "^8.18.2"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
 }
