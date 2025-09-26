@@ -1,8 +1,18 @@
 import { Hono } from "hono";
 import { connectDB } from "./db/connection";
 import { apiRoute } from "./routes";
+import { cors } from "hono/cors";
 
 const app = new Hono();
+
+app.use(
+	"/api/*",
+	cors({
+		origin: "http://localhost:4200",
+		credentials: true,
+		allowHeaders: ["Content-Type", "Authorization"],
+	})
+);
 
 app.get("/", (c) => c.text("Hono + Bun + Mongoose + API 🚀"));
 

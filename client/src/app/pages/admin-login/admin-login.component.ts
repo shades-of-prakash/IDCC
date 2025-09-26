@@ -1,5 +1,5 @@
-import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { Component, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   FormBuilder,
@@ -7,57 +7,47 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { AdminAuthService } from '../../services/admin-auth.service';
 
 @Component({
   selector: 'app-admin-login',
+  standalone: true,
   templateUrl: './admin-login.component.html',
   imports: [CommonModule, ReactiveFormsModule],
 })
 export class AdminLoginComponent {
   loginForm: FormGroup;
   errorMessage = '';
-
-  private readonly adminUser = {
-    username: 'admin',
-    password: 'admin123',
-  };
-
-  private isBrowser: boolean;
+  isLoading = true;
 
   constructor(
     private fb: FormBuilder,
     private router: Router,
-    @Inject(PLATFORM_ID) private platformId: Object
+    private authService: AdminAuthService
   ) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
       password: ['', Validators.required],
     });
-    this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
   ngOnInit(): void {
-    if (this.isBrowser) {
-      const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
-      if (isLoggedIn === 'true') {
-        this.router.navigate(['/admin']);
-      }
-    }
+    this.isLoading = false;
   }
-
   onSubmit() {
-    if (!this.isBrowser) return;
-
+    if (this.loginForm.invalid) return;
+    this.isLoading = true;
     const { username, password } = this.loginForm.value;
-
-    if (
-      username === this.adminUser.username &&
-      password === this.adminUser.password
-    ) {
-      localStorage.setItem('isAdminLoggedIn', 'true');
-      this.router.navigate(['/admin']);
-    } else {
-      this.errorMessage = 'Invalid username or password';
-    }
+    this.authService.login(username, password).subscribe({
+      next: () => {
+        this.router.navigate(['/admin']);
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.errorMessage =
+          err.error?.message || 'Invalid username or password';
+        this.isLoading = false;
+      },
+    });
   }
 }

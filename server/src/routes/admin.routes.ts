@@ -1,44 +1,21 @@
 import { Hono } from "hono";
-import * as bcrypt from "bcrypt";
+import { loginAdmin } from "../controllers/admin/login.controller";
+import { adminValidation } from "../validators/admin.validator";
+import { gloabalZValidator } from "../middleware/globalZValidator";
+import { adminMe } from "../controllers/admin/me.controller";
 
-const ADMIN = {
-	username: "prakash",
-	passwordHash: bcrypt.hashSync("snehal@344", 10),
-};
+export const adminRoute = new Hono();
 
-type ENV = {
-	Variables: {
-		session: {
-			isAdmin: boolean;
-			username: string;
-		};
-	};
-};
+adminRoute.post(
+	"/auth/login",
+	gloabalZValidator(adminValidation, "json"),
+	loginAdmin
+);
 
-export const adminRoute = new Hono<ENV>();
+// adminRoute.post(
+// 	"/auth/logout",
+// 	gloabalZValidator(adminValidation, "json"),
+// 	loginAdmin
+// );
 
-adminRoute.post("/login", async (c) => {
-	const { username, password } = await c.req.json();
-
-	if (username !== ADMIN.username) {
-		return c.json({ message: "Invalid username" }, 401);
-	}
-
-	const isValid = await bcrypt.compare(password, ADMIN.passwordHash);
-
-	if (!isValid) {
-		return c.json({ message: "Invalid username or password" }, 401);
-	}
-
-	c.set("session", { isAdmin: true, username });
-
-	return c.json({ message: "Login successful" });
-});
-
-adminRoute.get("/me", (c) => {
-	const session = c.get("session");
-	if (!session) {
-		return c.json({ message: "Not logged in" }, 401);
-	}
-	return c.json(session);
-});
+adminRoute.get("/auth/me", adminMe);
