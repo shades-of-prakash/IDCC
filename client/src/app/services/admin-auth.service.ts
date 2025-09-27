@@ -1,52 +1,55 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { catchError, of, tap } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AdminAuthService {
-  private apiUrl = 'http://localhost:4000/api/admin/auth';
-
-  private authState = new BehaviorSubject<boolean>(false);
-
-  authState$ = this.authState.asObservable();
+  private isLoggedInSignal = signal(false);
+  private isCheckingAuthSignal = signal(true);
 
   constructor(private http: HttpClient) {
-    this.getAdminMe().subscribe({
-      next: () => this.authState.next(true),
-      error: () => this.authState.next(false),
-    });
+    this.checkAuth(); // run on service init
   }
 
-  login(username: string, password: string): Observable<any> {
-    return this.http
-      .post(
-        `${this.apiUrl}/login`,
-        { username, password },
-        { withCredentials: true }
+  // expose as getters
+  isLoggedIn = this.isLoggedInSignal.asReadonly();
+  isCheckingAuth = this.isCheckingAuthSignal.asReadonly();
+
+  checkAuth() {
+    this.isCheckingAuthSignal.set(true);
+    this.http.get<{ loggedIn: boolean }>('http://localhost:4000/api/admin/auth/me')
+      .pipe(
+        tap((res) => {
+          this.isLoggedInSignal.set(res.loggedIn);
+          this.isCheckingAuthSignal.set(false);
+        }),
+        catchError(() => {
+          this.isLoggedInSignal.set(false);
+          this.isCheckingAuthSignal.set(false);
+          return of(null);
+        })
       )
-      .pipe(tap(() => this.authState.next(true)));
+      .subscribe();
   }
 
-  getAdminMe(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/me`, { withCredentials: true }).pipe(
-      tap(() => this.authState.next(true)),
+  login(username: string, password: string) {
+    this.isCheckingAuthSignal.set(true);
+    return this.http.post<{ token: string }>('http://localhost:4000/api/admin/auth/login', { username, password }).pipe(
+      tap(() => {
+        this.isLoggedInSignal.set(true);
+        this.isCheckingAuthSignal.set(false);
+      }),
       catchError((err) => {
-        this.authState.next(false);
-        throw err;
+        this.isLoggedInSignal.set(false);
+        this.isCheckingAuthSignal.set(false);
+        return of(err);
       })
     );
   }
 
-  logout(): Observable<any> {
-    return this.http
-      .post(`${this.apiUrl}/logout`, {}, { withCredentials: true })
-      .pipe(tap(() => this.authState.next(false)));
-  }
-
-  isLoggedIn(): boolean {
-    return this.authState.value;
+  logout() {
+    this.isLoggedInSignal.set(false);
   }
 }

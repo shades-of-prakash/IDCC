@@ -1,19 +1,18 @@
-import { Injectable } from '@angular/core';
-import { CanActivate, Router, UrlTree } from '@angular/router';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { AdminAuthService } from '../services/admin-auth.service';
+import { Observable } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
+import { toObservable } from '@angular/core/rxjs-interop';
 
-@Injectable({
-  providedIn: 'root',
-})
-export class AdminAuthGuard implements CanActivate {
-  constructor(private authService: AdminAuthService, private router: Router) {}
+export const AdminAuthGuard: CanActivateFn = (): Observable<boolean | UrlTree> => {
+  const authService = inject(AdminAuthService);
+  const router = inject(Router);
 
-  canActivate(): Observable<boolean | UrlTree> {
-    return this.authService.getAdminMe().pipe(
-      map(() => true),
-      catchError(() => of(this.router.parseUrl('/admin-login')))
-    );
-  }
-}
+  // Convert signal to observable
+  return toObservable(authService.isLoggedIn).pipe(
+    // Wait until it's not undefined (auth check finished)
+    filter((status): status is boolean => status !== undefined),
+    map((status) => (status ? true : router.parseUrl('/admin-login')))
+  );
+};

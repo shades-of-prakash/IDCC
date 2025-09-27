@@ -1,8 +1,23 @@
-<main>
-  <nav>
-    <app-adminnavbar></app-adminnavbar>
-  </nav>
-  <section>
-    <router-outlet></router-outlet>
-  </section>
-</main>
+<ng-container *ngIf="adminAuthService.isCheckingAuth(); else adminLayout">
+  <!-- Loading screen while guard is checking -->
+  <div class="flex items-center justify-center h-screen">
+    <p class="text-lg">Checking admin access...</p>
+  </div>
+</ng-container>
+
+<ng-template #adminLayout>
+  <main class="w-screen h-dvh overflow-hidden  flex flex-col">
+    <nav class="w-full h-16 border-b border-neutral-800/30">
+      <app-adminnavbar></app-adminnavbar>
+    </nav>
+    <section class="flex-1 overflow-y-auto flex">
+      <div class="w-[12vw] h-full">
+        <app-admin-side-menu></app-admin-side-menu>
+      </div>
+      <div class="flex-1 h-full">
+        nothing...
+        <router-outlet></router-outlet>
+      </div>
+    </section>
+  </main>
+</ng-template>

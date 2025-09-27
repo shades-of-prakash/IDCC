@@ -32,7 +32,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    canActivate: [AdminAuthGuard],
+    // canActivate: [AdminAuthGuard],
     component: AdminlayoutComponent,
     children: [],
   },
