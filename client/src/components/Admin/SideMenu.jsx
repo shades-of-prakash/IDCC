@@ -1,0 +1,66 @@
+import React from "react";
+import { useLocation, NavLink } from "react-router";
+import { FileQuestionMark, Trophy } from "lucide-react";
+const SideMenu = () => {
+	const location = useLocation();
+	const pathName = location.pathname.replace("/admin", "") || "/";
+
+	const menuItems = [
+		{
+			id: 1,
+			content: "Contests",
+			path: "/",
+			icon: <FileQuestionMark size={18} />,
+		},
+		{
+			id: 2,
+			content: "Results",
+			path: "/results",
+			icon: <Trophy size={18} />,
+		},
+		{
+			id: 3,
+			content: "Editor",
+			path: "/editor",
+			icon: <Trophy size={18} />,
+		},
+	];
+
+	return (
+		<div className="w-full h-full border-r border-neutral-800/30 p-2">
+			<ul className="w-full h-full flex flex-col gap-2">
+				{menuItems.map((item) => {
+					let isActive = false;
+
+					if (item.path === "/") {
+						isActive =
+							pathName === "/" ||
+							!menuItems.some(
+								(m) => m.path !== "/" && pathName.startsWith(m.path)
+							);
+					} else {
+						isActive = pathName.startsWith(item.path);
+					}
+
+					return (
+						<li key={item.id}>
+							<NavLink
+								to={`/admin${item.path}`}
+								className={`flex gap-2 items-center px-4 py-2 rounded  transition-colors ${
+									isActive
+										? "bg-black  text-white"
+										: "text-black hover:bg-neutral-200"
+								}`}
+							>
+								<div>{item.icon}</div>
+								{item.content}
+							</NavLink>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
+	);
+};
+
+export default SideMenu;

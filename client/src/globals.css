@@ -1,0 +1,19 @@
+@import "./stylesheet.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+	font-family: Geist, "sans-serif";
+}
+
+.tiptap {
+	@apply focus:outline-none border-none;
+}
+
+code {
+	background-color: gray;
+	color: black;
+	padding: 1px 3px;
+	border-radius: 0.1rem;
+}
