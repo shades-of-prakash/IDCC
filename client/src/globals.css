@@ -3,8 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-	font-family: Geist, "sans-serif";
+body,html{
+	font-family: Geist, "sans-serif" ;
 }
 
 .tiptap {
@@ -17,3 +17,80 @@ code {
 	padding: 1px 3px;
 	border-radius: 0.1rem;
 }
+/* .SplitPane .Resizer {
+	background:rgb(38 38 38 / 0.2); 
+	width: 3px;   
+	cursor:col-resize;
+}
+   */
+.Resizer {
+	background:rgb(38 38 38 / 0.2); 
+	opacity: 0;
+	z-index: 1;
+	box-sizing: border-box;
+	background-clip: padding-box;
+	border-radius:10px;
+  }
+  
+.Resizer.vertical:hover {
+	background:rgba(0, 98, 255); 
+	transition: all 0.2s ease;
+	opacity: 0.8;
+}
+.Resizer.horizontal:hover {
+	background:rgba(0, 98, 255); 
+	transition: all 0.2s ease;
+	opacity: 0.8;
+}
+  
+  .Resizer.vertical {
+	width: 4px;
+	margin: 0 -3px;
+	cursor: col-resize;
+  }
+  
+  .Resizer.horizontal {
+    height: 3px;
+    min-height: 3px; 
+    cursor: row-resize;
+    background: rgba(0, 98, 255, 0.5);
+    border-radius: 5px;
+    z-index: 1;
+}
+
+
+  .monaco-editor .margin .line-numbers {
+	font-size: 12px !important;
+	color: #888;          
+  }
+
+
+  /* --- Scrollbar Styling --- */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+	background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.25);
+	border-radius: 9999px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 0, 0, 0.4);
+  }
+  
+  /* Optional dark mode tweak */
+  @media (prefers-color-scheme: dark) {
+	::-webkit-scrollbar-thumb {
+	  background: rgba(255, 255, 255, 0.2);
+	}
+	::-webkit-scrollbar-thumb:hover {
+	  background: rgba(255, 255, 255, 0.35);
+	}
+  }
+  

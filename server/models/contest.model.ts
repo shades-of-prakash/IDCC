@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 
 const QuestionSchema = new mongoose.Schema(
 	{
+		name: {
+			type: String,
+			required: true,
+			trim: true,
+		},
+		points: {
+			type: Number,
+			required: true,
+			min: 0,
+			default: 10,
+		},
 		arguments: {
 			type: Array,
 			required: true,
@@ -39,6 +50,7 @@ const ContestSchema = new mongoose.Schema(
 		name: {
 			type: String,
 			required: true,
+			trim: true,
 		},
 		conductedBy: {
 			type: String,

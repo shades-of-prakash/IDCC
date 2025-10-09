@@ -230,7 +230,7 @@ const CodeSection = ({ lang, code, onCodeChange }) => {
 			<span className="text-sm font-medium text-gray-800">
 				{lang.label} Code
 			</span>
-			<div className="w-full h-[220px]  border border-neutral-300 rounded">
+			<div className="w-full h-[200px]  border border-neutral-300 rounded">
 				<Editor
 					height="100%"
 					language={lang.value}

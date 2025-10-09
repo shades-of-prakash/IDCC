@@ -5,7 +5,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 
 import Editor from "./Editor";
-
+// todo add bullets,
 const RichTextEditor = ({ value, onChange }) => {
 	const editor = useEditor({
 		extensions: [

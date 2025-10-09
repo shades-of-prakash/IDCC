@@ -9,32 +9,40 @@ import AdminLayout from "./layouts/AdminLayout";
 import Contest from "./components/Admin/ContestLayout";
 import RichTextEditor from "./components/Admin/RichTextEditor";
 import AddProblem from "./components/Admin/AddProblem";
-import CodeEditor from "./components/Test";
+import BasicSlider from "./components/Test";
 import { Toaster } from "sonner";
+import Playground from "./components/user/Playground";
 
 function App() {
 	return (
-		<AuthProvider>
-			<BrowserRouter>
-				<Toaster richColors position="top-center" />
-				<Routes>
-					<Route path="/" element={<Home />} />
-					<Route element={<GuestGuard />}>
-						<Route path="/admin-login" element={<AdminLogin />} />
+		<BrowserRouter>
+			<Toaster richColors position="top-center" />
+			<Routes>
+				<Route path="/" element={<Home />} />
+				<Route element={<GuestGuard />}>
+					<Route path="/admin-login" element={<AdminLogin />} />
+				</Route>
+				<Route path="/user-login" element={<UserLogin />} />
+				<Route path="/code" element={<BasicSlider />} />
+				<Route
+					element={
+						<AuthProvider>
+							<AdminGuard />
+						</AuthProvider>
+					}
+				>
+					<Route path="/admin" element={<AdminLayout />}>
+						<Route index element={<Contest />} />
+						<Route path="results" element={<div>settings</div>} />
+						<Route path="editor" element={<RichTextEditor />} />
+						<Route path="edit/:id" element={<AddProblem />} />
 					</Route>
-					<Route path="/user-login" element={<UserLogin />} />
-					<Route path="/code" element={<CodeEditor />} />
-					<Route element={<AdminGuard />}>
-						<Route path="/admin" element={<AdminLayout />}>
-							<Route index element={<Contest />} />
-							<Route path="results" element={<div>settings</div>} />
-							<Route path="editor" element={<RichTextEditor />} />
-							<Route path="edit/:id" element={<AddProblem />} />
-						</Route>
-					</Route>
-				</Routes>
-			</BrowserRouter>
-		</AuthProvider>
+				</Route>
+
+				<Route path="/user/:id/instructions" element={<div>nothing</div>} />
+				<Route path="/user/:id/playground" element={<Playground />} />
+			</Routes>
+		</BrowserRouter>
 	);
 }
 

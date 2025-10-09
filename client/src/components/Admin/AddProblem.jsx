@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../utils/fetch";
 import RichTextEditor from "./RichTextEditor";
 import ProblemSidebar from "./ProblemSidebar";
 import SampleCodePopup from "./SampleCodePopup";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
-
 import {
 	ArrowRightToLine,
 	X,
@@ -41,6 +39,7 @@ const cleanupUnusedImages = async (usedImages, id) => {
 const AddProblem = () => {
 	const { id } = useParams();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
 	const [currentQ, setCurrentQ] = useState(0);
 	const [showPopup, setShowPopup] = useState(false);
@@ -91,6 +90,8 @@ const AddProblem = () => {
 				initialQuestions = Array.from(
 					{ length: contest.numberOfProblems },
 					() => ({
+						name: "",
+						points: "",
 						statement: "",
 						codes: {},
 						visibleTests: "",
@@ -112,6 +113,18 @@ const AddProblem = () => {
 			if (exists) return prev.filter((l) => l.value !== lang.value);
 			return [...prev, lang];
 		});
+	};
+
+	const handleNameChange = (val) => {
+		setQuestions((prev) =>
+			prev.map((q, idx) => (idx === currentQ ? { ...q, name: val } : q))
+		);
+	};
+
+	const handlePointsChange = (val) => {
+		setQuestions((prev) =>
+			prev.map((q, idx) => (idx === currentQ ? { ...q, points: val } : q))
+		);
 	};
 
 	const handleStatementChange = (val) => {
@@ -154,6 +167,8 @@ const AddProblem = () => {
 		const questionData = questions[currentQ];
 
 		const requiredFields = [
+			"name",
+			"points",
 			"arguments",
 			"codes",
 			"functionName",
@@ -202,10 +217,7 @@ const AddProblem = () => {
 		};
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
-
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
 	}, [questions]);
 
 	const totalQuestions = contest?.numberOfProblems || 0;
@@ -230,19 +242,63 @@ const AddProblem = () => {
 				/>
 
 				<div className="w-full h-[calc(100%-4rem)] flex">
-					<div className="h-full w-[calc(100%-24rem)] p-2 pt-0">
-						<RichTextEditor
-							value={questions[currentQ]?.statement || ""}
-							onChange={handleStatementChange}
-						/>
+					<div className="h-full w-[calc(100%-24rem)] p-4 pt-1 flex flex-col gap-4">
+					<div className="flex gap-4">
+								<div className="flex-1 relative">
+									<input
+									id="name"
+									type="text"
+									placeholder=" "
+									value={questions[currentQ]?.name || ""}
+									onChange={(e) => handleNameChange(e.target.value)}
+									className={`peer w-full p-2 border border-gray-300 rounded-md focus:outline-none 
+									focus:ring-px focus:ring-black focus:border-black transition`}
+									/>
+									<label
+									htmlFor="name"
+									className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
+										peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+										peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
+										${questions[currentQ]?.name ? "-top-2 text-black text-sm" : ""}`}
+									>
+									Question Name
+									</label>
+								</div>
+
+								<div className="w-32 relative">
+									<input
+									id="points"
+									type="number"
+									min="0"
+									placeholder=" "
+									value={questions[currentQ]?.points || ""}
+									onChange={(e) => handlePointsChange(e.target.value)}
+									className="peer w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-px focus:ring-black focus:border-black transition"
+									/>
+									<label
+									htmlFor="points"
+									className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
+										peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+										peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
+										${questions[currentQ]?.points ? "-top-2 text-black text-sm" : ""}`}
+									>
+									Points
+									</label>
+								</div>
+					</div>
+					<div className="flex-1">
+							<RichTextEditor
+								value={questions[currentQ]?.statement || ""}
+								onChange={handleStatementChange}
+							/>
+						</div>
 					</div>
 
+					{/* Right Sidebar */}
 					<ProblemSidebar
 						functionName={questions[currentQ]?.functionName || ""}
 						returnType={questions[currentQ]?.returnType || ""}
-						arguments={
-							questions[currentQ]?.arguments || [{ name: "", type: "" }]
-						}
+						arguments={questions[currentQ]?.arguments || [{ name: "", type: "" }]}
 						codes={questions[currentQ]?.codes || {}}
 						visibleTests={questions[currentQ]?.visibleTests || ""}
 						hiddenTests={questions[currentQ]?.hiddenTests || ""}
@@ -285,7 +341,7 @@ const Header = ({ contest }) => {
 			<div className="flex items-center gap-3">
 				<div
 					onClick={() => navigate(-1)}
-					className="w-12 h-12  text-black flex items-center justify-center border border-neutral-300 rounded"
+					className="w-12 h-12 text-black flex items-center justify-center border border-neutral-300 rounded cursor-pointer hover:bg-neutral-100"
 				>
 					<MoveLeft />
 				</div>
@@ -329,7 +385,7 @@ const Header = ({ contest }) => {
 					<FileQuestionMark size={16} />: {contest?.numberOfProblems}
 				</span>
 				<span
-					className={`ml-3 flex items-center font-bold border-neutral-300 border  justify-center py-2 px-4 rounded-full  text-xs ${
+					className={`ml-3 flex items-center font-bold border-neutral-300 border justify-center py-2 px-4 rounded-full text-xs ${
 						contest.numberOfProblems !== contest.questions?.length
 							? "bg-red-100 text-red-700"
 							: "bg-green-100 text-green-700"
@@ -338,7 +394,7 @@ const Header = ({ contest }) => {
 				>
 					{contest.numberOfProblems !== contest.questions?.length
 						? "Incomplete"
-						: "completed"}
+						: "Completed"}
 				</span>
 			</div>
 		</div>
