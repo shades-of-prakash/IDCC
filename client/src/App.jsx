@@ -18,12 +18,15 @@ function App() {
 		<BrowserRouter>
 			<Toaster richColors position="top-center" />
 			<Routes>
+				{/* Public routes */}
 				<Route path="/" element={<Home />} />
 				<Route element={<GuestGuard />}>
 					<Route path="/admin-login" element={<AdminLogin />} />
 				</Route>
 				<Route path="/user-login" element={<UserLogin />} />
 				<Route path="/code" element={<BasicSlider />} />
+
+				{/* ✅ Wrap only admin routes with AuthProvider */}
 				<Route
 					element={
 						<AuthProvider>
@@ -39,6 +42,7 @@ function App() {
 					</Route>
 				</Route>
 
+				{/* User routes */}
 				<Route path="/user/:id/instructions" element={<div>nothing</div>} />
 				<Route path="/user/:id/playground" element={<Playground />} />
 			</Routes>
