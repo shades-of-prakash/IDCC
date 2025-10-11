@@ -31,7 +31,7 @@ const Home = () => {
 				</p>
 
 				<Link
-					to="/user-login"
+					to="/user/login"
 					className="flex items-center gap-2 text-base border border-neutral-800/40 mt-6 px-4 py-2 bg-white font-semibold rounded-lg hover:bg-gray-200 transition z-20 relative"
 				>
 					Get Started

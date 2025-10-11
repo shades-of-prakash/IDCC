@@ -1,119 +1,209 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import ContestNavbar from "./ContestNavbar";
 import ContestModal from "./ContestModal";
-import { Link } from "react-router";
+import CreateUsers from "./CreateUsers";
+import { Ellipsis, X } from "lucide-react";
 
 const Contest = () => {
-	const [showModal, setShowModal] = useState(false);
-	const toggleModal = () => setShowModal((prev) => !prev);
+  const [showModal, setShowModal] = useState(false);
+  const [showCreateUsers, setShowCreateUsers] = useState(false);
+  const [selectedContest, setSelectedContest] = useState(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const dropdownRef = useRef(null);
 
-	const { data, isLoading, isError, error } = useQuery({
-		queryKey: ["contests"],
-		queryFn: async () => {
-			const res = await fetch("/api/contest/list");
-			if (!res.ok) throw new Error("Failed to fetch contests");
-			return res.json();
-		},
-	});
+  const toggleModal = () => setShowModal((prev) => !prev);
 
-	// ---------- Helper to determine status ----------
-	const getStatus = (contest) => {
-		if (!contest.questions) return "Incomplete";
-		return contest.questions.length === contest.numberOfProblems
-			? "Complete"
-			: "Incomplete";
-	};
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["contests"],
+    queryFn: async () => {
+      const res = await fetch("/api/contest/list");
+      if (!res.ok) throw new Error("Failed to fetch contests");
+      return res.json();
+    },
+  });
 
-	return (
-		<div className="w-full h-full">
-			<div className="w-full h-16">
-				<ContestNavbar toggle={toggleModal} />
-			</div>
+  const getStatus = (contest) => {
+    if (!contest.questions) return "Incomplete";
+    return contest.questions.length === contest.numberOfProblems
+      ? "Complete"
+      : "Incomplete";
+  };
 
-			{showModal && <ContestModal close={setShowModal} />}
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-			<div className="w-full h-[calc(100%-4rem)] p-2">
-				<div className="bg-white rounded shadow overflow-x-auto border border-gray-300">
-					{isLoading && (
-						<div className="text-center py-4 text-gray-600">Loading...</div>
-					)}
+  const handleDropdownToggle = (id) => {
+    setOpenDropdown((prev) => (prev === id ? null : id));
+  };
 
-					{isError && (
-						<div className="text-center py-4 text-red-600">{error.message}</div>
-					)}
+  const handleCreateUsers = (contest) => {
+    setSelectedContest(contest);
+    setShowCreateUsers(true);
+    setOpenDropdown(null);
+  };
 
-					{data?.data?.length > 0 ? (
-						<table className="w-full text-sm text-left text-gray-700">
-							<thead className="bg-gray-100 text-gray-900">
-								<tr>
-									<th className="px-4 py-3 font-semibold">Contest Name</th>
-									<th className="px-4 py-3 font-semibold">Conducted By</th>
-									<th className="px-4 py-3 font-semibold">Problems</th>
-									<th className="px-4 py-3 font-semibold">Duration (mins)</th>
-									<th className="px-4 py-3 font-semibold">Team Size</th>
-									<th className="px-4 py-3 font-semibold">Banner</th>
-									<th className="px-4 py-3 font-semibold">Status</th>
-									<th className="px-4 py-3 font-semibold">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{data.data.map((contest) => (
-									<tr key={contest._id} className="border-t">
-										<td className="px-4 py-2">{contest.name}</td>
-										<td className="px-4 py-2">{contest.conductedBy}</td>
-										<td className="px-4 py-2">{contest.numberOfProblems}</td>
-										<td className="px-4 py-2">{contest.durationMinutes}</td>
-										<td className="px-4 py-2">{contest.teamSize}</td>
-										<td className="px-4 py-2">
-											{contest.bannerImage ? (
-												<img
-													src={`${import.meta.env.VITE_BACKEND_URL}${
-														contest.bannerImage
-													}`}
-													alt="banner"
-													className="h-10 w-10 object-contain rounded"
-												/>
-											) : (
-												<span className="text-gray-400">No Image</span>
-											)}
-										</td>
-										<td className="px-4 py-2">
-											<span
-												className={`px-2 py-1 rounded-full  text-xs ${
-													getStatus(contest) === "Complete"
-														? "bg-green-500"
-														: "bg-red-100 text-red-700"
-												}`}
-												title="All contest questions must be posted for them to appear in the live contest."
-											>
-												{getStatus(contest)}
-											</span>
-										</td>
-										<td className="px-4 py-2">
-											<Link
-												to={`edit/${contest._id}`}
-												className="text-blue-600 hover:underline"
-											>
-												Edit
-											</Link>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					) : (
-						!isLoading &&
-						!isError && (
-							<div className="text-center py-4 text-gray-600">
-								No contests found
-							</div>
-						)
-					)}
-				</div>
-			</div>
+  return (
+    <div className="w-full h-full flex flex-col bg-gray-50 relative">
+      {/* Navbar */}
+      <div className="h-16 border-b bg-white shadow-sm flex items-center px-4">
+        <ContestNavbar toggle={toggleModal} />
+      </div>
+
+      {/* Create Contest Modal */}
+      {showModal && <ContestModal close={setShowModal} />}
+
+      {/* Table */}
+      <div className="flex-1 overflow-y-auto p-2">
+        <div className="bg-white rounded-lg shadow border border-gray-200 relative">
+          {isLoading && (
+            <div className="text-center py-6 text-gray-500">Loading...</div>
+          )}
+          {isError && (
+            <div className="text-center py-6 text-red-600">{error.message}</div>
+          )}
+
+          {data?.data?.length > 0 ? (
+            <table className="w-full text-sm text-gray-700">
+              <thead className="bg-gray-100 text-gray-800 text-sm font-semibold">
+                <tr>
+                  <th className="px-4 py-3 text-center w-[5%]">S.No</th>
+                  <th className="px-4 py-3 text-left w-[20%]">Contest Name</th>
+                  <th className="px-4 py-3 text-left w-[20%]">Conducted By</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Problems</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Duration</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Team Size</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Banner</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Status</th>
+                  <th className="w-[5%]"></th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-200">
+                {data.data.map((contest, index) => (
+                  <tr
+                    key={contest._id}
+                    className="hover:bg-gray-50 transition-colors relative"
+                  >
+                    <td className="px-4 py-3 text-center font-medium text-gray-500">
+                      {index + 1}
+                    </td>
+                    <td className="px-4 py-3">{contest.name}</td>
+                    <td className="px-4 py-3">{contest.conductedBy}</td>
+                    <td className="px-4 py-3 text-center">
+                      {contest.numberOfProblems}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {contest.durationMinutes}
+                    </td>
+                    <td className="px-4 py-3 text-center">{contest.teamSize}</td>
+                    <td className="px-4 py-3 text-center">
+                      {contest.bannerImage ? (
+                        <img
+                          src={`${import.meta.env.VITE_BACKEND_URL}${contest.bannerImage}`}
+                          alt="banner"
+                          className="h-10 w-10 object-cover rounded-md mx-auto border"
+                        />
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">
+                          No Image
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          getStatus(contest) === "Complete"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {getStatus(contest)}
+                      </span>
+                    </td>
+
+                    {/* Dropdown */}
+                    <td className="px-4 py-3 text-center relative">
+                      <button
+                        className="p-1 hover:bg-gray-200 rounded-full transition"
+                        onClick={() => handleDropdownToggle(contest._id)}
+                      >
+                        <Ellipsis className="h-4 w-4 text-gray-600" />
+                      </button>
+
+                      {openDropdown === contest._id && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute right-4 top-10 z-[9999] w-44 bg-white border border-gray-200 rounded-lg shadow-lg text-sm text-gray-700"
+                        >
+                          <div className="px-3 py-2 border-b font-semibold text-gray-900">
+                            Actions
+                          </div>
+                          <ul className="py-1">
+                            <li>
+                              <Link
+                                to={`edit/${contest._id}`}
+                                onClick={() => setOpenDropdown(null)}
+                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                              >
+                                Edit
+                              </Link>
+                            </li>
+                            <li>
+                              <button
+                                onClick={() => handleCreateUsers(contest)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                              >
+                                Create Users
+                              </button>
+                            </li>
+                            <li>
+                              <button
+                                onClick={() => setOpenDropdown(null)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                              >
+                                Delete
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            !isLoading &&
+            !isError && (
+              <div className="text-center py-6 text-gray-500">
+                No contests found.
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+	  {showCreateUsers && selectedContest && (
+		<div className="fixed inset-0 flex items-center justify-center bg-black/40 z-100">
+			<CreateUsers
+        onClose={() => setShowCreateUsers(false)}
+        contestName={selectedContest.name}
+        contestId={selectedContest._id}
+      />
 		</div>
-	);
+		)}
+    </div>
+  );
 };
 
 export default Contest;

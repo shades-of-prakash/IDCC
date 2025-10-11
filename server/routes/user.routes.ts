@@ -1,17 +1,10 @@
-// import { Hono } from "hono";
-// import { Admin } from "../models/admin.model";
+import { Hono } from "hono";
+import { loginUser } from "../controllers/user/login.controller";
+import { getSessionById, updateSessionElapsed } from "../controllers/user/session.controller";
+export const userRoute = new Hono();
 
-// export const userRoute = new Hono();
+userRoute.post("login",loginUser);
 
-// // GET /api/users
-// userRoute.get("/", async (c) => {
-// 	const users = await Admin.find();
-// 	return c.json(users);
-// });
+userRoute.get("session/:sessionId", getSessionById);
 
-// // POST /api/users
-// userRoute.post("/", async (c) => {
-// 	const body = await c.req.json();
-// 	const user = await Admin.create(body);
-// 	return c.json(user, 201);
-// });
+userRoute.patch("session/:id/elapsed",updateSessionElapsed)

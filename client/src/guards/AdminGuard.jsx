@@ -14,7 +14,7 @@ const AdminGuard = () => {
 	}
 
 	if (!admin) {
-		return <Navigate to="/admin-login" replace />;
+		return <Navigate to="/admin/login" replace />;
 	}
 
 	return <Outlet />;

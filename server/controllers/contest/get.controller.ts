@@ -10,3 +10,13 @@ export const getContests = async (c: Context) => {
 		return ErrorResponse(c, err.message || "Failed to fetch contests", 500);
 	}
 };
+
+
+export const getContestsWithoutQuestions = async (c: Context) => {
+  try {
+    const contests = await Contest.find({}, { questions: 0 }).sort({ createdAt: -1 });
+    return SuccessResponse(c, "Contests fetched successfully", 200, contests);
+  } catch (err: any) {
+    return ErrorResponse(c, err.message || "Failed to fetch contests", 500);
+  }
+};

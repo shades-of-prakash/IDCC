@@ -94,9 +94,9 @@ const Playground = () => {
           <SplitPane
             allowResize
             split="horizontal"
-            minSize={300}  
+            minSize={30}  
             maxSize={480}
-            defaultSize="70%"
+            defaultSize="72%"
             pane1Style={{overflow:"auto"}}
             pane2Style={{overflow:"auto"}}
             className="gap-1 p-2 pl-1.5 overflow-hidden" 
