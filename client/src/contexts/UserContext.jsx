@@ -1,155 +1,162 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+// src/contexts/UserContext.jsx
+import React, {
+	createContext,
+	useContext,
+	useState,
+	useEffect,
+	useCallback,
+} from "react";
+import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const UserContext = createContext();
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
-  const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
-  const [session, setSession] = useState(() => {
-    try {
-      const stored = localStorage.getItem("session");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+	const [session, setSession] = useState(() => {
+		const stored = localStorage.getItem("session");
+		return stored ? JSON.parse(stored) : null;
+	});
+	const [remainingTime, setRemainingTime] = useState(
+		session?.user?.remainingTime || 0
+	);
+	const [timerActive, setTimerActive] = useState(false);
 
-  const [remainingTime, setRemainingTime] = useState(
-    Number(session?.user?.remainingTime ?? 0)
-  );
+	// --- Format helper
+	const formatTime = useCallback((ms) => {
+		const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+		const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+		const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+		const s = String(totalSeconds % 60).padStart(2, "0");
+		return `${h}:${m}:${s}`;
+	}, []);
 
-  const { refetch } = useQuery(
-    ["session"],
-    async () => {
-      if (!session) return null;
-      const res = await fetch(`/api/user/session/${session.sessionId}`, {
-        headers: { Authorization: `Bearer ${session.token}` },
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.data;
-    },
-    {
-      enabled: !!session,
-      onSuccess: (data) => {
-        if (data) {
-          setSession(data);
-          setRemainingTime(Number(data.user.remainingTime ?? 0));
-        } else {
-          setSession(null);
-          localStorage.removeItem("session");
-        }
-      },
-    }
-  );
+	// --- Save session to localStorage
+	const saveSession = (data) => {
+		localStorage.setItem("session", JSON.stringify(data));
+		setSession(data);
+		setRemainingTime(data.user.remainingTime);
+	};
 
-  // Timer
-  useEffect(() => {
-    if (!session) return;
+	// --- Login
+	const login = async (credentials) => {
+		const res = await fetch("/api/user/login", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(credentials),
+		});
+		const data = await res.json();
 
-    const durationMs = Number(session.user.contestDurationMinutes ?? 0) * 60 * 1000;
-    if (!durationMs) {
-      setRemainingTime(0);
-      return;
-    }
+		if (data.success) {
+			saveSession(data.data);
+			setTimerActive(true);
+			navigate(`/user/${data.data.user.username}/playground`);
+		} else {
+			alert(data.message);
+		}
+	};
 
-    const lastActive = session.user.lastActiveAt
-      ? new Date(session.user.lastActiveAt).getTime()
-      : Date.now();
+	// --- Resume session (called at startup)
+	const fetchSession = async (sessionId, token) => {
+		const res = await fetch(`/api/user/session/${sessionId}`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		const data = await res.json();
+		if (data.success) {
+			saveSession(data.data);
+			setTimerActive(true);
+		} else {
+			console.warn("[Session expired or invalid]:", data.message);
+			localStorage.removeItem("session");
+			setSession(null);
+			setTimerActive(false);
+			navigate("/user/login");
+		}
+		return data;
+	};
 
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - lastActive;
-      const updatedRemaining = Math.max(durationMs - elapsed, 0);
-      setRemainingTime(updatedRemaining);
-    }, 1000);
+	// --- Logout (pause session)
+	const logout = async () => {
+		if (!session) return;
+		try {
+			await fetch("/api/user/logout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sessionId: session.sessionId }),
+			});
+		} catch {}
+		localStorage.removeItem("session");
+		setSession(null);
+		setTimerActive(false);
+		navigate("/user/login");
+	};
 
-    return () => clearInterval(interval);
-  }, [session]);
+	// --- Timer countdown
+	useEffect(() => {
+		if (!timerActive) return;
+		const interval = setInterval(() => {
+			setRemainingTime((prev) => {
+				if (prev <= 1000) {
+					clearInterval(interval);
+					logout(); // auto logout when time runs out
+					return 0;
+				}
+				return prev - 1000;
+			});
+		}, 1000);
+		return () => clearInterval(interval);
+	}, [timerActive]);
 
-  // Save elapsed time
-  useEffect(() => {
-    if (!session) return;
+	// --- On unload: sync elapsed time to backend
+	useEffect(() => {
+		const handleUnload = async () => {
+			if (!session) return;
+			const elapsedTime =
+				session.user.contest.durationMinutes * 60000 - remainingTime;
 
-    const saveElapsed = async () => {
-      const totalDuration = Number(session.user.contestDurationMinutes ?? 0) * 60 * 1000;
-      let elapsedTime = totalDuration - Number(remainingTime ?? 0);
-      if (isNaN(elapsedTime) || elapsedTime < 0) elapsedTime = 0;
+			await fetch(`/api/user/session/${session.sessionId}/elapsed`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ elapsedTime }),
+			});
+		};
+		window.addEventListener("beforeunload", handleUnload);
+		return () => window.removeEventListener("beforeunload", handleUnload);
+	}, [session, remainingTime]);
 
-      try {
-        await fetch(`/api/user/session/${session.sessionId}/elapsed`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.token}`,
-          },
-          body: JSON.stringify({ elapsedTime }),
-        });
-      } catch (err) {
-        console.error("Failed to update elapsed time", err);
-      }
-    };
+	// --- ✅ Auto resume on reload
+	useEffect(() => {
+		if (session?.sessionId && session?.token) {
+			fetchSession(session.sessionId, session.token);
+		}
+	}, []);
 
-    const interval = setInterval(saveElapsed, 60 * 1000);
-    window.addEventListener("beforeunload", saveElapsed);
+	// --- ✅ React Query: Auto sync remainingTime every 30s
+	useQuery({
+		queryKey: ["sessionSync", session?.sessionId],
+		queryFn: async () => {
+			if (!session?.sessionId || !session?.token) return null;
+			const result = await fetchSession(session.sessionId, session.token);
+			return result.data;
+		},
+		refetchInterval: 30000, // every 30 seconds
+		enabled: !!session?.sessionId && !!session?.token,
+	});
 
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("beforeunload", saveElapsed);
-    };
-  }, [session, remainingTime]);
-
-  const login = async (data) => {
-    const res = await fetch("/api/user/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Login failed");
-    }
-    const resData = await res.json();
-    const sessionData = resData.data;
-
-    setSession(sessionData);
-    setRemainingTime(Number(sessionData.user.remainingTime ?? 0));
-    localStorage.setItem("session", JSON.stringify(sessionData));
-  };
-
-  const logout = async () => {
-    if (session) {
-      const totalDuration = Number(session.user.contestDurationMinutes ?? 0) * 60 * 1000;
-      let elapsedTime = totalDuration - Number(remainingTime ?? 0);
-      if (isNaN(elapsedTime) || elapsedTime < 0) elapsedTime = 0;
-
-      await fetch(`/api/user/session/${session.sessionId}/elapsed`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.token}`,
-        },
-        body: JSON.stringify({ elapsedTime }),
-      });
-
-      await fetch("/api/user/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.sessionId }),
-      });
-    }
-
-    setSession(null);
-    localStorage.removeItem("session");
-    queryClient.clear();
-  };
-
-  return (
-    <UserContext.Provider
-      value={{ session, login, logout, remainingTime, refetch }}
-    >
-      {children}
-    </UserContext.Provider>
-  );
+	return (
+		<UserContext.Provider
+			value={{
+				session,
+				login,
+				logout,
+				remainingTime,
+				formatTime,
+			}}
+		>
+			{children}
+		</UserContext.Provider>
+	);
 };
