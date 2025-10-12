@@ -36,6 +36,8 @@ export const UserProvider = ({ children }) => {
 
 	// --- Save session to localStorage
 	const saveSession = (data) => {
+
+		console.log("[DEBUG] Saving session token:", data.token);
 		localStorage.setItem("session", JSON.stringify(data));
 		setSession(data);
 		setRemainingTime(data.user.remainingTime);
@@ -59,7 +61,6 @@ export const UserProvider = ({ children }) => {
 		}
 	};
 
-	// --- Resume session (called at startup)
 	const fetchSession = async (sessionId, token) => {
 		const res = await fetch(`/api/user/session/${sessionId}`, {
 			headers: { Authorization: `Bearer ${token}` },
@@ -101,7 +102,7 @@ export const UserProvider = ({ children }) => {
 			setRemainingTime((prev) => {
 				if (prev <= 1000) {
 					clearInterval(interval);
-					logout(); // auto logout when time runs out
+					logout(); 
 					return 0;
 				}
 				return prev - 1000;

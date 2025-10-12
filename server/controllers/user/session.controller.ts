@@ -3,7 +3,7 @@ import { verify } from "hono/jwt";
 import Session from "../../models/session.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
+const JWT_SECRET = Bun.env.JWT_SECRET || "supersecretkey";
 
 export const getSessionById = async (c: Context) => {
 	try {
