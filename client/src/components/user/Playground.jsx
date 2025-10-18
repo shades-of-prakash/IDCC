@@ -77,7 +77,7 @@ const Playground = () => {
         handleNext={handleNext}
       />
 
-      <div className="w-full h-[calc(100%-6rem)] flex overflow-hidden">
+      <div className="w-full h-[calc(100%-6rem)] flex overflow-x-hidden">
         <SplitPane
           allowResize
           split="vertical"
@@ -85,7 +85,7 @@ const Playground = () => {
           minSize={600}
           defaultSize="50%"
           className="w-full h-full"
-          style={{ height: "calc(100dvh - 6rem)" }}
+          style={{ height: "calc(100dvh - 6rem)", zIndex: 1 }}
         >
           <div className="w-full h-full p-2 pr-1.5">
             <ProblemDescription problem={problems[active].slug} />

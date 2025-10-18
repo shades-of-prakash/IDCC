@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react"; 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import ContestNavbar from "./ContestNavbar";
-import ContestModal from "./ContestModal";
-import CreateUsers from "./CreateUsers";
-import { Ellipsis, X } from "lucide-react";
+import ContestNavbar from "../components/Admin/ContestNavbar";
+import ContestModal from "../components/Admin/ContestModal";
+import CreateUsers from "../components/Admin/CreateUsers";
+import { Ellipsis } from "lucide-react";
+import Loader from "../components/Loader"; // import the Loader component
 
 const Contest = () => {
   const [showModal, setShowModal] = useState(false);
@@ -54,7 +55,7 @@ const Contest = () => {
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 relative">
-      {/* Navbar */}
+      {/* Navbar - always visible */}
       <div className="h-16 border-b bg-white shadow-sm flex items-center px-4">
         <ContestNavbar toggle={toggleModal} />
       </div>
@@ -62,17 +63,19 @@ const Contest = () => {
       {/* Create Contest Modal */}
       {showModal && <ContestModal close={setShowModal} />}
 
-      {/* Table */}
-      <div className="flex-1 overflow-y-auto p-2">
-        <div className="bg-white rounded-lg shadow border border-gray-200 relative">
-          {isLoading && (
-            <div className="text-center py-6 text-gray-500">Loading...</div>
-          )}
+      {/* Table / Content area */}
+      <div className="flex-1 overflow-y-auto p-2 relative">
+        {isLoading && (
+          <Loader text="Loading Contests" className="w-full h-full" />
+        )}
+        <div className="bg-white rounded-lg shadow border border-gray-200 relative  flex flex-col">
+
+
           {isError && (
             <div className="text-center py-6 text-red-600">{error.message}</div>
           )}
 
-          {data?.data?.length > 0 ? (
+          {!isLoading && data?.data?.length > 0 && (
             <table className="w-full text-sm text-gray-700">
               <thead className="bg-gray-100 text-gray-800 text-sm font-semibold">
                 <tr>
@@ -87,7 +90,6 @@ const Contest = () => {
                   <th className="w-[5%]"></th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-gray-200">
                 {data.data.map((contest, index) => (
                   <tr
@@ -182,26 +184,23 @@ const Contest = () => {
                 ))}
               </tbody>
             </table>
-          ) : (
-            !isLoading &&
-            !isError && (
-              <div className="text-center py-6 text-gray-500">
-                No contests found.
-              </div>
-            )
+          )}
+
+          {!isLoading && !isError && (!data?.data || data.data.length === 0) && (
+            <div className="text-center py-6 text-gray-500">No contests found.</div>
           )}
         </div>
       </div>
 
-	  {showCreateUsers && selectedContest && (
-		<div className="fixed inset-0 flex items-center justify-center bg-black/40 z-100">
-			<CreateUsers
-        onClose={() => setShowCreateUsers(false)}
-        contestName={selectedContest.name}
-        contestId={selectedContest._id}
-      />
-		</div>
-		)}
+      {showCreateUsers && selectedContest && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-0">
+          <CreateUsers
+            onClose={() => setShowCreateUsers(false)}
+            contestName={selectedContest.name}
+            contestId={selectedContest._id}
+          />
+        </div>
+      )}
     </div>
   );
 };

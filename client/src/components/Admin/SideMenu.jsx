@@ -1,11 +1,14 @@
-import React from "react";
+import React , { useContext } from "react";
 import { useLocation, NavLink } from "react-router";
-import { FileQuestionMark, Trophy } from "lucide-react";
+import { FileQuestionMark, Trophy,UserPlus,Edit3 } from "lucide-react";
+import { AuthContext } from "../../contexts/adminAuthContext";
+
 const SideMenu = () => {
 	const location = useLocation();
+	const { admin }=useContext(AuthContext)
 	const pathName = location.pathname.replace("/admin", "") || "/";
 
-	const menuItems = [
+	const adminMenu = [
 		{
 			id: 1,
 			content: "Contests",
@@ -25,6 +28,21 @@ const SideMenu = () => {
 			icon: <Trophy size={18} />,
 		},
 	];
+	const coordinatorMenu = [
+		{
+		  id: 3,
+		  content: "Credentials",
+		  path: "/credentials",
+		  icon: <UserPlus size={18} />,
+		},
+		{
+		  id: 4,
+		  content: "Add Problem",
+		  path: "/add-problem",
+		  icon: <Edit3 size={18} />,
+		},
+	  ];
+	const menuItems=admin.role==="admin"?adminMenu:coordinatorMenu
 
 	return (
 		<div className="w-full h-full border-r border-neutral-800/30 p-2">

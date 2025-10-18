@@ -13,7 +13,7 @@ export const createUsers = async (c: Context) => {
     const { number, contestId, contestName } = await c.req.json();
 
     if (!contestId) return ErrorResponse(c, "Contest ID is required", 400);
-    
+
     const num = parseInt(number);
     if (isNaN(num) || num <= 0 || num > 1000) {
       return ErrorResponse(c, "Invalid number (1-1000)", 400);
@@ -23,24 +23,20 @@ export const createUsers = async (c: Context) => {
       contestName?.slice(0, 3).toUpperCase() ||
       contestId.slice(-3).toUpperCase();
 
-    const lastUser = await User.findOne(
-      { 
-        contestId,
-        username: new RegExp(`^u${contestCode}\\d+$`)
-      },
-      { username: 1, _id: 0 }
-    )
-      .sort({ username: -1 })
+    const lastUser = await User.findOne({ contestId })
+      .sort({ _id: -1 })
       .lean();
 
     let lastIndex = 0;
-    if (lastUser) {
+
+    if (lastUser?.username) {
       const match = lastUser.username.match(/\d+$/);
       if (match) lastIndex = parseInt(match[0]);
     }
 
-    const usersToInsert = new Array(num);
-    const responseUsers = new Array(num);
+    // Now continue numbering
+    const usersToInsert = [];
+    const responseUsers = [];
 
     for (let i = 0; i < num; i++) {
       const index = lastIndex + i + 1;
@@ -48,8 +44,8 @@ export const createUsers = async (c: Context) => {
       const password = generatePassword();
       const hash = hashPassword(password);
 
-      usersToInsert[i] = { username, hash, contestId };
-      responseUsers[i] = { username, password };
+      usersToInsert.push({ username, hash, contestId });
+      responseUsers.push({ username, password });
     }
 
     await User.insertMany(usersToInsert, { ordered: false });
@@ -59,11 +55,9 @@ export const createUsers = async (c: Context) => {
     });
   } catch (err: any) {
     console.error("❌ createUsers error:", err);
-    
     if (err.code === 11000) {
       return ErrorResponse(c, "Username conflict, please retry", 409);
     }
-    
     return ErrorResponse(c, err.message || "Failed to create users", 500);
   }
 };

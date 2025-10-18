@@ -21,6 +21,9 @@ export const AuthProvider = ({ children }) => {
 		queryKey: ["authAdmin"],
 		queryFn: () => apiFetch("/api/admin/auth/me"),
 		retry: false,
+		refetchOnWindowFocus: false,  
+		refetchOnReconnect: false,  
+		staleTime: 1000 * 60 * 10,
 	});
 
 	const loginMutation = useMutation({

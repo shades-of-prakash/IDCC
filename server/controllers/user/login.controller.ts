@@ -70,6 +70,17 @@ if (session) {
   });
 }
 
+const existingSession = await Session.findOne({
+  participants: { $in: participants },
+});
+
+if (existingSession) {
+  return ErrorResponse(
+    c,
+    "One or more participants are already part of another session",
+    403
+  );
+}
 // If no session exists — create new
 const token = await sign(
   {
@@ -129,7 +140,6 @@ export const logoutUser = async (c: Context) => {
 
     const now = new Date();
 
-    // Calculate time since last active
     if (session.lastActive) {
       const timeSpent = now.getTime() - new Date(session.lastActive).getTime();
       session.elapsedTime += timeSpent;

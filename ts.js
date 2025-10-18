@@ -95,7 +95,6 @@ async function runUserCode(code, lang = "python", timeout = 10) {
   const codePath = path.join(tmpDir, filename);
   fs.writeFileSync(codePath, code);
 
-  // Pull image if missing
   try {
     await docker.getImage(image).inspect();
   } catch {

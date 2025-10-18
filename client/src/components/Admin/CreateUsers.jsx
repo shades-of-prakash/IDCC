@@ -53,7 +53,7 @@ const CreateUsers = ({ onClose, contestId, contestName }) => {
   };
 
   return (
-    <div className="bg-white text-gray-900 border border-gray-200 rounded-xl shadow-md p-6 w-[360px] relative">
+    <div className="z-50 bg-white text-gray-900 border border-gray-200 rounded-xl shadow-md p-6 w-[360px] relative">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         {contestName && (

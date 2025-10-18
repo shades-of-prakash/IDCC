@@ -6,9 +6,11 @@ import { upsertQuestion } from "../controllers/contest/questionUpsert.controller
 import { uploadImage } from "../controllers/contest/upload.controller";
 import { cleanupUnusedImages } from "../controllers/contest/cleanup.controller";
 import { createUsers } from "../controllers/contest/user.controller";
+import { requireRole } from "../middleware/admin.middleware";
 export const ContestRoutes = new Hono();
 
 ContestRoutes.post("create", createContest);
+ContestRoutes.post("add",requireRole(["volunteer"]), createContest);
 ContestRoutes.get("list", getContests);
 ContestRoutes.get("list/without-questions",getContestsWithoutQuestions);
 ContestRoutes.get(":id", getContestById);

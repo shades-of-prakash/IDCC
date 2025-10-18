@@ -1,98 +1,131 @@
-@import "./stylesheet.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body,html{
-	font-family: Geist, "sans-serif" ;
+
+html,
+body {
+  font-family: Geist, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+.Resizer {
+  background-color: transparent; 
+  transition: background-color 0.2s ease;
+  z-index: 10 !important;
+}
+
+.Resizer:hover {
+  background-color:#1a90ff;
+}
+
+.Resizer.vertical {
+  width: 3px;      
+  /* height:calc(100% - 3rem);  */
+  padding:10px 0px;
+  cursor: col-resize;
+  margin: 6px -3px; 
+  border-radius: 10px;
+}
+
+.Resizer.horizontal {
+  height: 3px;
+  cursor: row-resize;
+  margin: -2px 0;
+  border-radius: 10px;
+
+}
+
 
 .tiptap {
-	@apply focus:outline-none border-none;
+  @apply focus:outline-none border-none;
 }
 
-code {
-	background-color: gray;
-	color: black;
-	padding: 1px 3px;
-	border-radius: 0.1rem;
-}
-/* .SplitPane .Resizer {
-	background:rgb(38 38 38 / 0.2); 
-	width: 3px;   
-	cursor:col-resize;
-}
-   */
-.Resizer {
-	background:rgb(38 38 38 / 0.2); 
-	opacity: 0;
-	z-index: 1;
-	box-sizing: border-box;
-	background-clip: padding-box;
-	border-radius:10px;
-  }
-  
-.Resizer.vertical:hover {
-	background:rgba(0, 98, 255); 
-	transition: all 0.2s ease;
-	opacity: 0.8;
-}
-.Resizer.horizontal:hover {
-	background:rgba(0, 98, 255); 
-	transition: all 0.2s ease;
-	opacity: 0.8;
-}
-  
-  .Resizer.vertical {
-	width: 4px;
-	margin: 0 -3px;
-	cursor: col-resize;
-  }
-  
-  .Resizer.horizontal {
-    height: 3px;
-    min-height: 3px; 
-    cursor: row-resize;
-    background: rgba(0, 98, 255, 0.5);
-    border-radius: 5px;
-    z-index: 1;
+blockquote code {
+  font-family: "Geist Mono", monospace;
 }
 
 
-  .monaco-editor .margin .line-numbers {
-	font-size: 12px !important;
-	color: #888;          
-  }
 
-
-  /* --- Scrollbar Styling --- */
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
-  }
-  
-  ::-webkit-scrollbar-track {
-	background: transparent;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-	background: rgba(0, 0, 0, 0.25);
-	border-radius: 9999px;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-	background: rgba(0, 0, 0, 0.4);
-  }
-  
-  /* Optional dark mode tweak */
-  @media (prefers-color-scheme: dark) {
-	::-webkit-scrollbar-thumb {
-	  background: rgba(255, 255, 255, 0.2);
-	}
-	::-webkit-scrollbar-thumb:hover {
-	  background: rgba(255, 255, 255, 0.35);
-	}
-  }
-  
+  width: 4.5px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; 
+  border-radius:10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+.monaco-editor .margin .line-numbers {
+  font-size: 12px !important;
+  color: var(--secondary);
+}
+
+.tiptap ul,
+.tiptap ol {
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin: 0;
+}
+
+.tiptap li {
+  display: list-item;
+  margin-bottom: 0.25rem;
+}
+
+.tiptap ul {
+  list-style-type: disc;
+}
+
+.tiptap ol {
+  list-style-type: decimal;
+}
+
+.tiptap code:not(blockquote code){
+  background:rgb(229 229 229 / 0.6);
+}
 
 
+@keyframes pulse-dot {
+  0%, 80%, 100% {
+    transform: scale(0.5);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.2s infinite ease-in-out;
+}
+
+.animation-delay-150 {
+  animation-delay: 0.15s;
+}
+
+.animation-delay-300 {
+  animation-delay: 0.3s;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

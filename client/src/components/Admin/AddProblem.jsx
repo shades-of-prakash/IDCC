@@ -15,7 +15,6 @@ import {
 	MoveLeft,
 } from "lucide-react";
 
-// ---------- Helper for cleanup ----------
 const extractImageUrls = (html) => {
 	const div = document.createElement("div");
 	div.innerHTML = html;
@@ -34,7 +33,6 @@ const cleanupUnusedImages = async (usedImages, id) => {
 		console.warn("⚠️ Cleanup failed", err);
 	}
 };
-// -----------------------------------------
 
 const AddProblem = () => {
 	const { id } = useParams();
@@ -53,7 +51,6 @@ const AddProblem = () => {
 		{ value: "c", label: "C" },
 	];
 
-	// ----------- Fetch Contest -----------
 	const {
 		data: contest,
 		isLoading: loading,
@@ -62,8 +59,8 @@ const AddProblem = () => {
 		queryKey: ["contest", id],
 		queryFn: () => apiFetch(`/api/contest/${id}`),
 		enabled: !!id,
+		suspense: true,
 	});
-	// -------------------------------------
 
 	const submitQuestionMutation = useMutation({
 		mutationFn: async ({ index, question }) => {
@@ -222,9 +219,8 @@ const AddProblem = () => {
 
 	const totalQuestions = contest?.numberOfProblems || 0;
 
-	if (loading) return <div>Loading...</div>;
+	if (loading || !contest) return null;
 	if (error) return <div>Error loading contest</div>;
-	if (!contest) return <div>Contest not found</div>;
 
 	return (
 		<div className="w-full h-full flex flex-col items-center">
@@ -242,59 +238,57 @@ const AddProblem = () => {
 				/>
 
 				<div className="w-full h-[calc(100%-4rem)] flex">
-					<div className="h-full w-[calc(100%-24rem)] p-4 pt-1 flex flex-col gap-4">
-					<div className="flex gap-4">
-								<div className="flex-1 relative">
-									<input
-									id="name"
-									type="text"
-									placeholder=" "
-									value={questions[currentQ]?.name || ""}
-									onChange={(e) => handleNameChange(e.target.value)}
-									className={`peer w-full p-2 border border-gray-300 rounded-md focus:outline-none 
-									focus:ring-px focus:ring-black focus:border-black transition`}
-									/>
-									<label
-									htmlFor="name"
-									className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
-										peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-										peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
-										${questions[currentQ]?.name ? "-top-2 text-black text-sm" : ""}`}
-									>
-									Question Name
-									</label>
-								</div>
-
-								<div className="w-32 relative">
-									<input
-									id="points"
-									type="number"
-									min="0"
-									placeholder=" "
-									value={questions[currentQ]?.points || ""}
-									onChange={(e) => handlePointsChange(e.target.value)}
-									className="peer w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-px focus:ring-black focus:border-black transition"
-									/>
-									<label
-									htmlFor="points"
-									className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
-										peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-										peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
-										${questions[currentQ]?.points ? "-top-2 text-black text-sm" : ""}`}
-									>
-									Points
-									</label>
-								</div>
-					</div>
-					<div className="flex-1">
-							<RichTextEditor
-								value={questions[currentQ]?.statement || ""}
-								onChange={handleStatementChange}
-							/>
+					<div className="h-full w-[calc(100%-24rem)] p-2 pt-1 flex flex-col gap-2">
+						<div className="h-12 flex gap-2">
+							<div className="flex-1 relative">
+											<input
+											id="name"
+											type="text"
+											placeholder=" "
+											value={questions[currentQ]?.name || ""}
+											onChange={(e) => handleNameChange(e.target.value)}
+											className={`peer w-full p-2 border border-gray-300 rounded-md focus:outline-none 
+											focus:ring-px focus:ring-black focus:border-black transition`}
+											/>
+											<label
+											htmlFor="name"
+											className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
+												peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+												peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
+												${questions[currentQ]?.name ? "-top-2 text-black text-sm" : ""}`}
+											>
+											Question Name
+											</label>
+							</div>
+							<div className="w-32 relative">
+											<input
+											id="points"
+											type="number"
+											min="0"
+											placeholder=" "
+											value={questions[currentQ]?.points || ""}
+											onChange={(e) => handlePointsChange(e.target.value)}
+											className="peer w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-px focus:ring-black focus:border-black transition"
+											/>
+											<label
+											htmlFor="points"
+											className={`absolute left-2 px-1 bg-white text-gray-500 text-sm transition-all duration-200 
+												peer-placeholder-shown:top-2 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+												peer-focus:-top-2 peer-focus:text-black peer-focus:text-sm
+												${questions[currentQ]?.points ? "-top-2 text-black text-sm" : ""}`}
+											>
+											Points
+											</label>
+							</div>
+						</div>
+						<div className="w-full h-[calc(100%-3rem)]">
+								<RichTextEditor
+									value={questions[currentQ]?.statement || ""}
+									onChange={handleStatementChange}
+								/>
 						</div>
 					</div>
 
-					{/* Right Sidebar */}
 					<ProblemSidebar
 						functionName={questions[currentQ]?.functionName || ""}
 						returnType={questions[currentQ]?.returnType || ""}
@@ -332,7 +326,6 @@ const AddProblem = () => {
 	);
 };
 
-// ---------- Header ----------
 const Header = ({ contest }) => {
 	const navigate = useNavigate();
 
@@ -401,7 +394,6 @@ const Header = ({ contest }) => {
 	);
 };
 
-// ---------- Question Navigation ----------
 const QuestionNavigation = ({
 	currentQ,
 	totalQuestions,

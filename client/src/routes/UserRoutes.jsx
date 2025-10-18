@@ -1,11 +1,17 @@
 import { Routes, Route } from "react-router";
-import UserLogin from "../pages/UserLogin";
-import Playground from "../components/user/Playground";
-import BasicSlider from "../components/Test";
+import { lazy, Suspense } from "react";
 import { ContestProvider } from "../contexts/ContestContext";
 import { UserProvider } from "../contexts/UserContext";
 import { AuthGuard } from "../guards/UserGuard";
 import { GuestGuard } from "../guards/UserGuestGuard";
+import Loader from "../components/Loader"
+// Lazy loaded components
+const UserLogin = lazy(() => import("../pages/UserLogin"));
+const Playground = lazy(() => import("../components/user/Playground"));
+const BasicSlider = lazy(() => import("../components/Test"));
+
+// ✅ Reusable loader component
+
 
 const UserRoutes = () => {
 	return (
@@ -16,20 +22,35 @@ const UserRoutes = () => {
 						path="login"
 						element={
 							<GuestGuard redirectTo={"/user/123/playground"}>
-								<UserLogin />
+								<Suspense fallback={<Loader />}>
+									<UserLogin />
+								</Suspense>
 							</GuestGuard>
-							// <UserLogin />
 						}
 					/>
 
-					<Route path="code" element={<BasicSlider />} />
+					{/* Public test route */}
+					<Route
+						path="code"
+						element={
+							<Suspense fallback={<Loader />}>
+								<BasicSlider />
+							</Suspense>
+						}
+					/>
+
+					{/* Example placeholder route */}
 					<Route path=":id/instructions" element={<div>Nothing</div>} />
+
+					{/* Auth protected routes */}
 					<Route
 						path=":id/playground"
 						element={
 							<AuthGuard>
-								<Playground />
-							</AuthGuard>
+								<Suspense fallback={<Loader />}>
+									<Playground />
+								</Suspense>
+							 </AuthGuard>
 						}
 					/>
 				</Routes>
