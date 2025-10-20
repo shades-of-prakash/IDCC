@@ -1,13 +1,18 @@
 import type { Context } from "hono";
-import bcrypt from "bcryptjs";
 import { Admin } from "../../models/admin.model";
 import { SuccessResponse, ErrorResponse } from "../../utils/response";
+import { hashPassword } from "../../utils/hash"; 
 
 export const createVolunteer = async (c: Context) => {
   try {
-    const { username, name, password, confirmPassword } = await c.req.json();
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
 
-    console.log(username,name,password,confirmPassword,"comformingng")
+    const { username, name, password, confirmPassword } = body;
 
     if (!username || !name || !password || !confirmPassword) {
       return ErrorResponse(c, "All fields are required", 400);
@@ -18,16 +23,11 @@ export const createVolunteer = async (c: Context) => {
     }
 
     const existingUser = await Admin.findOne({ username, role: "volunteer" });
-
-    console.log(existingUser,"existing")
     if (existingUser) {
       return ErrorResponse(c, "Username already exists", 409);
     }
 
-    console.log("Raw password:", password);
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log(hashedPassword,"hashhhh")
+    const hashedPassword = await hashPassword(password);
 
     const newVolunteer = new Admin({
       name,
@@ -36,7 +36,6 @@ export const createVolunteer = async (c: Context) => {
       role: "volunteer",
     });
 
-  console.log(newVolunteer,"hjoooooo")
     await newVolunteer.save();
 
     return SuccessResponse(c, "Volunteer created successfully", 201, {
@@ -45,8 +44,7 @@ export const createVolunteer = async (c: Context) => {
       username: newVolunteer.username,
       role: newVolunteer.role,
     });
-  } catch (err) {
-    console.error("Error creating volunteer:", err);
-    return ErrorResponse(c, "Internal server error", 500);
+  } catch (err: any) {
+    return ErrorResponse(c, err.message || "Internal server error", 500);
   }
 };

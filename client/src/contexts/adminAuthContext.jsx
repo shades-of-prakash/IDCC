@@ -12,48 +12,50 @@ export const AuthContext = createContext({
 
 export const AuthProvider = ({ children }) => {
 	const queryClient = useQueryClient();
-
+  
 	const {
-		data: admin,
-		isLoading,
-		refetch: refetchUser,
+	  data: admin,
+	  isLoading,
+	  refetch: refetchUser,
 	} = useQuery({
-		queryKey: ["authAdmin"],
-		queryFn: () => apiFetch("/api/admin/auth/me"),
-		retry: false,
-		refetchOnWindowFocus: false,  
-		refetchOnReconnect: false,  
-		staleTime: 1000 * 60 * 10,
+	  queryKey: ["authAdmin"],
+	  queryFn: () => apiFetch("/api/admin/auth/me"),
+	  retry: false,
+	  refetchOnWindowFocus: false,
+	  refetchOnReconnect: false,
+	  staleTime: 1000 * 60 * 10,
 	});
-
+  
 	const loginMutation = useMutation({
-		mutationFn: (credentials) =>
-			apiFetch("/api/admin/auth/login", {
-				method: "POST",
-				body: credentials,
-			}),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries(["authAdmin"]);
-		},
+	  mutationFn: (credentials) =>
+		apiFetch("/api/admin/auth/login", {
+		  method: "POST",
+		  body: credentials,
+		}),
+	  onSuccess: async () => {
+		await queryClient.invalidateQueries(["authAdmin"]);
+	  },
 	});
-
+  
 	const logoutMutation = useMutation({
-		mutationFn: () =>
-			apiFetch("/api/admin/auth/logout", {
-				method: "POST",
-			}),
-		onSuccess: async () => {
-			queryClient.setQueryData(["authAdmin"], null);
-		},
+	  mutationFn: () =>
+		apiFetch("/api/admin/auth/logout", {
+		  method: "POST",
+		}),
+	  onSuccess: async () => {
+		queryClient.setQueryData(["authAdmin"], null);
+	  },
 	});
-
+  
 	const value = {
-		admin,
-		isLoading,
-		login: loginMutation.mutateAsync,
-		logout: logoutMutation.mutateAsync,
-		refetchUser,
+	  admin,
+	  isLoading,
+	  login: loginMutation.mutateAsync,
+	  loginLoading: loginMutation.isPending, 
+	  logout: logoutMutation.mutateAsync,
+	  refetchUser,
 	};
-
+  
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  };
+  

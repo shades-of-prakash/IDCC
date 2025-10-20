@@ -4,24 +4,23 @@ import { AuthContext } from "../contexts/adminAuthContext";
 import { useNavigate } from "react-router";
 import CustomSelect from "../components/CustomSelect";
 import { Eye, EyeOff } from "lucide-react";
+import Loader from "../components/Loader";
 
 const roleOptions = [
   { value: "admin", label: "Admin" },
-
   { value: "coordinator", label: "Co-ordinator" },
-
-  { value: "volunteer", label: "Volunteer" }
+  { value: "volunteer", label: "Volunteer" },
 ];
 
 const AdminLogin = () => {
-  const { login, isLoading } = useContext(AuthContext);
+  const { login, loginLoading, isLoading } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(null);
   const [error, setError] = useState(null);
-  const [showPassword, setShowPassword] = useState(false); 
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,18 +32,25 @@ const AdminLogin = () => {
     }
 
     try {
-      const data=await login({ username, password, role: role.value });
-      if(data.role="admin"){navigate("/admin")};
-      if(data.role="volunteer"){navigate("/volunteer")};
-      if(data.role="coordinator"){navigate("/coordinator")};
+      await login({ username, password, role: role.value });
+      navigate("/admin");
     } catch (err) {
       setError(err.message || "Login failed");
     }
   };
 
+  if (isLoading) {
+    return <Loader/>;
+  }
+
+  if(loginLoading){
+    return <Loader text="Authenticating" />
+  }
+
   return (
     <div className="w-screen h-dvh flex items-center justify-center">
       <div className="bg-white w-[450px] h-[600px] rounded-md border border-neutral-800/30 flex flex-col items-center justify-center gap-6">
+        {/* Logo and Title */}
         <div className="w-full flex flex-col gap-4 items-center justify-center">
           <img src={Logo} alt="logo-idcc" className="w-10 h-14" fetchPriority="high" />
           <div className="flex flex-col items-center gap-1">
@@ -59,6 +65,7 @@ const AdminLogin = () => {
           className="px-6 w-full gap-5 flex flex-col items-center"
           onSubmit={handleSubmit}
         >
+          {/* Username Field */}
           <div className="w-full flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700">Username</label>
             <input
@@ -70,6 +77,7 @@ const AdminLogin = () => {
             />
           </div>
 
+          {/* Password Field */}
           <div className="w-full flex flex-col gap-2 relative">
             <label className="text-sm font-medium text-gray-700">Password</label>
             <div className="relative">
@@ -91,6 +99,7 @@ const AdminLogin = () => {
             </div>
           </div>
 
+          {/* Role Select */}
           <CustomSelect
             label="Role"
             options={roleOptions}
@@ -100,25 +109,20 @@ const AdminLogin = () => {
             error={!!error && !role}
           />
 
+          {/* Error */}
           {error && (
             <div className="w-full text-center text-red-600 text-sm bg-red-50 border border-red-200 px-3 py-2 rounded">
               {error}
             </div>
           )}
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={loginLoading}
             className="w-full mt-4 px-4 py-3 rounded bg-black text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Logging in...</span>
-              </>
-            ) : (
               <span>Login</span>
-            )}
           </button>
         </form>
       </div>

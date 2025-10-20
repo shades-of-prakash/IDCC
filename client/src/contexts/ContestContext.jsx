@@ -12,7 +12,7 @@ const fetchContests = async () => {
 
 export const ContestProvider = ({ children }) => {
   const query = useQuery({
-    queryKey: ["contests"],
+    queryKey: ["contests-without-questions"],
     queryFn: fetchContests,
     staleTime: 1000 * 60 * 5,
   });

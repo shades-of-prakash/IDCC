@@ -1,7 +1,7 @@
 import { ChevronDown, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
-const CustomSelect = ({
+const  CustomSelect = ({
 	options,
 	value,
 	onChange,
@@ -9,7 +9,7 @@ const CustomSelect = ({
 	disabled = false,
 	error = false,
 	label = "",
-	loading = false, // new prop
+	loading = false,
 }) => {
 	const [open, setOpen] = useState(false);
 	const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -99,7 +99,7 @@ const CustomSelect = ({
 					aria-haspopup="listbox"
 					aria-expanded={open}
 					aria-labelledby={label ? undefined : "select-button"}
-					className={`flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+					className={`flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-left shadow-sm transition-all duration-200 outline-none ${
 						error
 							? "border-red-500 bg-red-50"
 							: disabled
@@ -122,16 +122,15 @@ const CustomSelect = ({
 						} ${disabled ? "text-gray-300" : "text-gray-400"}`}
 					/>
 				</button>
-
 				{open && !disabled && (
 					<ul
 						ref={listRef}
 						role="listbox"
-						className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+						className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white  shadow-lg focus:outline-none"
 					>
 						{loading ? (
 							<li className="flex justify-center py-4">
-								<div className="h-5 w-5 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+								<div className="h-5 w-5 animate-spin rounded-full border-4 border-black border-t-transparent"></div>
 							</li>
 						) : options.length === 0 ? (
 							<li className="px-4 py-3 text-center text-sm text-gray-500">
@@ -151,9 +150,9 @@ const CustomSelect = ({
 										onMouseEnter={() => setFocusedIndex(idx)}
 										className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm transition-colors ${
 											isFocused
-												? "bg-blue-50 text-blue-900"
+												? "bg-black text-white"
 												: isSelected
-												? "bg-gray-50 text-gray-900"
+												? "bg-gray-50 text-black"
 												: "text-gray-700 hover:bg-gray-100"
 										}`}
 									>
@@ -161,7 +160,7 @@ const CustomSelect = ({
 											{option.label}
 										</span>
 										{isSelected && (
-											<Check className="h-4 w-4 text-blue-600" />
+											<Check className="h-4 w-4 text-black" />
 										)}
 									</li>
 								);
@@ -173,5 +172,6 @@ const CustomSelect = ({
 		</div>
 	);
 };
+
 
 export default CustomSelect;

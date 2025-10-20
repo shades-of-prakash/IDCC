@@ -24,6 +24,6 @@ export const apiFetch = async (url, options = {}) => {
 		error.errors = json?.errors || null;
 		throw error;
 	}
-
+	console.log(json.data,"hooooo");
 	return json.data;
 };

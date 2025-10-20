@@ -1,7 +1,15 @@
-import { AdminCreateSchema } from "./src/validators/admin.validator";
+import bcrypt from "bcryptjs";
 
-const payload = { username: "alice", password: "snehal" };
+async function testBcrypt() {
+  const password = "MySecret123!";
+  
+  // Hash the password
+  const hashed = await bcrypt.hash(password, 10);
+  console.log("Hashed password:", hashed);
 
-const valid = AdminCreateSchema.parse(payload);
+  // Compare password with hash
+  const isMatch = await bcrypt.compare(password, hashed);
+  console.log("Password matches:", isMatch);
+}
 
-console.log(valid);
+testBcrypt();

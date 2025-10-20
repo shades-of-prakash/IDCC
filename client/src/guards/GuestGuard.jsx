@@ -6,7 +6,7 @@ const GuestGuard = () => {
 	const { admin, isLoading } = useContext(AuthContext);
 
 	if (isLoading) {
-		return <Loader/>
+		return <Loader />
 	}
 
 

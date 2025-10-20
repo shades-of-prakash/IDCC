@@ -5,7 +5,7 @@ import ContestNavbar from "../components/Admin/ContestNavbar";
 import ContestModal from "../components/Admin/ContestModal";
 import CreateUsers from "../components/Admin/CreateUsers";
 import { Ellipsis } from "lucide-react";
-import Loader from "../components/Loader"; // import the Loader component
+import Loader from "../components/Loader"; 
 
 const Contest = () => {
   const [showModal, setShowModal] = useState(false);

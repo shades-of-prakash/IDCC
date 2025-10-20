@@ -4,8 +4,10 @@ import { AuthProvider } from "../contexts/adminAuthContext";
 import AdminGuard from "../guards/AdminGuard";
 import GuestGuard from "../guards/GuestGuard";
 import AdminLayout from "../layouts/AdminLayout";
-import Loader from "../components/Loader"; // normal Loader import
-
+import Loader from "../components/Loader"; 
+import Problem from "../components/Admin/Problem";
+import ProblemEditor from "../components/Admin/ProblemEditor";
+import { ContestProvider } from "../contexts/ContestContext";
 // Lazy load pages/components
 const AdminLogin = lazy(() => import("../pages/AdminLogin"));
 const DashboardRouter = lazy(() => import("../layouts/Dashboard"));
@@ -16,13 +18,13 @@ const Credentials = lazy(() => import("../components/Admin/Credentials"));
 const AdminRoutes = () => {
   return (
     <AuthProvider>
+      <ContestProvider>
       <Routes>
-        {/* Guest Routes */}
         <Route element={<GuestGuard />}>
           <Route
             path="login"
             element={
-              <Suspense fallback={<Loader text="Authenticating"/>}>
+              <Suspense fallback={<Loader/>}>
                   <AdminLogin />
               </Suspense>
             }
@@ -48,7 +50,8 @@ const AdminRoutes = () => {
                 </Suspense>
               }
             />
-            <Route path="add-problem" element={<div>Add a Problem</div>} />
+            <Route path="add-problem" element={<ProblemEditor/>} />
+            {/* <Route path="add-problem" element={<Problem/>} /> */}
             <Route
               path="editor"
               element={
@@ -68,6 +71,7 @@ const AdminRoutes = () => {
           </Route>
         </Route>
       </Routes>
+      </ContestProvider>
     </AuthProvider>
   );
 };

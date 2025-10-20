@@ -6,7 +6,7 @@ const AdminGuard = () => {
 	const { admin, isLoading } = useContext(AuthContext);
 
 	if (isLoading) {
-		return <Loader  text="Navigating"  />
+		return <Loader />
 	}
 
 	if (!admin) {

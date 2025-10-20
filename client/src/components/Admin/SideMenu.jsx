@@ -1,6 +1,6 @@
 import React , { useContext } from "react";
 import { useLocation, NavLink } from "react-router";
-import { FileQuestionMark, Trophy,UserPlus,Edit3 } from "lucide-react";
+import { FileQuestionMark, Trophy,UserPlus,Edit3,KeyRound } from "lucide-react";
 import { AuthContext } from "../../contexts/adminAuthContext";
 
 const SideMenu = () => {
@@ -31,12 +31,18 @@ const SideMenu = () => {
 	const coordinatorMenu = [
 		{
 		  id: 3,
-		  content: "Credentials",
-		  path: "/credentials",
+		  content: "Dashboard",
+		  path: "/",
 		  icon: <UserPlus size={18} />,
 		},
 		{
-		  id: 4,
+			id: 4,
+			content: "Credentials",
+			path: "/credentials",
+			icon: <KeyRound size={18} />,
+		  },
+		{
+		  id: 5,
 		  content: "Add Problem",
 		  path: "/add-problem",
 		  icon: <Edit3 size={18} />,

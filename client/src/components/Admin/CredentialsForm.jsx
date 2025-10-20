@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { UserPlus, Eye, EyeOff } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { apiFetch } from "../../utils/fetch"
-import { toast } from "sonner"; 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "../../utils/fetch";
+import { toast } from "sonner";
 
 const CredentialsForm = () => {
   const [form, setForm] = useState({
@@ -11,10 +11,10 @@ const CredentialsForm = () => {
     password: "",
     confirmPassword: "",
   });
-
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
 
+  const queryClient = useQueryClient(); 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) =>
       apiFetch("/api/admin/auth/create/volunteer", {
@@ -25,6 +25,7 @@ const CredentialsForm = () => {
       toast.success("Volunteer created successfully!");
       setForm({ username: "", name: "", password: "", confirmPassword: "" });
       setErrors({});
+      queryClient.invalidateQueries(["volunteers"]);
     },
     onError: (err) => {
       toast.error(err.message || "Failed to create volunteer");
@@ -57,34 +58,23 @@ const CredentialsForm = () => {
           <UserPlus className="w-8 h-8" />
           <div>
             <h2 className="text-base font-bold text-gray-900">Add Volunteer</h2>
-            <p className="text-xs text-gray-600">
-              Create a new volunteer account
-            </p>
+            <p className="text-xs text-gray-600">Create a new volunteer account</p>
           </div>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
         {["username", "name", "password", "confirmPassword"].map((field) => {
-          const isPasswordField =
-            field === "password" || field === "confirmPassword";
+          const isPasswordField = field === "password" || field === "confirmPassword";
 
           return (
             <div key={field} className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                {field === "password" || field === "confirmPassword"
-                  ? "Password"
-                  : field}
+                {field === "confirmPassword" ? "Confirm Password" : field}
               </label>
 
               <input
-                type={
-                  isPasswordField
-                    ? showPassword
-                      ? "text"
-                      : "password"
-                    : "text"
-                }
+                type={isPasswordField ? (showPassword ? "text" : "password") : "text"}
                 name={field}
                 value={form[field]}
                 onChange={handleChange}
@@ -97,7 +87,7 @@ const CredentialsForm = () => {
                     ? "border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:ring-black"
                 } rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:border-transparent ${
-                  field === "password" ? "pr-10" : ""
+                  isPasswordField ? "pr-10" : ""
                 }`}
               />
 
@@ -105,19 +95,13 @@ const CredentialsForm = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-[38px] text-gray-500 hover:text-black"
+                  className="absolute right-3 top-10 text-gray-500 hover:text-black"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               )}
 
-              {errors[field] && (
-                <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
-              )}
+              {errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]}</p>}
             </div>
           );
         })}

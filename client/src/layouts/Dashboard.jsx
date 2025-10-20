@@ -1,6 +1,6 @@
 import { useEffect, useState, useContext, lazy } from "react";
-import { Navigate } from "react-router";
 import { AuthContext } from "../contexts/adminAuthContext";
+import CVDashBoard from "./CVDashboard"
 
 const VolunteerLayout = lazy(() => import("../layouts/VounteerLayout"));
 const ContestLayout = lazy(() => import("../layouts/ContestLayout"));
@@ -16,7 +16,7 @@ const DashboardRouter = () => {
   }, [admin]);
 
   if (role === "volunteer") return <VolunteerLayout />;
-  if (role === "coordinator") return <Navigate to="/admin/credentials" replace />;
+  if (role === "coordinator") return <CVDashBoard/>
   if (role === "admin") return <ContestLayout />;
 
   return <div>Unauthorized</div>;

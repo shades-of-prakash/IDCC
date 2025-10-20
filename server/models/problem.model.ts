@@ -10,8 +10,8 @@ const ProblemSchema = new mongoose.Schema(
     visibleTests: { type: Array, default: [] },
     returnType: { type: String, required: true },
     statement: { type: String, default: "" },
-    submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
-    contestId: { type: mongoose.Schema.Types.ObjectId, ref: "Contest" },
+    submittedBy: { type: String },
+    contestId: { type: String },
     status: {
       type: String,
       enum: ["pending", "finalized"],
