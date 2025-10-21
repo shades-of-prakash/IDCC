@@ -11,12 +11,13 @@ import { toast } from "sonner";
 
 const JsonEditor = ({ value, onChange, placeholder }) => {
   const [isEditorReady, setIsEditorReady] = useState(false);
-
   const handleEditorDidMount = (editor) => {
-    editor.getAction("editor.action.formatDocument").run().then(() => editor.focus());
+    editor
+      .getAction("editor.action.formatDocument")
+      .run()
+      .then(() => editor.focus());
     setIsEditorReady(true);
   };
-
   return (
     <div className="relative w-full border border-neutral-400 rounded-lg overflow-hidden h-full">
       {!isEditorReady && (
@@ -31,7 +32,9 @@ const JsonEditor = ({ value, onChange, placeholder }) => {
         language="json"
         theme="vs"
         fontSize={14}
-        value={typeof value === "string" ? value : JSON.stringify(value, null, 2)}
+        value={
+          typeof value === "string" ? value : JSON.stringify(value, null, 2)
+        }
         onMount={handleEditorDidMount}
         options={{
           minimap: { enabled: false },
@@ -62,8 +65,8 @@ const Problem = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { problem: editProblem } = location.state || {};
-
   const [selected, setSelected] = useState(null);
+  const [fullscreenTest, setFullscreenTest] = useState(null);
 
   const [problem, setProblem] = useState({
     name: "",
@@ -77,19 +80,16 @@ const Problem = () => {
   });
 
   useEffect(() => {
-    if (contests && contests.length > 0 && !selected) {
-      setSelected({ value: contests[0]._id, label: contests[0].name });
-    }
-  }, [contests, selected]);
-
-  useEffect(() => {
     if (editProblem) {
       setProblem({
         ...editProblem,
         visibleTests: JSON.stringify(editProblem.visibleTests || [], null, 2),
         hiddenTests: JSON.stringify(editProblem.hiddenTests || [], null, 2),
       });
-      setSelected({ value: editProblem.contestId, label: editProblem.contestName || "Contest" });
+      setSelected({
+        value: editProblem.contestId,
+        label: editProblem.contestName || "Contest",
+      });
     }
   }, [editProblem]);
 
@@ -102,7 +102,7 @@ const Problem = () => {
   const removeArgument = (idx) =>
     handleChange(
       "arguments",
-      problem.arguments.filter((_, i) => i !== idx)
+      problem.arguments.filter((_, i) => i !== idx),
     );
 
   const updateArgument = (idx, field, val) => {
@@ -111,9 +111,43 @@ const Problem = () => {
     handleChange("arguments", newArgs);
   };
 
-  const [fullscreenTest, setFullscreenTest] = useState(null);
-
   const handleSubmit = async () => {
+    if (!problem.name.trim()) {
+      toast.error("Problem Name is required!");
+      return;
+    }
+    if (!problem.points) {
+      toast.error("Points are required!");
+      return;
+    }
+    if (!problem.statement.trim()) {
+      toast.error("Problem Statement is required!");
+      return;
+    }
+    if (!problem.functionName.trim()) {
+      toast.error("Function Name is required!");
+      return;
+    }
+    if (!problem.returnType.trim()) {
+      toast.error("Return Type is required!");
+      return;
+    }
+    if (!selected) {
+      toast.error("Please select a contest!");
+      return;
+    }
+    // Check each argument
+    for (let i = 0; i < problem.arguments.length; i++) {
+      const arg = problem.arguments[i];
+      if (!arg.name.trim()) {
+        toast.error(`Argument ${i + 1} Name is required!`);
+        return;
+      }
+      if (!arg.type.trim()) {
+        toast.error(`Argument ${i + 1} Type is required!`);
+        return;
+      }
+    }
     let visibleTestsArr = [];
     let hiddenTestsArr = [];
 
@@ -141,22 +175,30 @@ const Problem = () => {
 
     try {
       if (editProblem?._id) {
-        // Update existing problem
-        await apiFetch(`/api/problem/${editProblem._id}`, {
+        await apiFetch(`/api/contest/admin/problem/update/${editProblem._id}`, {
           method: "PUT",
-          body: JSON.stringify(problemToSubmit),
+          body: problemToSubmit,
         });
-        toast.success("Problem updated successfully!");
-      } else {
-        // Create new problem
-        await apiFetch("/api/problem", {
-          method: "POST",
-          body: JSON.stringify(problemToSubmit),
-        });
-        toast.success("Problem created successfully!");
-      }
 
-      navigate("/admin/dashboard");
+        toast.success("Problem updated successfully!", {
+          action: {
+            label: "Go to Dashboard",
+            onClick: () => navigate("/admin"),
+          },
+        });
+      } else {
+        await apiFetch(`/api/contest/admin/problem/new`, {
+          method: "POST",
+          body: problemToSubmit,
+        });
+
+        toast.success("Problem created successfully!", {
+          action: {
+            label: "Dashboard",
+            onClick: () => navigate("/admin"),
+          },
+        });
+      }
     } catch (error) {
       console.error("Error submitting problem:", error);
       toast.error("Failed to submit problem");
@@ -201,8 +243,9 @@ const Problem = () => {
         </div>
       </div>
 
+      {/* Editor Layout */}
       <div className="w-full flex-1 flex">
-        {/* Left Side */}
+        {/* Left side (Statement) */}
         <div className="h-full w-[calc(100%-24rem)] p-2 flex flex-col gap-2">
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -237,10 +280,10 @@ const Problem = () => {
           />
         </div>
 
-        {/* Right Side */}
+        {/* Right side (function + tests) */}
         <div className="h-full w-[24rem] py-1 pr-1 pt-0">
           <div className="w-full h-full border-l border-gray-200 text-black p-2 flex flex-col gap-3 overflow-y-auto">
-            {/* Function Signature */}
+            {/* Function signature */}
             <div className="overflow-y-auto h-[194px] flex flex-col gap-3 p-2 rounded-lg border border-gray-200">
               <h3 className="font-semibold text-sm text-gray-700 flex items-center gap-1">
                 Function Signature
@@ -253,7 +296,9 @@ const Problem = () => {
                   <input
                     type="text"
                     value={problem.functionName}
-                    onChange={(e) => handleChange("functionName", e.target.value)}
+                    onChange={(e) =>
+                      handleChange("functionName", e.target.value)
+                    }
                     className="w-full px-3 py-2 rounded border border-gray-300 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                     placeholder="e.g., addNumbers"
                   />
@@ -289,14 +334,18 @@ const Problem = () => {
                       <input
                         type="text"
                         value={arg.type}
-                        onChange={(e) => updateArgument(idx, "type", e.target.value)}
+                        onChange={(e) =>
+                          updateArgument(idx, "type", e.target.value)
+                        }
                         className="w-1/2 px-2 py-1.5 rounded border border-gray-300 text-sm font-mono focus:border-blue-500 outline-none"
                         placeholder="Type (e.g., int)"
                       />
                       <input
                         type="text"
                         value={arg.name}
-                        onChange={(e) => updateArgument(idx, "name", e.target.value)}
+                        onChange={(e) =>
+                          updateArgument(idx, "name", e.target.value)
+                        }
                         className="w-1/2 px-2 py-1.5 rounded border border-gray-300 text-sm font-mono focus:border-blue-500 outline-none"
                         placeholder="Name (e.g., num)"
                       />
@@ -314,7 +363,7 @@ const Problem = () => {
               </div>
             </div>
 
-            {/* Test Cases */}
+            {/* Test cases */}
             <div className="flex-1 flex flex-col gap-1">
               {["visible", "hidden"].map((type) => (
                 <div key={type} className="h-1/2 flex flex-col gap-1">
@@ -354,9 +403,16 @@ const Problem = () => {
                   </div>
                   <div className="flex-1 w-full">
                     <JsonEditor
-                      value={type === "visible" ? problem.visibleTests : problem.hiddenTests}
+                      value={
+                        type === "visible"
+                          ? problem.visibleTests
+                          : problem.hiddenTests
+                      }
                       onChange={(val) =>
-                        handleChange(type === "visible" ? "visibleTests" : "hiddenTests", val)
+                        handleChange(
+                          type === "visible" ? "visibleTests" : "hiddenTests",
+                          val,
+                        )
                       }
                       placeholder=""
                     />
@@ -393,13 +449,10 @@ const Problem = () => {
               }
               onChange={(val) =>
                 handleChange(
-                  fullscreenTest === "visible"
-                    ? "visibleTests"
-                    : "hiddenTests",
-                  val
+                  fullscreenTest === "visible" ? "visibleTests" : "hiddenTests",
+                  val,
                 )
               }
-              placeholder=""
             />
           </div>
         </div>

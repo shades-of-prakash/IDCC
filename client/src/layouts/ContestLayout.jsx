@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react"; 
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import ContestNavbar from "../components/Admin/ContestNavbar";
 import ContestModal from "../components/Admin/ContestModal";
 import CreateUsers from "../components/Admin/CreateUsers";
 import { Ellipsis } from "lucide-react";
-import Loader from "../components/Loader"; 
+import Loader from "../components/Loader";
 
 const Contest = () => {
   const [showModal, setShowModal] = useState(false);
@@ -69,8 +69,6 @@ const Contest = () => {
           <Loader text="Loading Contests" className="w-full h-full" />
         )}
         <div className="bg-white rounded-lg shadow border border-gray-200 relative  flex flex-col">
-
-
           {isError && (
             <div className="text-center py-6 text-red-600">{error.message}</div>
           )}
@@ -107,7 +105,9 @@ const Contest = () => {
                     <td className="px-4 py-3 text-center">
                       {contest.durationMinutes}
                     </td>
-                    <td className="px-4 py-3 text-center">{contest.teamSize}</td>
+                    <td className="px-4 py-3 text-center">
+                      {contest.teamSize}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       {contest.bannerImage ? (
                         <img
@@ -153,7 +153,7 @@ const Contest = () => {
                           <ul className="py-1">
                             <li>
                               <Link
-                                to={`edit/${contest._id}`}
+                                to={`add/${contest._id}`}
                                 onClick={() => setOpenDropdown(null)}
                                 className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                               >
@@ -186,9 +186,13 @@ const Contest = () => {
             </table>
           )}
 
-          {!isLoading && !isError && (!data?.data || data.data.length === 0) && (
-            <div className="text-center py-6 text-gray-500">No contests found.</div>
-          )}
+          {!isLoading &&
+            !isError &&
+            (!data?.data || data.data.length === 0) && (
+              <div className="text-center py-6 text-gray-500">
+                No contests found.
+              </div>
+            )}
         </div>
       </div>
 
