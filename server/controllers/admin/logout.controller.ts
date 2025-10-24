@@ -3,8 +3,9 @@ import { getCookie, deleteCookie } from "hono/cookie";
 import { SuccessResponse, ErrorResponse } from "../../utils/response";
 
 export const logoutAdmin = async (c: Context) => {
+  const { cookieName }=await c.req.json();
   try {
-    const cookie = getCookie(c, "adminAuth");
+    const cookie = getCookie(c,cookieName);
 
     console.log(cookie,"cookie")
 
@@ -12,7 +13,7 @@ export const logoutAdmin = async (c: Context) => {
       return ErrorResponse(c, "No active session found", 400);
     }
 
-    deleteCookie(c, "adminAuth", {
+    deleteCookie(c, cookieName, {
       path: "/",
     });
 

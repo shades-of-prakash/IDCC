@@ -43,11 +43,11 @@ const UserRoutes = () => {
           <Route
             path=":id/playground"
             element={
-              <AuthGuard>
+              // <AuthGuard>
                 <Suspense fallback={<Loader />}>
                   <Playground />
                 </Suspense>
-              </AuthGuard>
+              // </AuthGuard>
             }
           />
           <Route path="*" element={<Logiq404 />} />

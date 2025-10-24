@@ -41,6 +41,7 @@ export const AuthProvider = ({ children }) => {
 	  mutationFn: () =>
 		apiFetch("/api/admin/auth/logout", {
 		  method: "POST",
+		  body: { cookieName: `${admin.role}Auth` },
 		}),
 	  onSuccess: async () => {
 		queryClient.setQueryData(["authAdmin"], null);

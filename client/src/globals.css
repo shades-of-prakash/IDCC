@@ -129,3 +129,13 @@ blockquote code {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+.preview ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  padding-left:1rem; 
+}
+
+.preview li {
+  margin-bottom: 0.5rem; 
+}

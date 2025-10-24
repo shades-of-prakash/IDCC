@@ -13,6 +13,7 @@ import NarutoNothingFound from "../../assets/naruto_empty.jpg";
 const EditVolunteerPopup = lazy(() => import("./EditVolunteer"));
 
 const CredentialsTable = () => {
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["volunteers"],
     queryFn: () => apiFetch("/api/admin/auth/get/volunteers"),
@@ -45,27 +46,34 @@ const CredentialsTable = () => {
         title="No Volunteers Found"
         description="There are no volunteers yet. Please use the form on the right to add one."
       />
-    );
+  );
 
   return (
     <>
       <table className="w-full border-collapse bg-white rounded-md border-b border-gray-200">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
           <tr>
-            {["Sno", "Username", "Name", "Role", "Created", "Actions"].map(
-              (h) => (
-                <th
-                  key={h}
-                  className={`px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider ${
-                    h === "Actions" ? "text-center" : "text-left"
-                  }`}
-                >
-                  {h}
-                </th>
-              ),
-            )}
+            <th className="p-1 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Sno
+            </th>
+            <th className="px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">
+              Username
+            </th>
+            <th className="px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">
+              Name
+            </th>
+            <th className="px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">
+              Role
+            </th>
+            <th className="px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider text-left">
+              Created
+            </th>
+            <th className="px-6 py-3.5 text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">
+              Actions
+            </th>
           </tr>
         </thead>
+
         <tbody>
           {users.map((user, index) => (
             <tr
@@ -74,7 +82,7 @@ const CredentialsTable = () => {
                 index + 1 !== users.length ? "border-b border-gray-200" : ""
               }`}
             >
-              <td className="px-6 py-3.5 text-sm text-gray-700">{index + 1}</td>
+              <td className="p-1 text-center text-sm text-gray-700">{index + 1}</td>
               <td className="px-6 py-3.5">
                 <div className="flex items-center gap-3">
                   <img

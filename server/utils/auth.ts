@@ -5,10 +5,25 @@ const COOKIE_SECRET =
   process.env.COOKIE_SECRET ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
 
+const  getCookie=async (c:Context,cookieName:string)=>{
+  return  await getSignedCookie(c, COOKIE_SECRET,cookieName);
+}
+
 export const getAuthUser = async (c: Context, next: Next) => {
   try {
-    const cookie = await getSignedCookie(c, COOKIE_SECRET, "adminAuth");
-    console.log(cookie,"dude")
+
+    const cookieNames=["adminAuth","coordinatorAuth","volunteerAuth"];
+
+    let cookie=null;
+
+    for (const cookieName of cookieNames) {
+      cookie = await getCookie(c, cookieName);
+      if (cookie) {
+        break;
+      }
+    }
+    
+
     if (!cookie) {
       return c.json({ success: false, message: "Unauthorized: No cookie found" }, 401);
     }

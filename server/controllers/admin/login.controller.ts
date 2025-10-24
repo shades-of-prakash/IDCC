@@ -27,7 +27,7 @@ export const loginAdmin = async (c: Context) => {
 
   await setSignedCookie(
     c,
-    "adminAuth",
+    userDoc.role==="admin" ? "adminAuth" :userDoc.role==="coordinator" ? "coordinatorAuth" : "volunteerAuth",
     JSON.stringify({ id: userDoc._id.toString(),username:userDoc.username, role: userDoc.role }),
     COOKIE_SECRET,
     {

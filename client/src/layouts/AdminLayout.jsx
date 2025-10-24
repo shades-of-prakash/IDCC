@@ -10,7 +10,7 @@ const AdminLayout = () => {
         <Navbar />
       </nav>
       <section className="flex w-full h-[calc(100%-4rem)] ">
-        <div className="w-48 ">
+        <div className="w-44 ">
           <SideMenu />
         </div>
         <div className="h-full w-[calc(100%-12rem)]">
