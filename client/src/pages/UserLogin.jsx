@@ -4,20 +4,16 @@ import UserLoginImage from "../assets/images/userloginimage.png";
 import CustomSelect from "../components/CustomSelect";
 import { useContests } from "../contexts/ContestContext";
 import { useUser } from "../contexts/UserContext";
+import { Plus, Trash } from "lucide-react";
 
 const UserLogin = () => {
   const [step, setStep] = useState(1);
-  const { login, setSession } = useUser();
-
-  const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
-    selectedContest: null,
-    teamSize: 1,
-    participant1Name: "",
-    participant1Reg: "",
-    participant2Name: "",
-    participant2Reg: "",
+    contestId: null,
+    participants: [
+      { name: "", regNo: "" },
+      { name: "", regNo: "" },
+    ],
     email: "",
     college: "",
     dept: "",
@@ -26,52 +22,66 @@ const UserLogin = () => {
     password: "",
   });
 
+  const { login, loginLoading } = useUser();
+  const navigate = useNavigate();
+
+  const {
+    data: contests = [],
+    isLoading,
+    isError,
+    setSelectedContest,
+  } = useContests();
+
   const [errors, setErrors] = useState({});
-  const [loginError, setLoginError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: contests = [], isLoading, isError } = useContests();
+  // --- Contest selection
+  const handleContestChange = (option) => {
+    setFormData((prev) => ({ ...prev, contestId: option }));
+    setSelectedContest(option);
+    setErrors((prev) => ({ ...prev, contestId: "" }));
+  };
 
+  // --- Generic input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
+    setErrors((prev) => ({ ...prev, [name]: "", form: "" }));
   };
 
-  const handleContestChange = (option) => {
-    const contest = contests.find((c) => c._id === option.value);
-    const teamSizeValue =
-      contest?.teamSize === "individual"
-        ? 1
-        : contest?.teamSize === "team"
-          ? 2
-          : Number(contest?.teamSize) || 1;
+  // --- Participant input change
+  const handleParticipantChange = (index, field, value) => {
+    const updated = [...formData.participants];
+    updated[index][field] = value;
+    setFormData((prev) => ({ ...prev, participants: updated }));
+    setErrors((prev) => ({ ...prev, [`participant${index}${field}`]: "" }));
+  };
 
+  // --- Add/Remove participants
+  const addParticipant = () => {
     setFormData((prev) => ({
       ...prev,
-      selectedContest: option,
-      teamSize: teamSizeValue,
+      participants: [...prev.participants, { name: "", regNo: "" }],
     }));
-    setErrors((prev) => ({ ...prev, selectedContest: "" }));
   };
 
+  const removeParticipant = () => {
+    setFormData((prev) => ({
+      ...prev,
+      participants: prev.participants.slice(0, -1),
+    }));
+  };
+
+  // --- Step 1 validation
   const handleStep1Submit = (e) => {
     e.preventDefault();
     const newErrors = {};
 
-    if (!formData.selectedContest)
-      newErrors.selectedContest = "Please select a contest";
-    if (!formData.participant1Name)
-      newErrors.participant1Name = "Participant 1 name is required";
-    if (!formData.participant1Reg)
-      newErrors.participant1Reg = "Participant 1 reg no is required";
+    if (!formData.contestId) newErrors.contestId = "Please select a contest";
 
-    if (formData.teamSize > 1) {
-      if (!formData.participant2Name)
-        newErrors.participant2Name = "Participant 2 name is required";
-      if (!formData.participant2Reg)
-        newErrors.participant2Reg = "Participant 2 reg no is required";
-    }
+    formData.participants.forEach((p, i) => {
+      if (!p.name) newErrors[`participant${i}name`] = "Name is required";
+      if (!p.regNo) newErrors[`participant${i}regNo`] = "Reg No is required";
+    });
 
     if (!formData.email) newErrors.email = "Email is required";
     if (!formData.college) newErrors.college = "College is required";
@@ -82,71 +92,35 @@ const UserLogin = () => {
     if (Object.keys(newErrors).length === 0) setStep(2);
   };
 
+  // --- Step 2 submit (login)
   const handleStep2Submit = async (e) => {
     e.preventDefault();
-    setLoginError("");
-    setIsSubmitting(true);
-
     const newErrors = {};
+
     if (!formData.username) newErrors.username = "Username is required";
     if (!formData.password) newErrors.password = "Password is required";
     setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      setIsSubmitting(false);
-      return;
-    }
+    if (Object.keys(newErrors).length > 0) return;
 
     try {
-      const participants = [
-        { name: formData.participant1Name, regNo: formData.participant1Reg },
-      ];
-
-      if (formData.teamSize > 1) {
-        participants.push({
-          name: formData.participant2Name,
-          regNo: formData.participant2Reg,
-        });
-      }
-
-      const sessionData = await login({
+      await login({
         username: formData.username,
         password: formData.password,
-        selectedContest: formData.selectedContest.value,
+        contestId: formData.contestId.value,
         email: formData.email,
         phone: formData.phone,
         college: formData.college,
         dept: formData.dept,
-        participants,
+        participants: formData.participants,
       });
 
-      if (!sessionData?.sessionId) {
-        setLoginError("Failed to retrieve session ID");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Save session before navigating
-      setSession(sessionData);
-      localStorage.setItem("session", JSON.stringify(sessionData));
-
-      // Navigate after slight delay
-      setTimeout(() => {
-        navigate(`/user/${sessionData.sessionId}/playground`);
-      }, 100);
+      navigate("/user/instructions");
     } catch (err) {
-      console.error(err);
-
-      // Capture server-side validation errors
-      if (err.response?.data?.errors) {
-        setErrors(err.response.data.errors);
-      } else if (err.response?.data?.message) {
-        setLoginError(err.response.data.message);
-      } else {
-        setLoginError("Login failed");
-      }
-    } finally {
-      setIsSubmitting(false);
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Invalid username or password";
+      setErrors((prev) => ({ ...prev, form: message }));
     }
   };
 
@@ -162,8 +136,7 @@ const UserLogin = () => {
       </div>
 
       {/* Right Form */}
-
-      <div className="w-full md:w-[70%] lg:w-[55%] xl:w-1/2  h-dvh flex items-center justify-center p-6 xl:p-10">
+      <div className="w-full md:w-[70%] lg:w-[55%] xl:w-1/2 h-dvh flex items-center justify-center p-6 xl:p-10">
         <div className="flex flex-col w-full max-w-lg xl:max-w-xl">
           {/* Header */}
           <div className="flex flex-col items-center gap-2 xl:gap-4 mb-4 xl:mb-6">
@@ -182,13 +155,13 @@ const UserLogin = () => {
             )}
           </div>
 
-          {/* Step 1 Form */}
+          {/* Step 1 */}
           {step === 1 && (
             <form
               onSubmit={handleStep1Submit}
               className="flex flex-col gap-3.5 xl:gap-5"
             >
-              {/* Contest select */}
+              {/* Contest Select */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm xl:text-base font-medium text-gray-700">
                   Select Contest
@@ -198,15 +171,15 @@ const UserLogin = () => {
                     label: c.name,
                     value: c._id,
                   }))}
-                  value={formData.selectedContest}
+                  value={formData.contestId}
                   onChange={handleContestChange}
                   placeholder="Select a contest"
                   disabled={isLoading || isError}
                   loading={isLoading}
                 />
-                {errors.selectedContest && (
+                {errors.contestId && (
                   <span className="text-red-500 text-xs mt-1">
-                    {errors.selectedContest}
+                    {errors.contestId}
                   </span>
                 )}
                 {isError && (
@@ -216,75 +189,74 @@ const UserLogin = () => {
                 )}
               </div>
 
-              {/* Participant 1 */}
-              <div className="flex flex-col gap-1">
-                <span className="text-base font-medium text-black">
-                  Participant 1
-                </span>
-                <div className="flex flex-col sm:flex-row gap-2.5">
-                  <input
-                    type="text"
-                    name="participant1Name"
-                    placeholder="Name"
-                    value={formData.participant1Name}
-                    onChange={handleChange}
-                    className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                      errors.participant1Name
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    name="participant1Reg"
-                    placeholder="Reg.no"
-                    value={formData.participant1Reg}
-                    onChange={handleChange}
-                    className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                      errors.participant1Reg
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {/* Participant 2 (if any) */}
-              {formData.teamSize > 1 && (
-                <div className="flex flex-col gap-1">
+              {/* Participants */}
+              {formData.participants.map((p, i) => (
+                <div key={i} className="flex flex-col gap-1">
                   <span className="text-base font-medium text-black">
-                    Participant 2
+                    Participant {i + 1}
                   </span>
-                  <div className="flex flex-col sm:flex-row gap-2.5">
-                    <input
-                      type="text"
-                      name="participant2Name"
-                      placeholder="Name"
-                      value={formData.participant2Name}
-                      onChange={handleChange}
-                      className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                        errors.participant2Name
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                    />
-                    <input
-                      type="text"
-                      name="participant2Reg"
-                      placeholder="Reg.no"
-                      value={formData.participant2Reg}
-                      onChange={handleChange}
-                      className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                        errors.participant2Reg
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                    />
+                  <div className="flex sm:flex-row gap-2.5">
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={p.name}
+                        onChange={(e) =>
+                          handleParticipantChange(i, "name", e.target.value)
+                        }
+                        className={`w-[230px] flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                          errors[`participant${i}name`]
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
+                      />
+                      <div className="flex flex-1 gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="Reg. No"
+                          value={p.regNo}
+                          onChange={(e) =>
+                            handleParticipantChange(i, "regNo", e.target.value)
+                          }
+                          className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                            errors[`participant${i}regNo`]
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          }`}
+                        />
+                        {formData.participants.length > 1 && i !== 0 && (
+                          <div
+                            onClick={removeParticipant}
+                            className="hover:bg-red-50 w-10 flex items-center justify-center border border-gray-300 rounded cursor-pointer"
+                          >
+                            <Trash size={16} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {(errors[`participant${i}name`] ||
+                    errors[`participant${i}regNo`]) && (
+                    <span className="text-red-500 text-xs mt-1">
+                      {errors[`participant${i}name`] ||
+                        errors[`participant${i}regNo`]}
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {/* Add Participant */}
+              {formData.participants.length < 2 && (
+                <div
+                  onClick={addParticipant}
+                  className="flex items-center justify-center rounded h-12 border border-gray-400/50 cursor-pointer hover:bg-gray-50 transition"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Add Participant
                 </div>
               )}
 
-              {/* Email */}
+              {/* Email, College, Dept, Phone */}
               <input
                 type="email"
                 name="email"
@@ -295,42 +267,60 @@ const UserLogin = () => {
                   errors.email ? "border-red-500" : "border-gray-300"
                 }`}
               />
+              {errors.email && (
+                <span className="text-red-500 text-xs">{errors.email}</span>
+              )}
 
-              {/* College & Dept */}
               <div className="flex flex-col sm:flex-row gap-2.5">
-                <input
-                  type="text"
-                  name="college"
-                  placeholder="College"
-                  value={formData.college}
-                  onChange={handleChange}
-                  className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                    errors.college ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
-                <input
-                  type="text"
-                  name="dept"
-                  placeholder="Dept"
-                  value={formData.dept}
-                  onChange={handleChange}
-                  className={`flex-1 px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                    errors.dept ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    name="college"
+                    placeholder="College"
+                    value={formData.college}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                      errors.college ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {errors.college && (
+                    <span className="text-red-500 text-xs">
+                      {errors.college}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    name="dept"
+                    placeholder="Dept"
+                    value={formData.dept}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                      errors.dept ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {errors.dept && (
+                    <span className="text-red-500 text-xs">{errors.dept}</span>
+                  )}
+                </div>
               </div>
 
-              {/* Phone */}
-              <input
-                type="tel"
-                name="phone"
-                placeholder="Phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                  errors.phone ? "border-red-500" : "border-gray-300"
-                }`}
-              />
+              <div className="flex flex-col">
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                    errors.phone ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+                {errors.phone && (
+                  <span className="text-red-500 text-xs">{errors.phone}</span>
+                )}
+              </div>
 
               {/* Continue */}
               <button
@@ -348,33 +338,53 @@ const UserLogin = () => {
               <span className="text-sm md:text-base text-center text-gray-600">
                 Enter credentials provided by your coordinator.
               </span>
-              {loginError && (
-                <span className="text-red-500 text-xs text-center">
-                  {loginError}
-                </span>
-              )}
-              <input
-                type="text"
-                name="username"
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleChange}
-                className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                  errors.username ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                }`}
-              />
 
-              {/* Buttons */}
+              {errors.form && (
+                <div className="text-center text-red-500 text-sm font-medium">
+                  {errors.form}
+                </div>
+              )}
+
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="username"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                    errors.username || errors.form
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                />
+                {errors.username && (
+                  <span className="text-red-500 text-xs mt-1">
+                    {errors.username}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col">
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`px-3 py-2.5 text-sm md:text-[15px] border rounded-md ${
+                    errors.password || errors.form
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  }`}
+                />
+                {errors.password && (
+                  <span className="text-red-500 text-xs mt-1">
+                    {errors.password}
+                  </span>
+                )}
+              </div>
+
               <div className="flex gap-2 mt-2">
                 <button
                   type="button"
@@ -385,17 +395,17 @@ const UserLogin = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={loginLoading}
                   className={`w-1/2 py-2.5 text-sm md:text-base text-white rounded-md flex items-center justify-center gap-2 ${
-                    isSubmitting
+                    loginLoading
                       ? "bg-gray-500 cursor-not-allowed"
                       : "bg-black hover:bg-gray-900"
                   } transition-all`}
                 >
-                  {isSubmitting && (
+                  {loginLoading && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  <span>{isSubmitting ? "Submitting" : "Submit"}</span>
+                  <span>{loginLoading ? "Submitting" : "Submit"}</span>
                 </button>
               </div>
             </form>

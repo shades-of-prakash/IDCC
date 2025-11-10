@@ -39,13 +39,13 @@ const ProblemList = ({ isOpen, toggle, problems, active, setActive }) => {
               }}
               className={`flex items-center justify-between gap-1 p-2 rounded cursor-pointer transition ${
                 active === i
-                  ? "bg-blue-100 border border-blue-400"
+                  ? "bg-blue-50 border border-blue-300"
                   : "hover:bg-neutral-100"
               }`}
             >
               <div className="flex items-center gap-1">
                 <span>{i + 1}.</span>
-                <span>{problem.slug}</span>
+                <span>{problem.name}</span>
               </div>
               <div className="flex gap-1 text-sm text-gray-600">
                 <span>{problem.points}</span>

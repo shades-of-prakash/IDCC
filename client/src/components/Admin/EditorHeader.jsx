@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router";
 import {
   Bold,
   Italic,
@@ -12,6 +11,8 @@ import {
   Superscript,
   Subscript,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useContestId } from "../../contexts/selectedContest";
 
 const IconButton = ({ Icon, onClick, active, title }) => (
   <div
@@ -28,24 +29,11 @@ const IconButton = ({ Icon, onClick, active, title }) => (
 const Divider = () => <div className="w-px h-6 bg-neutral-800/30" />;
 
 const EditorHeader = ({ editor }) => {
-  const { id } = useParams();
-  if (!editor) return null;
-
-  const [activeMarks, setActiveMarks] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    code: false,
-    bulletList: false,
-    orderedList: false,
-    blockquote: false,
-    superscript: false,
-    subscript: false,
-  });
+  const contestId = useContestId();
+  const [activeMarks, setActiveMarks] = useState({});
 
   useEffect(() => {
     if (!editor) return;
-
     const updateMarks = () => {
       setActiveMarks({
         bold: editor.isActive("bold"),
@@ -63,7 +51,6 @@ const EditorHeader = ({ editor }) => {
     editor.on("update", updateMarks);
     editor.on("selectionUpdate", updateMarks);
     editor.on("transaction", updateMarks);
-
     updateMarks();
 
     return () => {
@@ -72,6 +59,55 @@ const EditorHeader = ({ editor }) => {
       editor.off("transaction", updateMarks);
     };
   }, [editor]);
+
+  const handleImageUpload = async (editor) => {
+    if (!contestId) {
+      toast.error("Please select a contest before uploading an image!");
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("contestId", contestId);
+
+        const res = await fetch("/api/contest/images/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.success)
+          throw new Error(json.message || "Upload failed");
+
+        const imageUrl = json.data.imageUrl;
+        editor
+          .chain()
+          .focus()
+          .setImage({
+            src: imageUrl,
+            height: 200,
+            width: 200,
+          })
+          .run();
+
+        toast.success("Image uploaded successfully!");
+      } catch (err) {
+        console.error("Image upload failed:", err);
+        toast.error("Image upload failed. Please try again.");
+      }
+    };
+
+    input.click();
+  };
 
   const TOOLBAR_GROUPS = [
     {
@@ -101,7 +137,6 @@ const EditorHeader = ({ editor }) => {
           command: (e) => e.chain().focus().toggleCode().run(),
           title: "Code",
         },
-        
         {
           Icon: Superscript,
           isActive: () => activeMarks.superscript,
@@ -150,42 +185,7 @@ const EditorHeader = ({ editor }) => {
         {
           Icon: Image,
           isActive: () => false,
-          command: async (editor) => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-
-            input.onchange = async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-
-              try {
-                const formData = new FormData();
-                formData.append("file", file);
-                formData.append("contestId", id);
-
-                const res = await fetch("/api/contest/images/upload", {
-                  method: "POST",
-                  body: formData,
-                });
-
-                const json = await res.json();
-                if (!res.ok || !json.success)
-                  throw new Error(json.message || "Upload failed");
-
-                const imageUrl = json.data.imageUrl;
-                editor
-                  .chain()
-                  .focus()
-                  .setImage({ src: imageUrl, width: 400, height: 300 })
-                  .run();
-              } catch (err) {
-                console.error("Image upload failed:", err);
-                alert("Image upload failed. Please try again.");
-              }
-            };
-            input.click();
-          },
+          command: handleImageUpload,
           title: "Insert Image",
         },
       ],

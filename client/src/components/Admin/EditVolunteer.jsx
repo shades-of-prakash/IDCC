@@ -1,27 +1,33 @@
-import { Eye, EyeOff, Info } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Eye, EyeOff, Info, ChevronDown, Check } from "lucide-react";
+import React, { useState, useEffect, useContext } from "react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../utils/fetch";
+import CustomSelect from "../CustomSelect";
+import { AuthContext } from "../../contexts/adminAuthContext";
 
 const EditPopup = ({ isOpen, onClose, user }) => {
   const queryClient = useQueryClient();
+  const { admin } = useContext(AuthContext);
 
   const [form, setForm] = useState({
     name: user?.name || "",
     username: user?.username || "",
+    role: user?.role || "",
     password: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
-  const [errors, setErrors] = useState(""); // For inline errors
+  const [errors, setErrors] = useState("");
 
   useEffect(() => {
     if (user) {
       setForm({
         name: user.name || "",
         username: user.username || "",
+        role: user.role || "",
         password: "",
         confirmPassword: "",
       });
@@ -30,64 +36,72 @@ const EditPopup = ({ isOpen, onClose, user }) => {
     }
   }, [user]);
 
-  const updateVolunteerMutation = useMutation({
+  const roleOptions =
+    admin?.role === "admin"
+      ? [
+          { label: "Volunteer", value: "volunteer" },
+          { label: "Coordinator", value: "coordinator" },
+        ]
+      : [];
+
+  const getUrl = () => {
+    if (admin?.role === "admin") return "/api/admin/auth/update/uvorc";
+    return "/api/admin/auth/update/volunteer";
+  };
+
+  const updateMutation = useMutation({
     mutationFn: (payload) =>
-      apiFetch("/api/admin/auth/update/volunteer", {
+      apiFetch(getUrl(), {
         method: "PUT",
         body: payload,
       }),
     onSuccess: () => {
-      toast.success("Volunteer updated successfully");
+      toast.success(`${user.role} updated successfully`);
       queryClient.invalidateQueries(["volunteers"]);
+      queryClient.invalidateQueries(["vorc"]);
       onClose();
     },
     onError: (error) => {
-      setErrors(error.message || "Failed to update volunteer"); 
+      setErrors(error.message || "Failed to update user");
     },
   });
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = () => {
-    setErrors(""); 
-
-    
-  if (changePassword) {
-    if (form.password.length < 6) {
-      setErrors("Password must be at least 6 characters");
-      return;
+    setErrors("");
+    if (changePassword) {
+      if (form.password.length < 6) {
+        setErrors("Password must be at least 6 characters");
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setErrors("Passwords do not match");
+        return;
+      }
     }
-
-    if (form.password !== form.confirmPassword) {
-      setErrors("Passwords do not match");
-      return;
-    }
-  }
-
 
     const payload = {
       username: form.username,
       name: form.name,
+      ...(admin?.role === "admin" && form.role && { role: form.role }), // only admin can change roles
+      ...(changePassword &&
+        form.password && {
+          password: form.password,
+          confirmPassword: form.confirmPassword,
+        }),
     };
 
-    if (changePassword && form.password) {
-      payload.password = form.password;
-      payload.confirmPassword = form.confirmPassword;
-    }
-
-    updateVolunteerMutation.mutate(payload);
+    updateMutation.mutate(payload);
   };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Edit User</h2>
-
-      
+        <h2 className="text-lg font-semibold mb-4">Edit {user.role}</h2>
 
         <div className="space-y-4">
           <div>
@@ -118,9 +132,20 @@ const EditPopup = ({ isOpen, onClose, user }) => {
             />
           </div>
 
+          {admin?.role === "admin" && (
+            <CustomSelect
+              label="Role"
+              options={roleOptions}
+              value={form.role ? { label: form.role, value: form.role } : null}
+              onChange={(option) => setForm({ ...form, role: option.value })}
+            />
+          )}
+
           <div className="flex items-center gap-2 text-xs text-gray-500 my-4">
             <Info className="w-4 h-4 text-gray-400" />
-            <span>Click “Change Password” if you want to update the password.</span>
+            <span>
+              Click “Change Password” if you want to update the password.
+            </span>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -137,7 +162,9 @@ const EditPopup = ({ isOpen, onClose, user }) => {
                 {changePassword && (
                   <span
                     className={`w-4 h-4 flex items-center justify-center rounded-full text-[10px] text-white transition-all duration-200 ${
-                      changePassword ? "bg-blue-500 scale-100 opacity-100" : "scale-0 opacity-0"
+                      changePassword
+                        ? "bg-blue-500 scale-100 opacity-100"
+                        : "scale-0 opacity-0"
                     }`}
                   >
                     ✓
@@ -165,7 +192,11 @@ const EditPopup = ({ isOpen, onClose, user }) => {
                     className="absolute right-3 top-9 cursor-pointer text-gray-500"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </div>
                 </div>
 
@@ -193,7 +224,6 @@ const EditPopup = ({ isOpen, onClose, user }) => {
           </div>
         )}
 
-
         <div className="flex justify-end gap-2 mt-6">
           <button
             onClick={onClose}
@@ -204,13 +234,11 @@ const EditPopup = ({ isOpen, onClose, user }) => {
           <button
             onClick={handleSubmit}
             className="px-6 py-1.5 text-sm bg-black/90 text-white rounded-md hover:bg-black"
-            disabled={updateVolunteerMutation.isLoading}
+            disabled={updateMutation.isLoading}
           >
-            {updateVolunteerMutation.isLoading ? "Saving..." : "Save"}
+            {updateMutation.isLoading ? "Saving..." : "Save"}
           </button>
         </div>
-
-    
       </div>
     </div>
   );

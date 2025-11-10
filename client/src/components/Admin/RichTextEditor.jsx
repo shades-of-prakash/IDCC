@@ -3,21 +3,16 @@ import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
-
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Blockquote from "@tiptap/extension-blockquote";
-import CodeBlock from "@tiptap/extension-code-block";
-import Code from "@tiptap/extension-code";
-
+import { ContestProvider } from "../../contexts/selectedContest";
 import Editor from "./Editor";
 
-const RichTextEditor = ({ value, onChange }) => {
+const RichTextEditor = ({ value, onChange, contestId }) => {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        blockquote: false,
-      }),
+      StarterKit.configure({ blockquote: false }),
       Image,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Superscript,
@@ -25,7 +20,7 @@ const RichTextEditor = ({ value, onChange }) => {
       Blockquote.configure({
         HTMLAttributes: {
           class:
-            "border-l-4 border-primary/70 bg-muted/40 px-4 py-2 my-2  text-muted-foreground",
+            "border-l-4 border-primary/70 bg-muted/40 px-4 py-2 my-2 text-muted-foreground",
         },
       }),
     ],
@@ -46,9 +41,11 @@ const RichTextEditor = ({ value, onChange }) => {
   }, [value, editor]);
 
   return (
-    <div className="flex bg-neutral-200/60 h-full w-full bg-white rounded">
-      <Editor editor={editor} />
-    </div>
+    <ContestProvider contestId={contestId}>
+      <div className="flex bg-neutral-200/60 h-full w-full bg-white rounded">
+        <Editor editor={editor} />
+      </div>
+    </ContestProvider>
   );
 };
 

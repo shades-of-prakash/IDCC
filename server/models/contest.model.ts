@@ -8,6 +8,7 @@ const ContestSchema = new mongoose.Schema(
     durationMinutes: { type: Number, required: true },
     teamSize: { type: String, enum: ["Individual", "Team"], required: true },
     bannerImage: { type: String },
+
     questions: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -15,7 +16,7 @@ const ContestSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Contest = mongoose.model("Contest", ContestSchema);

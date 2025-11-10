@@ -6,7 +6,19 @@ import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 const hashPassword = (password: string) =>
   createHash("sha256").update(password).digest("hex");
 
-const generatePassword = () => randomBytes(6).toString("base64url");
+export const generatePassword = (length = 10) => {
+  const charset =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+
+  const randomBuffer = randomBytes(length);
+
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset[randomBuffer[i] % charset.length];
+  }
+
+  return password;
+};
 
 export const createUsers = async (c: Context) => {
   try {
@@ -23,9 +35,7 @@ export const createUsers = async (c: Context) => {
       contestName?.slice(0, 3).toUpperCase() ||
       contestId.slice(-3).toUpperCase();
 
-    const lastUser = await User.findOne({ contestId })
-      .sort({ _id: -1 })
-      .lean();
+    const lastUser = await User.findOne({ contestId }).sort({ _id: -1 }).lean();
 
     let lastIndex = 0;
 

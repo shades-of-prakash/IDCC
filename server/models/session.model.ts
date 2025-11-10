@@ -2,12 +2,19 @@ import mongoose from "mongoose";
 
 const sessionSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    contestId: { type: mongoose.Schema.Types.ObjectId, ref: "Contest", required: true },
-    token: { type: String, required: true }, 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    contestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest",
+      required: true,
+    },
     sessionStart: { type: Date, default: Date.now },
-    elapsedTime: { type: Number, default: 0 }, 
-    lastActive: { type: Date, default: Date.now }, 
+    elapsedTime: { type: Number, default: 0 },
+    lastActive: { type: Date, default: Date.now },
     email: String,
     phone: String,
     college: String,
@@ -15,7 +22,7 @@ const sessionSchema = new mongoose.Schema(
     participants: Array,
     contestDetails: Object,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Session = mongoose.model("Session", sessionSchema);

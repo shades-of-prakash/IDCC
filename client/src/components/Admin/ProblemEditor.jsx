@@ -66,6 +66,7 @@ const Problem = () => {
   const location = useLocation();
   const { problem: editProblem } = location.state || {};
   const [selected, setSelected] = useState(null);
+
   const [fullscreenTest, setFullscreenTest] = useState(null);
 
   const [problem, setProblem] = useState({
@@ -78,6 +79,20 @@ const Problem = () => {
     returnType: "",
     arguments: [{ name: "", type: "" }],
   });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue =
+        "Are you sure you want to leave? Changes may not be saved.";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   useEffect(() => {
     if (editProblem) {
@@ -243,11 +258,9 @@ const Problem = () => {
         </div>
       </div>
 
-      {/* Editor Layout */}
-      <div className="w-full flex-1 flex">
-        {/* Left side (Statement) */}
-        <div className="h-full w-[calc(100%-24rem)] p-2 flex flex-col gap-2">
-          <div className="flex gap-2">
+      <div className="w-full h-[calc(100%-4rem)] flex">
+        <div className="h-full w-[calc(100%-24rem)] flex flex-col">
+          <div className="h-14  flex items-center px-2 py-1 gap-2">
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -274,10 +287,13 @@ const Problem = () => {
               </label>
             </div>
           </div>
-          <RichTextEditor
-            value={problem.statement}
-            onChange={(val) => handleChange("statement", val)}
-          />
+          <div className="h-[calc(100%-3.5rem)] px-2 pb-2">
+            <RichTextEditor
+              value={problem.statement}
+              contestId={selected?.value ?? ""}
+              onChange={(val) => handleChange("statement", val)}
+            />
+          </div>
         </div>
 
         {/* Right side (function + tests) */}

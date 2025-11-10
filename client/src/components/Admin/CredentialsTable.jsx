@@ -1,23 +1,30 @@
-import React, { Suspense, useState, lazy } from "react";
+import React, { Suspense, useState, lazy, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createAvatar } from "@dicebear/core";
 import { botttsNeutral } from "@dicebear/collection";
-import { Trash2, SquarePen, Users } from "lucide-react";
+import { Trash2, SquarePen } from "lucide-react";
 import { apiFetch } from "../../utils/fetch";
 import Loader from "../Loader";
 import DeleteVolunteerPopUp from "./DeleteVolunteer";
 import InfoCard from "../InfoCard";
 import NarutoNothingFound from "../../assets/naruto_empty.jpg";
+import { AuthContext } from "../../contexts/adminAuthContext";
 
 const EditVolunteerPopup = lazy(() => import("./EditVolunteer"));
 
 const CredentialsTable = () => {
+  const { admin } = useContext(AuthContext);
 
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["volunteers"],
-    queryFn: () => apiFetch("/api/admin/auth/get/volunteers"),
-    onError: (err) => toast.error(err.message || "Failed to fetch volunteers"),
+    queryKey: [admin?.role === "admin" ? "vorc" : "volunteers"],
+    queryFn: () =>
+      apiFetch(
+        admin?.role === "admin"
+          ? "/api/admin/auth/get/vorc"
+          : "/api/admin/auth/get/volunteers",
+      ),
+    onError: (err) => toast.error(err.message || "Failed to fetch users"),
   });
 
   const [selectedUser, setSelectedUser] = useState(null);
@@ -37,21 +44,21 @@ const CredentialsTable = () => {
     setIsDeletePopupOpen(true);
   };
 
-  if (isLoading) return <Loader text="Loading Volunteers" className="h-full" />;
+  if (isLoading) return <Loader text="Loading Users" className="h-full" />;
 
   if (!users.length)
     return (
       <InfoCard
         imgUrl={NarutoNothingFound}
-        title="No Volunteers Found"
-        description="There are no volunteers yet. Please use the form on the right to add one."
+        title="No Users Found"
+        description="There are no users yet. Please use the form on the right to add one."
       />
-  );
+    );
 
   return (
     <>
       <table className="w-full border-collapse bg-white rounded-md border-b border-gray-200">
-      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
           <tr>
             <th className="p-1 text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Sno
@@ -82,7 +89,9 @@ const CredentialsTable = () => {
                 index + 1 !== users.length ? "border-b border-gray-200" : ""
               }`}
             >
-              <td className="p-1 text-center text-sm text-gray-700">{index + 1}</td>
+              <td className="p-1 text-center text-sm text-gray-700">
+                {index + 1}
+              </td>
               <td className="px-6 py-3.5">
                 <div className="flex items-center gap-3">
                   <img
@@ -97,10 +106,17 @@ const CredentialsTable = () => {
                 {user.name || "—"}
               </td>
               <td className="px-6 py-3.5 text-sm font-medium">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    user.role === "coordinator"
+                      ? "bg-violet-100 text-violet-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
                   {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                 </span>
               </td>
+
               <td className="px-6 py-3.5 text-sm text-gray-600">
                 {user.createdAt
                   ? new Date(user.createdAt).toLocaleDateString("en-GB")

@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 const ContestContext = createContext();
@@ -7,10 +7,12 @@ const fetchContests = async () => {
   const res = await fetch("/api/contest/list/without-questions");
   if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
   const result = await res.json();
-  return result.data; 
+  return result.data;
 };
 
 export const ContestProvider = ({ children }) => {
+  const [selectedContest, setSelectedContest] = useState(null);
+
   const query = useQuery({
     queryKey: ["contests-without-questions"],
     queryFn: fetchContests,
@@ -18,7 +20,13 @@ export const ContestProvider = ({ children }) => {
   });
 
   return (
-    <ContestContext.Provider value={query}>
+    <ContestContext.Provider
+      value={{
+        ...query,
+        selectedContest,
+        setSelectedContest,
+      }}
+    >
       {children}
     </ContestContext.Provider>
   );

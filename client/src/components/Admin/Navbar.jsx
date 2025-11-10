@@ -17,21 +17,19 @@ const Navbar = () => {
 
   const getAvatar = (username) =>
     createAvatar(botttsNeutral, { seed: username }).toDataUri();
- 
+
   const handleLogout = async () => {
-	try {
-	  setIsPending(true);
-	  await logout();
-	  toast.success("Logout successful");
-	  navigate("/admin/login", { replace: true });
-	} catch (error) {
-	  toast.error(error.message || "Logout failed");
-	} finally {
-	  setIsPending(false);
-	}
+    try {
+      setIsPending(true);
+      await logout();
+      navigate("/admin/login", { replace: true });
+    } catch (error) {
+      toast.error(error.message || "Logout failed");
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -66,7 +64,8 @@ const Navbar = () => {
             />
             <span className="font-medium text-base">
               {admin?.username
-                ? admin.username.charAt(0).toUpperCase() + admin.username.slice(1)
+                ? admin.username.charAt(0).toUpperCase() +
+                  admin.username.slice(1)
                 : "Guest"}
             </span>
             <ChevronDown

@@ -5,31 +5,77 @@ import { shikiToMonaco } from "@shikijs/monaco";
 import { createHighlighterCoreSync } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
-// Static imports for pre-bundling (direct subpath exports, no /dist or /index.js)
 import githubLight from "@shikijs/themes/github-light";
+import githubDarkDefault from "@shikijs/themes/github-dark-default";
+import vitesseLight from "@shikijs/themes/vitesse-light";
+import materialThemeDarker from "@shikijs/themes/material-theme-darker";
+import slackOchin from "@shikijs/themes/slack-ochin";
+import catppuccinLatte from "@shikijs/themes/catppuccin-latte";
+import slackDark from "@shikijs/themes/slack-dark";
+import tokyoNight from "@shikijs/themes/tokyo-night";
+
 import javascript from "@shikijs/langs/javascript";
 import python from "@shikijs/langs/python";
 import cpp from "@shikijs/langs/cpp";
 import java from "@shikijs/langs/java";
 
-const ActualPlayground = () => {
-  const [lang, setLang] = useState("Javascript");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+const ActualPlayground = ({ problem, editorRef, onLangChange }) => {
+  const [lang, setLang] = useState("C");
+  const [theme, setTheme] = useState("github-light");
+  const [dropdownOpen, setDropdownOpen] = useState(null);
   const [highlighter, setHighlighter] = useState(null);
 
-  const languages = ["Javascript", "Python", "C++", "Java"];
+  const languages = ["C", "Python", "C++", "Java"];
   const langMap = {
-    "Javascript": "javascript",
-    "Python": "python",
+    C: "c",
+    Python: "python",
     "C++": "cpp",
-    "Java": "java",
+    Java: "java",
   };
+
+  useEffect(() => {
+    if (onLangChange) onLangChange(lang);
+  }, [lang, onLangChange]);
+
   const langIds = Object.values(langMap);
+
+  const lightThemes = [
+    "github-light",
+    "catppuccin-latte",
+    "vitesse-light",
+    "slack-ochin",
+  ];
+  const darkThemes = [
+    "slack-dark",
+    "tokyo-night",
+    "github-dark-default",
+    "material-theme-darker",
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".dropdown-container")) {
+        setDropdownOpen(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     try {
       const h = createHighlighterCoreSync({
-        themes: [githubLight],
+        themes: [
+          githubLight,
+          githubDarkDefault,
+          vitesseLight,
+          materialThemeDarker,
+          slackOchin,
+          catppuccinLatte,
+          tokyoNight,
+          slackDark,
+        ],
         langs: [javascript, python, cpp, java],
         engine: createJavaScriptRegexEngine(),
       });
@@ -41,14 +87,12 @@ const ActualPlayground = () => {
 
   const getSampleCode = (selectedLang) => {
     switch (selectedLang) {
-      case "Javascript":
-        return `// Sample JavaScript code
-function greet(name) {
-  console.log("Hello, " + name + "!");
-}
-
-const names = ["Alice", "Bob", "Charlie"];
-names.forEach(greet);`;
+      case "C":
+        return `// Sample C code
+#include<stdio.h>
+int main(){
+  return printf("%d",name);
+}`;
       case "Python":
         return `# Sample Python code
 def greet(name):
@@ -95,18 +139,20 @@ public class HelloWorld {
     }
   };
 
-  const handleSelect = (selected) => {
-    setLang(selected);
-    setDropdownOpen(false);
+  const handleSelect = (type, value) => {
+    if (type === "lang") setLang(value);
+    else setTheme(value);
+    setDropdownOpen(null);
   };
 
   const handleEditorBeforeMount = (monaco) => {
-    console.log("[DEBUG] Monaco before mount");
     if (!highlighter) return;
-
     langIds.forEach((id) => monaco.languages.register({ id }));
     shikiToMonaco(highlighter, monaco);
-    console.log("[DEBUG] Shiki themes registered synchronously");
+  };
+
+  const handleEditorMount = (editor) => {
+    editorRef.current = editor;
   };
 
   if (!highlighter) {
@@ -118,8 +164,9 @@ public class HelloWorld {
   }
 
   return (
-    <div className=" select-none h-full w-full border border-neutral-300 rounded-lg flex flex-col overflow-hidden">
-<div className="w-full h-10 flex items-center justify-between border-b border-neutral-200 p-2 bg-white sticky top-0 z-20">
+    <div className="select-none h-full w-full border border-neutral-300 rounded-lg flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="w-full h-[45px] flex items-center justify-between border-b border-neutral-200 p-2 bg-white sticky top-0 z-20">
         <div className="h-full items-center flex gap-2">
           <div className="flex text-green-600">
             <CodeXml size={18} />
@@ -127,39 +174,118 @@ public class HelloWorld {
           <span>Code</span>
         </div>
 
-        <div className="relative">
-          <div
-            onClick={() => setDropdownOpen((prev) => !prev)}
-            className="flex gap-1 items-center p-1 hover:bg-neutral-200/60 rounded cursor-pointer"
-          >
-            <span className="text-sm">{lang}</span>
-            <ChevronDown size={16} />
+        <div className="flex gap-3 items-center">
+          {/* Theme Dropdown */}
+
+          <div className="flex gap-1.5 items-center dropdown-container">
+            <span className="text-sm text-gray-600">Theme:</span>
+            <div className="relative  border border-neutral-300 rounded-md">
+              <div
+                onClick={() =>
+                  setDropdownOpen((prev) => (prev === "theme" ? null : "theme"))
+                }
+                className="flex px-2 gap-1 items-center py-1 hover:bg-neutral-200/60 rounded cursor-pointer"
+              >
+                <span className="text-sm capitalize">
+                  {theme.replace(/-/g, " ")}
+                </span>
+                <ChevronDown size={16} />
+              </div>
+
+              {dropdownOpen === "theme" && (
+                <div className="absolute right-0 mt-1 w-56 bg-white border border-neutral-300 rounded shadow-lg z-10 overflow-hidden">
+                  {/* Light section */}
+                  <div className="">
+                    <div className="border-b border-neutral-200 p-2 px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50">
+                      Light Themes
+                    </div>
+                    <div className="py-0.5">
+                      {lightThemes.map((t) => (
+                        <div
+                          key={t}
+                          onClick={() => handleSelect("theme", t)}
+                          className="px-3 text-base py-1 hover:bg-neutral-200/60 cursor-pointer flex justify-between items-center"
+                        >
+                          <span className="capitalize">
+                            {t.replace(/-/g, " ")}
+                          </span>
+                          {theme === t && (
+                            <Check size={16} className="text-green-600" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dark section */}
+                  <div>
+                    <div className="p-2  px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50 border-y border-neutral-200">
+                      Dark Themes
+                    </div>
+                    <div className="py-0.5">
+                      {darkThemes.map((t) => (
+                        <div
+                          key={t}
+                          onClick={() => handleSelect("theme", t)}
+                          className="px-3 text-base py-1 hover:bg-neutral-200/60 cursor-pointer flex justify-between items-center"
+                        >
+                          <span className="capitalize">
+                            {t.replace(/-/g, " ")}
+                          </span>
+                          {theme === t && (
+                            <Check size={16} className="text-green-600" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {dropdownOpen && (
-            <div className="absolute right-0 mt-1 w-36 bg-white border border-neutral-300 rounded shadow-lg z-10">
-              {languages.map((l) => (
-                <div
-                  key={l}
-                  onClick={() => handleSelect(l)}
-                  className="px-4 py-1 hover:bg-neutral-200/60 cursor-pointer flex justify-between items-center"
-                >
-                  <span>{l}</span>
-                  {lang === l && <Check size={16} className="text-green-600" />}
-                </div>
-              ))}
+          {/* Language Dropdown */}
+
+          <div className="dropdown-container relative border border-neutral-300 rounded-md ">
+            <div
+              onClick={() =>
+                setDropdownOpen((prev) => (prev === "lang" ? null : "lang"))
+              }
+              className="flex gap-1 items-center px-2 py-1 hover:bg-neutral-200/60 rounded cursor-pointer"
+            >
+              <span className="text-sm">{lang}</span>
+              <ChevronDown size={16} />
             </div>
-          )}
+
+            {dropdownOpen === "lang" && (
+              <div className="absolute right-0 mt-1 w-36 bg-white border border-neutral-300 rounded shadow-lg z-10">
+                {languages.map((l) => (
+                  <div
+                    key={l}
+                    onClick={() => handleSelect("lang", l)}
+                    className="px-4 py-1 hover:bg-neutral-200/60 cursor-pointer flex justify-between items-center"
+                  >
+                    <span>{l}</span>
+                    {lang === l && (
+                      <Check size={16} className="text-green-600" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className=" flex-1 flex items-center justify-center bg-neutral-50  overflow-auto">
+      {/* Editor */}
+      <div className="flex-1 flex items-center justify-center bg-neutral-50 overflow-auto">
         <Editor
           height="100%"
           value={getSampleCode(lang)}
           language={langMap[lang]}
           beforeMount={handleEditorBeforeMount}
-          theme="github-light"
+          onMount={handleEditorMount}
+          theme={theme}
           options={{
             minimap: { enabled: false },
             scrollBeyondLastLine: false,

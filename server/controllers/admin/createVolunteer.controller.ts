@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { Admin } from "../../models/admin.model";
 import { SuccessResponse, ErrorResponse } from "../../utils/response";
-import { hashPassword } from "../../utils/hash"; 
+import { hashPassword } from "../../utils/hash";
 
 export const createVolunteer = async (c: Context) => {
   try {

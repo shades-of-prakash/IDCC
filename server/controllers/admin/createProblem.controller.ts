@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Problem from "../../models/problem.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 import { Context } from "hono";
@@ -39,7 +40,6 @@ export const upsertProblem = async (c: Context) => {
       return ErrorResponse(c, "visibleTests must be an array", 400);
     }
 
-    // ✅ Common problem object
     const problemData = {
       name,
       points: Number(points),
@@ -49,8 +49,9 @@ export const upsertProblem = async (c: Context) => {
       statement: statement || "",
       hiddenTests: hiddenTests || [],
       visibleTests: visibleTests || [],
-      submittedBy: submittedBy || null,
-      contestId: contestId || null,
+      submittedBy:
+        mongoose.Types.ObjectId.createFromHexString(submittedBy) || null,
+      contestId: mongoose.Types.ObjectId.createFromHexString(contestId) || null,
       status: status || "pending",
     };
 

@@ -1,10 +1,22 @@
 import { Hono } from "hono";
 import { loginUser } from "../controllers/user/login.controller";
-import { getSessionById, updateSessionElapsed } from "../controllers/user/session.controller";
+import { startSession } from "../controllers/user/startSession.controller";
+import { getMe } from "../controllers/user/me.controller";
+import { getSession } from "../controllers/user/getSession.controller";
+import { getContestProblems } from "../controllers/user/problems.controller";
+import { updateElapsedTime } from "../controllers/user/updateElapsedTime.controller";
+
 export const userRoute = new Hono();
 
-userRoute.post("login",loginUser);
+userRoute.post("login", loginUser);
 
-userRoute.get("session/:sessionId", getSessionById);
+userRoute.get("me", getMe);
 
-userRoute.patch("session/:id/elapsed",updateSessionElapsed)
+
+userRoute.get("session/get", getSession);
+
+userRoute.put("session/update-elapsed", updateElapsedTime);
+
+userRoute.post("session/start", startSession);
+
+userRoute.get("session/problems", getContestProblems);

@@ -13,7 +13,7 @@ const AdminLayout = () => {
         <div className="w-44 ">
           <SideMenu />
         </div>
-        <div className="h-full w-[calc(100%-12rem)]">
+        <div className="h-full w-[calc(100%-11rem)]">
           <Outlet />
         </div>
       </section>

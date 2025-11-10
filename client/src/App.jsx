@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "sonner";
 import Home from "./pages/Home";
 import Loader from "./components/Loader";
+import GuestGuard from "./guards/GuestGuard";
 const UserRoutes = lazy(() => import("./routes/UserRoutes"));
 const AdminRoutes = lazy(() => import("./routes/AdminRoutes"));
 const Logiq404 = lazy(() => import("./pages/Logiq404"));
@@ -12,14 +13,7 @@ function App() {
       <Toaster richColors position="top-center" />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route
-          path="user/*"
-          element={
-            <Suspense fallback={<Loader />}>
-              <UserRoutes />
-            </Suspense>
-          }
-        />
+        <Route path="user/*" element={<UserRoutes />} />
         <Route
           path="admin/*"
           element={

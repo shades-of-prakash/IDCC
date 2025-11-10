@@ -1,163 +1,75 @@
-// src/contexts/UserContext.jsx
-import React, {
-	createContext,
-	useContext,
-	useState,
-	useEffect,
-	useCallback,
-} from "react";
-import { useNavigate } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useContext } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "../utils/fetch";
+import { useSession } from "./SessionContext";
 
-const UserContext = createContext();
+const UserContext = createContext({
+  user: null,
+  isLoading: true,
+  login: async () => {},
+  logout: async () => {},
+  refetchUser: async () => {},
+});
+
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
+  const { setSession } = useSession();
 
-	const [session, setSession] = useState(() => {
-		const stored = localStorage.getItem("session");
-		return stored ? JSON.parse(stored) : null;
-	});
-	const [remainingTime, setRemainingTime] = useState(
-		session?.user?.remainingTime || 0
-	);
-	const [timerActive, setTimerActive] = useState(false);
+  const {
+    data: user,
+    isLoading,
+    refetch: refetchUser,
+  } = useQuery({
+    queryKey: ["authUser"],
+    queryFn: () => apiFetch("/api/user/me", { credentials: "include" }),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
-	// --- Format helper
-	const formatTime = useCallback((ms) => {
-		const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-		const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-		const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-		const s = String(totalSeconds % 60).padStart(2, "0");
-		return `${h}:${m}:${s}`;
-	}, []);
+  const loginMutation = useMutation({
+    mutationFn: (credentials) =>
+      apiFetch("/api/user/login", {
+        method: "POST",
+        body: credentials,
+        credentials: "include",
+      }),
+    onSuccess: async (data) => {
+      if (data?.session) {
+        setSession({
+          sessionId: data.session._id,
+          user: data.session.userId,
+          contest: data.session.contestId,
+        });
+      }
 
-	// --- Save session to localStorage
-	const saveSession = (data) => {
+      await refetchUser();
+      await queryClient.invalidateQueries(["authUser"]);
+    },
+  });
 
-		console.log("[DEBUG] Saving session token:", data.token);
-		localStorage.setItem("session", JSON.stringify(data));
-		setSession(data);
-		setRemainingTime(data.user.remainingTime);
-	};
+  const logoutMutation = useMutation({
+    mutationFn: async () =>
+      apiFetch("/api/user/logout", {
+        method: "POST",
+        credentials: "include",
+      }),
+    onSettled: () => {
+      queryClient.setQueryData(["authUser"], null);
+      setSession(null);
+    },
+  });
 
-	// --- Login
-	const login = async (credentials) => {
-		const res = await fetch("/api/user/login", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(credentials),
-		});
-		const data = await res.json();
+  const value = {
+    user,
+    isLoading,
+    login: loginMutation.mutateAsync,
+    loginLoading: loginMutation.isPending,
+    logout: logoutMutation.mutateAsync,
+    logoutLoading: logoutMutation.isPending,
+    refetchUser,
+  };
 
-		if (data.success) {
-			saveSession(data.data);
-			setTimerActive(true);
-			navigate(`/user/${data.data.user.username}/playground`);
-		} else {
-			alert(data.message);
-		}
-	};
-
-	const fetchSession = async (sessionId, token) => {
-		const res = await fetch(`/api/user/session/${sessionId}`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		const data = await res.json();
-		if (data.success) {
-			saveSession(data.data);
-			setTimerActive(true);
-		} else {
-			console.warn("[Session expired or invalid]:", data.message);
-			localStorage.removeItem("session");
-			setSession(null);
-			setTimerActive(false);
-			navigate("/user/login");
-		}
-		return data;
-	};
-
-	// --- Logout (pause session)
-	const logout = async () => {
-		if (!session) return;
-		try {
-			await fetch("/api/user/logout", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ sessionId: session.sessionId }),
-			});
-		} catch {}
-		localStorage.removeItem("session");
-		setSession(null);
-		setTimerActive(false);
-		navigate("/user/login");
-	};
-
-	// --- Timer countdown
-	useEffect(() => {
-		if (!timerActive) return;
-		const interval = setInterval(() => {
-			setRemainingTime((prev) => {
-				if (prev <= 1000) {
-					clearInterval(interval);
-					logout(); 
-					return 0;
-				}
-				return prev - 1000;
-			});
-		}, 1000);
-		return () => clearInterval(interval);
-	}, [timerActive]);
-
-	// --- On unload: sync elapsed time to backend
-	useEffect(() => {
-		const handleUnload = async () => {
-			if (!session) return;
-			const elapsedTime =
-				session.user.contest.durationMinutes * 60000 - remainingTime;
-
-			await fetch(`/api/user/session/${session.sessionId}/elapsed`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ elapsedTime }),
-			});
-		};
-		window.addEventListener("beforeunload", handleUnload);
-		return () => window.removeEventListener("beforeunload", handleUnload);
-	}, [session, remainingTime]);
-
-	// --- ✅ Auto resume on reload
-	useEffect(() => {
-		if (session?.sessionId && session?.token) {
-			fetchSession(session.sessionId, session.token);
-		}
-	}, []);
-
-	// --- ✅ React Query: Auto sync remainingTime every 30s
-	useQuery({
-		queryKey: ["sessionSync", session?.sessionId],
-		queryFn: async () => {
-			if (!session?.sessionId || !session?.token) return null;
-			const result = await fetchSession(session.sessionId, session.token);
-			return result.data;
-		},
-		refetchInterval: 30000, // every 30 seconds
-		enabled: !!session?.sessionId && !!session?.token,
-	});
-
-	return (
-		<UserContext.Provider
-			value={{
-				session,
-				login,
-				logout,
-				remainingTime,
-				formatTime,
-			}}
-		>
-			{children}
-		</UserContext.Provider>
-	);
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };

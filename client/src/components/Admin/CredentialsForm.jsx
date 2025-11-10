@@ -1,34 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { UserPlus, Eye, EyeOff } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../utils/fetch";
 import { toast } from "sonner";
+import { AuthContext } from "../../contexts/adminAuthContext";
+import CustomSelect from "../CustomSelect";
 
 const CredentialsForm = () => {
+  const { admin } = useContext(AuthContext);
+
   const [form, setForm] = useState({
     username: "",
     name: "",
     password: "",
     confirmPassword: "",
+    role: admin ? "" : "volunteer",
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
 
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
+
   const { mutate, isPending } = useMutation({
     mutationFn: (data) =>
-      apiFetch("/api/admin/auth/create/volunteer", {
-        method: "POST",
-        body: data,
-      }),
+      apiFetch(
+        admin?.role === "admin"
+          ? "/api/admin/auth/create/vorc"
+          : "/api/admin/auth/create/volunteer",
+        {
+          method: "POST",
+          body: data,
+        },
+      ),
     onSuccess: () => {
-      toast.success("Volunteer created successfully!");
-      setForm({ username: "", name: "", password: "", confirmPassword: "" });
+      toast.success(
+        `${form.role.charAt(0).toUpperCase() + form.role.slice(1)} created successfully!`,
+      );
+      setForm({
+        username: "",
+        name: "",
+        password: "",
+        confirmPassword: "",
+        role: "volunteer",
+      });
       setErrors({});
       queryClient.invalidateQueries(["volunteers"]);
     },
     onError: (err) => {
-      toast.error(err.message || "Failed to create volunteer");
+      toast.error(err.message || "Failed to create user");
     },
   });
 
@@ -51,21 +70,36 @@ const CredentialsForm = () => {
     }
   };
 
+  const roleOptions = [
+    { label: "Volunteer", value: "volunteer" },
+    { label: "Coordinator", value: "coordinator" },
+  ];
+
   return (
     <div className="w-full h-full bg-white rounded-lg shadow-sm border border-gray-200 sticky top-4">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <UserPlus className="w-8 h-8" />
           <div>
-            <h2 className="text-base font-bold text-gray-900">Add Volunteer</h2>
-            <p className="text-xs text-gray-600">Create a new volunteer account</p>
+            <h2 className="text-base font-bold text-gray-900">Add User</h2>
+            <p className="text-xs text-gray-600">Create a new user account</p>
           </div>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
+        {admin?.role === "admin" && (
+          <CustomSelect
+            label="Select Role"
+            options={roleOptions}
+            value={roleOptions.find((opt) => opt.value === form.role)}
+            onChange={(opt) => setForm({ ...form, role: opt.value })}
+          />
+        )}
+
         {["username", "name", "password", "confirmPassword"].map((field) => {
-          const isPasswordField = field === "password" || field === "confirmPassword";
+          const isPasswordField =
+            field === "password" || field === "confirmPassword";
 
           return (
             <div key={field} className="relative">
@@ -74,7 +108,13 @@ const CredentialsForm = () => {
               </label>
 
               <input
-                type={isPasswordField ? (showPassword ? "text" : "password") : "text"}
+                type={
+                  isPasswordField
+                    ? showPassword
+                      ? "text"
+                      : "password"
+                    : "text"
+                }
                 name={field}
                 value={form[field]}
                 onChange={handleChange}
@@ -97,11 +137,17 @@ const CredentialsForm = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-10 text-gray-500 hover:text-black"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               )}
 
-              {errors[field] && <p className="text-red-500 text-xs mt-1">{errors[field]}</p>}
+              {errors[field] && (
+                <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
+              )}
             </div>
           );
         })}
@@ -114,7 +160,7 @@ const CredentialsForm = () => {
               isPending ? "bg-gray-500" : "bg-black/90 hover:bg-black"
             } text-white px-4 py-3 rounded-lg transition-colors font-medium shadow-sm`}
           >
-            {isPending ? "Creating..." : "Create Volunteer"}
+            {isPending ? "Creating..." : "Create User"}
           </button>
         </div>
       </div>

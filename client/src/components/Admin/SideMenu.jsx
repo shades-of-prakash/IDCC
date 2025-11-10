@@ -24,32 +24,32 @@ const SideMenu = () => {
     },
     {
       id: 2,
-      content: "Results",
-      path: "/results",
-      icon: <Trophy size={18} />,
-    },
-    {
-      id: 3,
-      content: "Editor",
-      path: "/editor",
-      icon: <Trophy size={18} />,
-    },
-  ];
-  const coordinatorMenu = [
-    {
-      id: 3,
-      content: "Dashboard",
-      path: "/",
-      icon: <LayoutGrid size={18} />,
-    },
-    {
-      id: 4,
       content: "Credentials",
       path: "/credentials",
       icon: <KeyRound size={18} />,
     },
     {
-      id: 5,
+      id: 3,
+      content: "Results",
+      path: "/results",
+      icon: <Trophy size={18} />,
+    },
+  ];
+  const coordinatorMenu = [
+    {
+      id: 1,
+      content: "Dashboard",
+      path: "/",
+      icon: <LayoutGrid size={18} />,
+    },
+    {
+      id: 2,
+      content: "Credentials",
+      path: "/credentials",
+      icon: <KeyRound size={18} />,
+    },
+    {
+      id: 3,
       content: "Add Problem",
       path: "/add-problem",
       icon: <SquarePlus size={18} />,
@@ -57,13 +57,13 @@ const SideMenu = () => {
   ];
   const volunteerMenu = [
     {
-      id: 3,
+      id: 1,
       content: "Dashboard",
       path: "/",
       icon: <LayoutGrid size={18} />,
     },
     {
-      id: 5,
+      id: 2,
       content: "Add Problem",
       path: "/add-problem",
       icon: <SquarePlus size={18} />,

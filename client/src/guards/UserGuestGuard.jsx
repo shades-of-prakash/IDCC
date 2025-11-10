@@ -1,14 +1,33 @@
-import React from "react";
-import { Navigate } from "react-router";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useUser } from "../contexts/UserContext";
+import { useSession } from "../contexts/SessionContext";
+import Loader from "../components/Loader";
 
-export const GuestGuard = ({ children, redirectTo = "/user/code" }) => {
-	const { session, remainingTime, loading } = useUser();
-	if (loading) return null;
+export const GuestGuard = ({ children }) => {
+  const { user, isLoading: userLoading } = useUser();
+  const { session, loading: sessionLoading } = useSession();
+  const navigate = useNavigate();
 
-	if (session && remainingTime > 0) {
-		return <Navigate to={redirectTo} replace />;
-	}
+  const loading = userLoading || sessionLoading;
 
-	return <>{children}</>;
+  useEffect(() => {
+    if (loading) return;
+
+    if (user) {
+      // Redirect based on session presence
+      const target = session
+        ? `/user/${session._id || session.sessionId}/playground`
+        : `/user/instructions`;
+
+      if (window.location.pathname !== target) {
+        navigate(target, { replace: true });
+      }
+    }
+  }, [loading, user, session, navigate]);
+
+  if (loading) return <Loader />;
+  if (user) return null; // hide guest content while redirecting
+
+  return <>{children}</>;
 };

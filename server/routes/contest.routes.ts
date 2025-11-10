@@ -15,10 +15,20 @@ import { getProblemsByUser } from "../controllers/contest/getProblemsById";
 import { upsertProblem } from "../controllers/admin/createProblem.controller";
 import { deleteProblem } from "../controllers/contest/deleteProblem.controller";
 import { getContestWithProblems } from "../controllers/contest/getProblemsOfContest.controller";
+import { getFinalizedProblemsByContest } from "../controllers/contest/getFinalizedProblemsByContest";
+import { finalizeProblem } from "../controllers/contest/AddProblemToContest.controller";
+import { unfinalizeProblem } from "../controllers/contest/unFinalize.controller";
+import { deleteContest } from "../controllers/contest/delete.controller";
+import { startSession } from "../controllers/user/startSession.controller";
+import {
+  runCode,
+  runCodeController,
+} from "../controllers/contest/runCode.controller";
 export const ContestRoutes = new Hono();
 
 ContestRoutes.post("create", createContest);
 ContestRoutes.post("add", requireRole(["volunteer"]), createContest);
+ContestRoutes.delete("delete/:contestId", deleteContest);
 ContestRoutes.get("list", getContests);
 ContestRoutes.get("list/without-questions", getContestsWithoutQuestions);
 ContestRoutes.get(":id", getContestById);
@@ -32,3 +42,11 @@ ContestRoutes.post("admin/problem/new", upsertProblem);
 ContestRoutes.put("admin/problem/update/:problemId", upsertProblem);
 ContestRoutes.delete("admin/problem/delete/:problemId", deleteProblem);
 ContestRoutes.get("admin/getAllProblemsOfContest", getContestWithProblems);
+ContestRoutes.get(
+  "admin/getFinalizedProblemsByContest",
+  getFinalizedProblemsByContest,
+);
+ContestRoutes.post("admin/finalized", finalizeProblem);
+ContestRoutes.post("admin/unfinalized", unfinalizeProblem);
+
+ContestRoutes.post("/runcode", runCode);
