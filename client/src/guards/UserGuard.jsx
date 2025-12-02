@@ -7,6 +7,8 @@ import Loader from "../components/Loader";
 export const UserGuard = ({ children }) => {
   const { user, isLoading: userLoading } = useUser();
   const { session, loading: sessionLoading } = useSession();
+
+  console.log(user, session);
   const navigate = useNavigate();
 
   const loading = userLoading || sessionLoading;

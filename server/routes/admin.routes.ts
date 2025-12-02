@@ -20,6 +20,7 @@ export const adminRoute = new Hono();
 
 adminRoute.post("/auth/login", loginAdmin);
 adminRoute.post("/auth/logout", logoutAdmin);
+
 adminRoute.get("/auth/me", adminMe);
 adminRoute.post(
   "/auth/create/volunteer",

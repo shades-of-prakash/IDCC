@@ -24,6 +24,7 @@ const ActualPlayground = ({ problem, editorRef, onLangChange }) => {
   const [theme, setTheme] = useState("github-light");
   const [dropdownOpen, setDropdownOpen] = useState(null);
   const [highlighter, setHighlighter] = useState(null);
+  const [code, setCode] = useState("");
 
   const languages = ["C", "Python", "C++", "Java"];
   const langMap = {
@@ -32,6 +33,15 @@ const ActualPlayground = ({ problem, editorRef, onLangChange }) => {
     "C++": "cpp",
     Java: "java",
   };
+
+  // Helper: get a stable problem id
+  const getProblemId = () => {
+    return problem?._id || problem?.id || "default-problem";
+  };
+
+  // Helper: build storage key for this problem + language
+  const getStorageKey = (problemId, language) =>
+    `code:${problemId}:${language}`;
 
   useEffect(() => {
     if (onLangChange) onLangChange(lang);
@@ -139,6 +149,25 @@ public class HelloWorld {
     }
   };
 
+  // Load code from localStorage whenever problem or language changes
+  useEffect(() => {
+    const problemId = getProblemId();
+    const key = getStorageKey(problemId, lang);
+
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (saved !== null) {
+        setCode(saved);
+      } else {
+        // No saved code => use sample code for that language
+        setCode(getSampleCode(lang));
+      }
+    } catch (e) {
+      console.error("[DEBUG] Error reading from localStorage:", e);
+      setCode(getSampleCode(lang));
+    }
+  }, [problem?._id, problem?.id, lang]); // re-run when problem or lang changes
+
   const handleSelect = (type, value) => {
     if (type === "lang") setLang(value);
     else setTheme(value);
@@ -153,6 +182,19 @@ public class HelloWorld {
 
   const handleEditorMount = (editor) => {
     editorRef.current = editor;
+  };
+
+  const handleCodeChange = (value) => {
+    const newCode = value ?? "";
+    setCode(newCode);
+
+    const problemId = getProblemId();
+    const key = getStorageKey(problemId, lang);
+    try {
+      window.localStorage.setItem(key, newCode);
+    } catch (e) {
+      console.error("[DEBUG] Error writing to localStorage:", e);
+    }
   };
 
   if (!highlighter) {
@@ -176,10 +218,9 @@ public class HelloWorld {
 
         <div className="flex gap-3 items-center">
           {/* Theme Dropdown */}
-
           <div className="flex gap-1.5 items-center dropdown-container">
             <span className="text-sm text-gray-600">Theme:</span>
-            <div className="relative  border border-neutral-300 rounded-md">
+            <div className="relative border border-neutral-300 rounded-md">
               <div
                 onClick={() =>
                   setDropdownOpen((prev) => (prev === "theme" ? null : "theme"))
@@ -195,7 +236,7 @@ public class HelloWorld {
               {dropdownOpen === "theme" && (
                 <div className="absolute right-0 mt-1 w-56 bg-white border border-neutral-300 rounded shadow-lg z-10 overflow-hidden">
                   {/* Light section */}
-                  <div className="">
+                  <div>
                     <div className="border-b border-neutral-200 p-2 px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50">
                       Light Themes
                     </div>
@@ -219,7 +260,7 @@ public class HelloWorld {
 
                   {/* Dark section */}
                   <div>
-                    <div className="p-2  px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50 border-y border-neutral-200">
+                    <div className="p-2 px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50 border-y border-neutral-200">
                       Dark Themes
                     </div>
                     <div className="py-0.5">
@@ -245,8 +286,7 @@ public class HelloWorld {
           </div>
 
           {/* Language Dropdown */}
-
-          <div className="dropdown-container relative border border-neutral-300 rounded-md ">
+          <div className="dropdown-container relative border border-neutral-300 rounded-md">
             <div
               onClick={() =>
                 setDropdownOpen((prev) => (prev === "lang" ? null : "lang"))
@@ -281,10 +321,11 @@ public class HelloWorld {
       <div className="flex-1 flex items-center justify-center bg-neutral-50 overflow-auto">
         <Editor
           height="100%"
-          value={getSampleCode(lang)}
+          value={code}
           language={langMap[lang]}
           beforeMount={handleEditorBeforeMount}
           onMount={handleEditorMount}
+          onChange={handleCodeChange}
           theme={theme}
           options={{
             minimap: { enabled: false },
@@ -294,7 +335,7 @@ public class HelloWorld {
             formatOnPaste: true,
             formatOnType: true,
             automaticLayout: true,
-            fontSize: 16,
+            fontSize: 15,
             lineNumbersMinChars: 2,
             lineDecorationsWidth: 0,
             glyphMargin: false,

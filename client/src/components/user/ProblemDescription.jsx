@@ -5,14 +5,14 @@ const ProblemDescription = ({ problem, sno }) => {
         className="flex items-center justify-between sticky top-0 z-10 px-3 py-2
                    bg-white/80 backdrop-blur-lg border-b border-neutral-200 bg-white  "
       >
-        <div className="text-xl font-bold">
+        <div className="text-lg font-bold">
           {sno + 1}. {problem.name}
         </div>
         <span className="text-sm">{problem.points} pts</span>
       </div>
 
       <div
-        className="p-4 prose prose-neutral max-w-none
+        className="text-base p-4 prose prose-neutral max-w-none
                    [&_p]:mb-3
                    [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6
                    [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6

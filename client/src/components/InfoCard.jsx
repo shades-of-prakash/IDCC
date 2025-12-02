@@ -23,8 +23,8 @@ const InfoCard = ({
     >
       <div className="flex flex-col gap-2 items-center">
         <img src={imgUrl} alt={title} className="w-[260px]" />
-        <h1 className="text-2xl font-semibold mt-3">{title}</h1>
-        <span className="w-[500px] text-gray-400 text-center">
+        <h1 className="text-2xl text-black font-semibold mt-3">{title}</h1>
+        <span className="w-[500px] text-gray-600 text-center">
           {description}
         </span>
         {buttonText && (

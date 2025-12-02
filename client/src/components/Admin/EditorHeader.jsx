@@ -10,9 +10,25 @@ import {
   Quote,
   Superscript,
   Subscript,
+  Table,
+  Rows3,
+  Columns3,
+  PlusSquare,
+  MinusSquare,
+  Grid2x2X,
+  Heading1,
+  Heading2,
+  Heading3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useContestId } from "../../contexts/selectedContest";
+
+import addColumnBefore from "../../assets/add_column_before.svg?react";
+import addColumnAfter from "../../assets/add_column_after.svg?react";
+import addRowAbove from "../../assets/add_row_above.svg?react";
+import addRowBelow from "../../assets/add_row_below.svg?react";
+import deleteColumn from "../../assets/delete_column.svg?react";
+import deleteRow from "../../assets/delete_row.svg?react";
 
 const IconButton = ({ Icon, onClick, active, title }) => (
   <div
@@ -45,6 +61,9 @@ const EditorHeader = ({ editor }) => {
         blockquote: editor.isActive("blockquote"),
         superscript: editor.isActive("superscript"),
         subscript: editor.isActive("subscript"),
+        heading1: editor.isActive("heading", { level: 1 }),
+        heading2: editor.isActive("heading", { level: 2 }),
+        heading3: editor.isActive("heading", { level: 3 }),
       });
     };
 
@@ -152,6 +171,30 @@ const EditorHeader = ({ editor }) => {
       ],
     },
     {
+      name: "headings",
+      items: [
+        {
+          Icon: Heading1,
+          isActive: () => activeMarks.heading1,
+          command: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(),
+          title: "Heading 1",
+        },
+        {
+          Icon: Heading2,
+          isActive: () => activeMarks.heading2,
+          command: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+          title: "Heading 2",
+        },
+        {
+          Icon: Heading3,
+          isActive: () => activeMarks.heading3,
+          command: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
+          title: "Heading 3",
+        },
+      ],
+    },
+
+    {
       name: "lists",
       items: [
         {
@@ -187,6 +230,70 @@ const EditorHeader = ({ editor }) => {
           isActive: () => false,
           command: handleImageUpload,
           title: "Insert Image",
+        },
+      ],
+    },
+
+    {
+      name: "table",
+      items: [
+        {
+          Icon: Table,
+          isActive: () => editor?.isActive("table"),
+          command: (e) =>
+            e
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run(),
+          title: "Insert Table",
+        },
+
+        // ---- Columns ----
+        {
+          Icon: addColumnBefore, // add column before
+          isActive: () => false,
+          command: (e) => e.chain().focus().addColumnBefore().run(),
+          title: "Add Column Before",
+        },
+        {
+          Icon: addColumnAfter, // add column after
+          isActive: () => false,
+          command: (e) => e.chain().focus().addColumnAfter().run(),
+          title: "Add Column After",
+        },
+        {
+          Icon: deleteColumn, // delete column
+          isActive: () => false,
+          command: (e) => e.chain().focus().deleteColumn().run(),
+          title: "Delete Column",
+        },
+
+        // ---- Rows ----
+        {
+          Icon: addRowAbove, // add row above
+          isActive: () => false,
+          command: (e) => e.chain().focus().addRowBefore().run(),
+          title: "Add Row Above",
+        },
+        {
+          Icon: addRowBelow, // add row below
+          isActive: () => false,
+          command: (e) => e.chain().focus().addRowAfter().run(),
+          title: "Add Row Below",
+        },
+        {
+          Icon: deleteRow, // delete row
+          isActive: () => false,
+          command: (e) => e.chain().focus().deleteRow().run(),
+          title: "Delete Row",
+        },
+
+        {
+          Icon: Grid2x2X,
+          isActive: () => editor?.isActive("table"),
+          command: (e) => e.chain().focus().deleteTable().run(),
+          title: "Delete Table",
         },
       ],
     },

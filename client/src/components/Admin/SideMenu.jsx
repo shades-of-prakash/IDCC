@@ -48,12 +48,6 @@ const SideMenu = () => {
       path: "/credentials",
       icon: <KeyRound size={18} />,
     },
-    {
-      id: 3,
-      content: "Add Problem",
-      path: "/add-problem",
-      icon: <SquarePlus size={18} />,
-    },
   ];
   const volunteerMenu = [
     {

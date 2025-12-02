@@ -13,13 +13,10 @@ export const getContestProblems = async (c: Context) => {
     if (!token) return ErrorResponse(c, "Missing authentication cookie", 401);
 
     const payload = await verify(token, JWT_SECRET);
-
-    console.log("payload", payload);
     const userId = payload.id;
     if (!userId) return ErrorResponse(c, "Invalid token payload", 401);
 
     const session = await Session.findOne({ userId }).populate("contestId");
-
     if (!session) return ErrorResponse(c, "No active session found", 403);
 
     const contestId = session.contestId?._id;
@@ -27,17 +24,31 @@ export const getContestProblems = async (c: Context) => {
       return ErrorResponse(c, "Contest not linked to session", 400);
 
     const contest = await Contest.findById(contestId)
-      .populate("questions")
+      .populate({
+        path: "questions",
+        populate: {
+          path: "testcases",
+          model: "TestCase",
+        },
+      })
       .lean();
 
-    console.log("contest", contest);
-
     if (!contest) return ErrorResponse(c, "Contest not found", 404);
+
+    const problems = contest.questions.map((q: any) => ({
+      id: q._id,
+      name: q.name,
+      points: q.points,
+      arguments: q.arguments,
+      statement: q.statement,
+      testcases: q.testcases?.filter((t: any) => !t.isHidden && !t.hidden),
+    }));
 
     return SuccessResponse(c, "Contest problems fetched successfully", 200, {
       contestId: contest._id,
       contestName: contest.name,
-      problems: contest.questions,
+      languages: contest.languages || [], //  ✅ ADDED HERE
+      problems,
     });
   } catch (err: any) {
     const message =

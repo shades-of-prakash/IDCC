@@ -28,6 +28,17 @@ app.get("/images/:contestId/:filename", async (c) => {
   }
 });
 
+app.get("/health-check", (c) => {
+  return c.json(
+    {
+      status: "ok",
+      message: "Server is running",
+      timestamp: Date.now(),
+    },
+    200,
+  );
+});
+
 app.get("/contests/:filename", async (c) => {
   const filename = c.req.param("filename");
 

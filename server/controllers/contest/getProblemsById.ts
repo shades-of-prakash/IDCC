@@ -13,22 +13,22 @@ export const getProblemsByUser = async (c: Context) => {
       return ErrorResponse(c, "adminId is required", 400);
     }
 
-    // Fetch all problems created by the admin
-    const problems = await Problem.find({ submittedBy: adminId }).sort({
-      createdAt: -1,
-    });
+    const problems = await Problem.find({ submittedBy: adminId })
+      .select("-hiddenTests -visibleTests")
+      .lean()
+      .sort({ createdAt: -1 });
 
-    // Fetch contest info for each problem (since contestId is a string)
     const problemsWithContest = await Promise.all(
       problems.map(async (problem) => {
         let contestData = null;
 
         if (problem.contestId) {
-          // Convert string ID to ObjectId safely
-          const contestObjectId = new mongoose.Types.ObjectId(problem.contestId);
+          const contestObjectId = new mongoose.Types.ObjectId(
+            problem.contestId,
+          );
 
           const contest = await Contest.findById(contestObjectId).select(
-            "name conductedBy numberOfProblems durationMinutes"
+            "name conductedBy numberOfProblems durationMinutes",
           );
 
           if (contest) {
@@ -42,10 +42,10 @@ export const getProblemsByUser = async (c: Context) => {
         }
 
         return {
-          ...problem.toObject(),
+          ...problem,
           ...contestData,
         };
-      })
+      }),
     );
 
     console.log(problemsWithContest, "problems with contest details");
@@ -54,7 +54,7 @@ export const getProblemsByUser = async (c: Context) => {
       c,
       "Problems fetched successfully",
       200,
-      problemsWithContest
+      problemsWithContest,
     );
   } catch (err: any) {
     console.error("Error fetching problems:", err);

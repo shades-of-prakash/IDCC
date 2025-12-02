@@ -4,18 +4,39 @@ const ProblemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     points: { type: Number, required: true, min: 0, default: 10 },
-    arguments: { type: Array, required: true },
-    functionName: { type: String, required: true },
-    hiddenTests: { type: Array, default: [] },
-    visibleTests: { type: Array, default: [] },
-    returnType: { type: String, required: true },
+
+    arguments: { type: Array },
+
     statement: { type: String, default: "" },
-    submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
-    contestId: { type: mongoose.Schema.Types.ObjectId, ref: "Contest" },
+
+    testcases: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "TestCase",
+      },
+    ],
+
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      required: true,
+    },
+
+    contestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contest",
+      required: true,
+    },
+
     status: {
       type: String,
       enum: ["pending", "finalized"],
       default: "pending",
+    },
+
+    isCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true },

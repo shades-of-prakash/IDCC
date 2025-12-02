@@ -23,7 +23,12 @@ const Playground = () => {
 
   const [isRunning, setIsRunning] = useState(false);
   const [runResult, setRunResult] = useState(null);
+
+  // NEW: which action produced the current result? "run" | "submit" | null
+  const [actionType, setActionType] = useState(null);
+
   const [activeTab, setActiveTab] = useState("testcase");
+  const [userTestcases, setUserTestcases] = useState([]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["contestProblems"],
@@ -78,8 +83,19 @@ const Playground = () => {
     const code = editorRef.current?.getValue();
     if (!code) return;
 
+    if (!selectedLang) {
+      toast.error("Please select a language before running the code.");
+      return;
+    }
+
+    const currentProblem = problems[active];
+    if (!currentProblem) return;
+
+    const visibleTests = currentProblem.testcases;
+
     setIsRunning(true);
     setRunResult(null);
+    setActionType("run");
     setActiveTab("result");
 
     try {
@@ -89,14 +105,53 @@ const Playground = () => {
         body: JSON.stringify({
           language: selectedLang?.toLowerCase(),
           code,
-          input: "",
-          problem: problems[active]._id,
+          problem: currentProblem.id,
+          testcases: visibleTests,
+          userTestcases,
         }),
       });
+
       const data = await res.json();
       setRunResult(data);
     } catch (err) {
       setRunResult({ error: "Failed to run code.", err });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleSubmitCode = async () => {
+    const code = editorRef.current?.getValue();
+    if (!code) return;
+
+    if (!selectedLang) {
+      toast.error("Please select a language before submitting the code.");
+      return;
+    }
+
+    const currentProblem = problems[active];
+    if (!currentProblem) return;
+
+    setIsRunning(true);
+    setRunResult(null);
+    setActionType("submit");
+    setActiveTab("result");
+
+    try {
+      const res = await fetch("/api/contest/submitcode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: selectedLang?.toLowerCase(),
+          code,
+          problem: currentProblem.id,
+        }),
+      });
+
+      const data = await res.json();
+      setRunResult(data);
+    } catch (err) {
+      setRunResult({ error: "Failed to submit code.", err });
     } finally {
       setIsRunning(false);
     }
@@ -111,6 +166,7 @@ const Playground = () => {
         handlePrevious={handlePrevious}
         handleNext={handleNext}
         handleRunCode={handleRunCode}
+        handleSubmitCode={handleSubmitCode}
       />
 
       <div className="w-full h-[calc(100%-6rem)] flex overflow-x-hidden">
@@ -168,6 +224,8 @@ const Playground = () => {
                 setActiveTab={setActiveTab}
                 isRunning={isRunning}
                 result={runResult}
+                onCustomCasesChange={setUserTestcases}
+                actionType={actionType} // NEW
               />
             </div>
           </SplitPane>

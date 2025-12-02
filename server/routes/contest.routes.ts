@@ -24,9 +24,24 @@ import {
   runCode,
   runCodeController,
 } from "../controllers/contest/runCode.controller";
+import { createSimpleProblem } from "../controllers/contest/createSimpleProblem.controller";
+import Contest from "../models/contest.model";
+import { updateSessionElapsed } from "../controllers/user/session.controller";
+import { updateProblemStatement } from "../controllers/contest/addstatement.controller";
+import { addProblemArguments } from "../controllers/contest/arguments.controller";
+import { getProblemById } from "../controllers/contest/getProblem.controller";
+import { addTestCase } from "../controllers/contest/addtestcase.controller";
+import { getTestCases } from "../controllers/contest/getTestCases.controller";
+import { removeTestCase } from "../controllers/contest/removeTestcase.controller";
+import { updateTestCase } from "../controllers/contest/updateTestcase.controller";
+import { addProblemCompleteStatus } from "../controllers/contest/makeCompleted.controller";
+import { makeContestRunning } from "../controllers/contest/makecontestrunning.controller";
+
 export const ContestRoutes = new Hono();
 
 ContestRoutes.post("create", createContest);
+ContestRoutes.patch(":id/running", makeContestRunning);
+
 ContestRoutes.post("add", requireRole(["volunteer"]), createContest);
 ContestRoutes.delete("delete/:contestId", deleteContest);
 ContestRoutes.get("list", getContests);
@@ -38,10 +53,27 @@ ContestRoutes.post("images/cleanup", cleanupUnusedImages);
 ContestRoutes.post("users/create", createUsers);
 ContestRoutes.get("admin/problems", getProblemsByAdminAndContest);
 ContestRoutes.get("admin/all/problems", getProblemsByUser);
-ContestRoutes.post("admin/problem/new", upsertProblem);
+
 ContestRoutes.put("admin/problem/update/:problemId", upsertProblem);
 ContestRoutes.delete("admin/problem/delete/:problemId", deleteProblem);
 ContestRoutes.get("admin/getAllProblemsOfContest", getContestWithProblems);
+
+ContestRoutes.post("admin/problem/create", createSimpleProblem);
+ContestRoutes.post("admin/problem/add/statement", updateProblemStatement);
+ContestRoutes.post("admin/problem/add/arguments", addProblemArguments);
+
+ContestRoutes.post("admin/problem/add/testcase", addTestCase);
+
+ContestRoutes.post("admin/problem/get/testcases", getTestCases);
+
+ContestRoutes.post("admin/problem/complete/:id", addProblemCompleteStatus);
+
+ContestRoutes.delete("admin/problem/remove/testcase", removeTestCase);
+
+ContestRoutes.put("admin/testcase/update/:id", updateTestCase);
+
+ContestRoutes.get("admin/problem/get/:problemId", getProblemById);
+
 ContestRoutes.get(
   "admin/getFinalizedProblemsByContest",
   getFinalizedProblemsByContest,

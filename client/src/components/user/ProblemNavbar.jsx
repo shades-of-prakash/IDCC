@@ -5,6 +5,7 @@ const ProblemNavbar = ({
   handlePrevious,
   handleNext,
   handleRunCode,
+  handleSubmitCode, // NEW
 }) => {
   return (
     <div className="w-full h-12 flex items-center justify-between p-2 pt-3 bg-white">
@@ -25,10 +26,13 @@ const ProblemNavbar = ({
         >
           <Play size={16} />
         </button>
-        <div className="flex gap-2 items-center border border-gray-200 bg-neutral-200/40 p-2 rounded-e-md">
+        <button
+          onClick={handleSubmitCode}
+          className="flex gap-2 items-center border border-gray-200 bg-neutral-200/40 p-2 rounded-e-md hover:bg-neutral-300/70 transition"
+        >
           <Send size={16} className="text-green-600" />
           <span>Submit</span>
-        </div>
+        </button>
       </div>
 
       <div className="flex gap-2">

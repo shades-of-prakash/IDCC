@@ -396,7 +396,7 @@ const UserLogin = () => {
                 <button
                   type="submit"
                   disabled={loginLoading}
-                  className={`w-1/2 py-2.5 text-sm md:text-base text-white rounded-md flex items-center justify-center gap-2 ${
+                  className={`w-1/2  py-2.5 text-sm md:text-base text-white rounded-md flex items-center justify-center gap-2 ${
                     loginLoading
                       ? "bg-gray-500 cursor-not-allowed"
                       : "bg-black hover:bg-gray-900"

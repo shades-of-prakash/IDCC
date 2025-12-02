@@ -7,6 +7,9 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Blockquote from "@tiptap/extension-blockquote";
 import { ContestProvider } from "../../contexts/selectedContest";
+
+import { TableKit } from "@tiptap/extension-table";
+
 import Editor from "./Editor";
 
 const RichTextEditor = ({ value, onChange, contestId }) => {
@@ -14,6 +17,7 @@ const RichTextEditor = ({ value, onChange, contestId }) => {
     extensions: [
       StarterKit.configure({ blockquote: false }),
       Image,
+      TableKit,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Superscript,
       Subscript,
@@ -42,7 +46,7 @@ const RichTextEditor = ({ value, onChange, contestId }) => {
 
   return (
     <ContestProvider contestId={contestId}>
-      <div className="flex bg-neutral-200/60 h-full w-full bg-white rounded">
+      <div className="flex border border-gray-300 h-full w-full  rounded">
         <Editor editor={editor} />
       </div>
     </ContestProvider>

@@ -26,6 +26,7 @@
     "multer": "^2.0.2",
     "path": "^0.12.7",
     "tm-themes": "^1.10.9",
+    "vite-plugin-svgr": "^4.5.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {

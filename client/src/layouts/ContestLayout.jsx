@@ -4,7 +4,15 @@ import { Link } from "react-router";
 import ContestNavbar from "../components/Admin/ContestNavbar";
 import ContestModal from "../components/Admin/ContestModal";
 import CreateUsers from "../components/Admin/CreateUsers";
-import { Ellipsis } from "lucide-react";
+import {
+  Ellipsis,
+  Pause,
+  Play,
+  Plus,
+  Trash,
+  UserPlus,
+  FilePlus,
+} from "lucide-react";
 import Loader from "../components/Loader";
 import Logo from "../assets/images/logo.webp";
 import { toast } from "sonner";
@@ -50,6 +58,31 @@ const Contest = () => {
     },
   });
 
+  // 🔁 Toggle isRunning mutation (used by Play icon)
+  const toggleRunningMutation = useMutation({
+    mutationFn: async ({ id, isRunning }) => {
+      const res = await fetch(`/api/contest/${id}/running`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isRunning }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to update running status");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["contests"]);
+      toast.success("Contest running status updated");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update running status");
+    },
+  });
+
   const getStatus = (contest) => {
     if (!contest.questions) return "Incomplete";
     return contest.questions.length === contest.numberOfProblems
@@ -92,14 +125,14 @@ const Contest = () => {
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 relative">
       {/* Navbar */}
-      <div className="h-16 border-b bg-white  flex items-center px-4">
+      <div className="h-16 border-b bg-white flex items-center px-4">
         <ContestNavbar toggle={toggleModal} />
       </div>
 
       {showModal && <ContestModal close={setShowModal} />}
 
       {!isLoading && !isError && (!data?.data || data.data.length === 0) && (
-        <div className="h-full w-full p-2  bg-white ">
+        <div className="h-full w-full p-2 bg-white">
           <InfoCard
             title="No Contests Found"
             className="border border-gray-200 rounded-md"
@@ -118,19 +151,19 @@ const Contest = () => {
 
       {!isLoading && data?.data?.length > 0 && (
         <div className="flex-1 overflow-y-auto p-2 relative">
-          <div className=" bg-white rounded-lg  border border-gray-300 relative flex flex-col">
+          <div className="bg-white rounded-lg overflow-hidden border border-gray-300 relative flex flex-col">
             <table className="w-full text-sm text-gray-700">
-              <thead className="bg-gray-100 text-gray-800 border-b border-gray-200 text-sm font-semibold">
+              <thead className=" bg-gray-100 text-gray-800 border-b border-gray-300 text-sm font-semibold">
                 <tr>
                   <th className="px-4 py-3 text-center w-[5%]">S.No</th>
                   <th className="px-4 py-3 text-left w-[20%]">Contest Name</th>
                   <th className="px-4 py-3 text-left w-[20%]">Conducted By</th>
                   <th className="px-4 py-3 text-center w-[10%]">Problems</th>
                   <th className="px-4 py-3 text-center w-[10%]">Duration</th>
-                  <th className="px-4 py-3 text-center w-[10%]">Team Size</th>
+                  <th className="px-4 py-3 text-center w-[10%]">Running</th>
                   <th className="px-4 py-3 text-center w-[10%]">Banner</th>
                   <th className="px-4 py-3 text-center w-[10%]">Status</th>
-                  <th className="w-[5%]"></th>
+                  <th className="w-[5%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -150,13 +183,24 @@ const Contest = () => {
                     <td className="px-4 py-3 text-center">
                       {contest.durationMinutes}
                     </td>
+
                     <td className="px-4 py-3 text-center">
-                      {contest.teamSize}
+                      <div
+                        className={`flex gap-2 items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium `}
+                      >
+                        <div
+                          className={`w-1.5 h-1.5 ${contest.isRunning ? "bg-green-600" : "bg-gray-400"} rounded-full `}
+                        ></div>
+                        {contest.isRunning ? "Running" : "Inactive"}
+                      </div>
                     </td>
+
                     <td className="px-4 py-3 text-center">
                       {contest.bannerImage ? (
                         <img
-                          src={`${import.meta.env.VITE_BACKEND_URL}${contest.bannerImage}`}
+                          src={`${import.meta.env.VITE_BACKEND_URL}${
+                            contest.bannerImage
+                          }`}
                           alt="banner"
                           className="h-12 w-12 object-contain rounded-md mx-auto border"
                         />
@@ -170,61 +214,71 @@ const Contest = () => {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`px-3 py-2 border rounded-full text-xs font-medium ${
                           getStatus(contest) === "Complete"
                             ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                            : "bg-red-50 text-red-600"
                         }`}
                       >
                         {getStatus(contest)}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-center relative">
-                      <button
-                        className="p-1 hover:bg-gray-200 rounded-full transition"
-                        onClick={() => handleDropdownToggle(contest._id)}
-                      >
-                        <Ellipsis className="h-4 w-4 text-gray-600" />
-                      </button>
-
-                      {openDropdown === contest._id && (
-                        <div
-                          ref={dropdownRef}
-                          className="absolute right-4 top-10 z-[9999] w-44 bg-white border border-gray-200 rounded-lg shadow-lg text-sm text-gray-700"
-                        >
-                          <div className="px-3 py-2 border-b font-semibold text-gray-900">
-                            Actions
-                          </div>
-                          <ul className="py-1">
-                            <li>
-                              <Link
-                                to={`add/${contest._id}`}
-                                onClick={() => setOpenDropdown(null)}
-                                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                Add
-                              </Link>
-                            </li>
-                            <li>
-                              <button
-                                onClick={() => handleCreateUsers(contest)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                              >
-                                Create Users
-                              </button>
-                            </li>
-                            <li>
-                              <button
-                                onClick={() => handleDeleteClick(contest)}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                              >
-                                Delete
-                              </button>
-                            </li>
-                          </ul>
+                    {/* Actions column with existing UI */}
+                    <td className="text-center px-2 relative">
+                      <div className="max-w-fit flex rounded-md border border-gray-300">
+                        <div className="p-2 w-full h-full border-r border-gray-300">
+                          <Link
+                            to={`add/${contest._id}`}
+                            className="w-full h-full"
+                          >
+                            <FilePlus
+                              size={16}
+                              className="transform transition-transform duration-200 group-hover:scale-110"
+                            />
+                          </Link>
                         </div>
-                      )}
+
+                        {/* ▶ Play button controls isRunning */}
+                        <div
+                          onClick={() =>
+                            !toggleRunningMutation.isPending &&
+                            toggleRunningMutation.mutate({
+                              id: contest._id,
+                              isRunning: !contest.isRunning,
+                            })
+                          }
+                          className={`p-2 w-full h-full border-r border-gray-300  group cursor-pointer`}
+                        >
+                          {contest.isRunning ? (
+                            <Pause size={16} />
+                          ) : (
+                            <Play
+                              size={16}
+                              className="transform transition-transform duration-200 group-hover:scale-110"
+                            />
+                          )}
+                        </div>
+
+                        <div
+                          onClick={() => handleCreateUsers(contest)}
+                          className="p-2 w-full h-full border-r border-gray-300 group cursor-pointer"
+                        >
+                          <UserPlus
+                            size={16}
+                            className="transform transition-transform duration-200 group-hover:scale-110"
+                          />
+                        </div>
+                        <div
+                          onClick={() => handleDeleteClick(contest)}
+                          className="p-2 w-full h-full border-r border-gray-300 group cursor-pointer"
+                        >
+                          <Trash
+                            size={16}
+                            className="transform transition-transform duration-200 group-hover:scale-110"
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}

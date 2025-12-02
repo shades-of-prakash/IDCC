@@ -1,49 +1,91 @@
 import fs from "fs";
 import path from "path";
 
-const input = `5
-1 2 3 4 5
+const input = `3
+  3
+  1 2 3 4 5 6 7 8 9
 `;
 
 const codes = {
   c: `
 #include <stdio.h>
 int main() {
-    int n;
-    scanf("%d", &n);
-    int arr[n], sum = 0;
-    for (int i = 0; i < n; i++) scanf("%d", &arr[i]);
-    for (int i = 0; i < n; i++) sum += arr[i];
-    printf("%d\\n", sum);
+    int n, m;
+    scanf("%d %d", &n, &m);
+
+    int total = n * m;
+    int flat[total];
+
+    for (int i = 0; i < total; i++)
+        scanf("%d", &flat[i]);
+
+    int idx = 0;
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++)
+            printf("%d ", flat[idx++]);
+        printf("\\n");
+    }
+
     return 0;
 }
 `,
+
   cpp: `
 #include <bits/stdc++.h>
 using namespace std;
+
 int main() {
-    int n; cin >> n;
-    vector<int> arr(n);
-    for (int i = 0; i < n; i++) cin >> arr[i];
-    cout << accumulate(arr.begin(), arr.end(), 0) << endl;
+    int n, m;
+    cin >> n >> m;
+
+    int total = n * m;
+    vector<int> flat(total);
+
+    for (int i = 0; i < total; i++)
+        cin >> flat[i];
+
+    int idx = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++)
+            cout << flat[idx++] << " ";
+        cout << "\\n";
+    }
 }
 `,
+
   java: `
 import java.util.*;
+
 class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
+
         int n = sc.nextInt();
-        int sum = 0;
-        for (int i = 0; i < n; i++) sum += sc.nextInt();
-        System.out.println(sum);
+        int m = sc.nextInt();
+
+        int total = n * m;
+        int[] flat = new int[total];
+
+        for (int i = 0; i < total; i++)
+            flat[i] = sc.nextInt();
+
+        int idx = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < m; j++)
+                System.out.print(flat[idx++] + " ");
+            System.out.println();
+        }
     }
 }
 `,
   python: `
-n = int(input())
-arr = list(map(int, input().split()))
-print(sum(arr))
+n=int(input())
+m=int(input())
+a=[[1,2,3],[4,5,6],[7,8,9]]
+print(a)
+s=[["sai","prakash","varma"],["kokkilagadda"],["r","v","R"]]
+print(s)
 `,
 };
 

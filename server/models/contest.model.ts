@@ -6,9 +6,12 @@ const ContestSchema = new mongoose.Schema(
     conductedBy: { type: String, default: "IDCC" },
     numberOfProblems: { type: Number, required: true },
     durationMinutes: { type: Number, required: true },
-    teamSize: { type: String, enum: ["Individual", "Team"], required: true },
     bannerImage: { type: String },
-
+    isRunning: { type: Boolean, default: false },
+    languages: {
+      type: [String],
+      default: [],
+    },
     questions: [
       {
         type: mongoose.Schema.Types.ObjectId,

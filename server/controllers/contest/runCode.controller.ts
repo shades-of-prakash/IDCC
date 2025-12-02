@@ -1,13 +1,63 @@
 import fs from "fs";
+import path from "path";
 import { spawnSync } from "bun";
 import type { Context } from "hono";
+
 import { SuccessResponse, ErrorResponse } from "../../utils/response";
 import Problem from "../../models/problem.model";
+
+type Language = "c" | "cpp" | "java" | "python";
+
+interface LangConfig {
+  filename: string;
+  image: string;
+  compileCmdInContainer: string[] | null;
+  runCmdInContainer: string[];
+}
+
+const LANGUAGE_CONFIG: Record<Language, LangConfig> = {
+  c: {
+    filename: "main.c",
+    image: "gcc",
+    compileCmdInContainer: ["gcc", "/code/main.c", "-O2", "-o", "/code/main"],
+    runCmdInContainer: ["/code/main"],
+  },
+  cpp: {
+    filename: "main.cpp",
+    image: "gcc",
+    compileCmdInContainer: ["g++", "/code/main.cpp", "-O2", "-o", "/code/main"],
+    runCmdInContainer: ["/code/main"],
+  },
+  java: {
+    filename: "Main.java",
+    image: "openjdk",
+    compileCmdInContainer: ["javac", "/code/Main.java"],
+    runCmdInContainer: ["java", "-cp", "/code", "Main"],
+  },
+  python: {
+    filename: "main.py",
+    image: "python:3",
+    compileCmdInContainer: null,
+    runCmdInContainer: ["python3", "/code/main.py"],
+  },
+};
 
 export const runCode = async (c: Context) => {
   try {
     const body = await c.req.json();
-    const { language, code, problem } = body;
+    const {
+      language,
+      code,
+      problem,
+      testcases,
+      userTestcases = [],
+    } = body as {
+      language: Language;
+      code: string;
+      problem: string;
+      testcases?: any[];
+      userTestcases?: any[];
+    };
 
     if (!language || !code) {
       return ErrorResponse(c, "Language and code are required", 400);
@@ -17,122 +67,139 @@ export const runCode = async (c: Context) => {
       return ErrorResponse(c, "Problem ID is required", 400);
     }
 
-    // ✅ Fetch only visible testcases from the problem
+    const langConfig = LANGUAGE_CONFIG[language];
+    if (!langConfig) {
+      return ErrorResponse(c, "Unsupported language", 400);
+    }
+
     const problemData = await Problem.findById(problem).lean();
+
     if (!problemData) {
       return ErrorResponse(c, "Problem not found", 404);
     }
 
-    const testcases = problemData.visibleTests || [];
-    if (testcases.length === 0) {
+    // Prefer testcases passed from frontend
+    const visibleTestcasesFromBody = Array.isArray(testcases) ? testcases : [];
+    const visibleTestcasesFromDB = problemData.visibleTests || [];
+
+    const visibleTestcases =
+      visibleTestcasesFromBody.length > 0
+        ? visibleTestcasesFromBody
+        : visibleTestcasesFromDB;
+
+    if (visibleTestcases.length === 0 && userTestcases.length === 0) {
       return ErrorResponse(
         c,
-        "No visible testcases found for this problem",
+        "No visible testcases or custom testcases found for this problem",
         400,
       );
     }
 
-    const results: any[] = [];
+    const allTestcases = [
+      ...visibleTestcases.map((tc: any) => ({
+        ...tc,
+        __source: "visible",
+      })),
+      ...userTestcases.map((tc: any) => ({
+        rawInput: tc.rawInput || "",
+        input: tc.input || {},
+        output: null,
+        __source: "custom",
+      })),
+    ];
 
-    for (const tc of testcases) {
-      const { input, output } = tc; // each testcase has { input, output }
+    // 🔥 Create temp dir ONCE per request
+    const tempDir = path.join(
+      process.cwd(),
+      `temp_${language}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    );
+    fs.mkdirSync(tempDir, { recursive: true });
 
-      const tempDir = `./temp_${language}_${Date.now()}`;
-      fs.mkdirSync(tempDir, { recursive: true });
+    try {
+      // Write code once
+      const filePath = path.join(tempDir, langConfig.filename);
+      fs.writeFileSync(filePath, code);
 
-      let filename: string;
-      let compileCmd: string[] | null = null;
-      let runCmd: string[];
-      let image: string;
+      const dockerVolume = `${tempDir}:/code`;
 
-      switch (language) {
-        case "c":
-          filename = "main.c";
-          compileCmd = ["gcc", "/code/main.c", "-o", "/code/main"];
-          runCmd = ["sh", "-c", `echo '${input}' | /code/main`];
-          image = "gcc";
-          break;
-        case "cpp":
-          filename = "main.cpp";
-          compileCmd = ["g++", "/code/main.cpp", "-o", "/code/main"];
-          runCmd = ["sh", "-c", `echo '${input}' | /code/main`];
-          image = "gcc";
-          break;
-        case "java":
-          filename = "Main.java";
-          compileCmd = ["javac", "/code/Main.java"];
-          runCmd = ["sh", "-c", `echo '${input}' | java -cp /code Main`];
-          image = "openjdk";
-          break;
-        case "python":
-          filename = "main.py";
-          runCmd = ["sh", "-c", `echo '${input}' | python3 /code/main.py`];
-          image = "python:3";
-          break;
-        default:
-          return ErrorResponse(c, "Unsupported language", 400);
-      }
+      // 🔥 Compile ONCE if needed
+      if (langConfig.compileCmdInContainer) {
+        const compileResult = spawnSync({
+          cmd: [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            dockerVolume,
+            langConfig.image,
+            ...langConfig.compileCmdInContainer,
+          ],
+          stdout: "pipe",
+          stderr: "pipe",
+        });
 
-      // Write code to temp directory
-      fs.writeFileSync(`${tempDir}/${filename}`, code);
-      const dockerVolume = `${process.cwd()}/${tempDir}:/code`;
-
-      // Step 1: Compile if needed
-      if (compileCmd) {
-        const compileResult = spawnSync([
-          "docker",
-          "run",
-          "--rm",
-          "-v",
-          dockerVolume,
-          image,
-          ...compileCmd,
-        ]);
-
-        if (compileResult.status !== 0) {
-          fs.rmSync(tempDir, { recursive: true, force: true });
+        if (!compileResult.success) {
+          const stderr = compileResult.stderr?.toString();
           return ErrorResponse(
             c,
             "Compilation failed",
             400,
-            compileResult.stderr?.toString(),
+            stderr || "Unknown compilation error",
           );
         }
       }
 
-      // Step 2: Run the code
-      const runResult = spawnSync([
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        dockerVolume,
-        image,
-        ...runCmd,
-      ]);
+      const results: any[] = [];
 
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      // 🔁 Only run container per testcase (no recompile, no dir re-create)
+      for (const tc of allTestcases) {
+        const stdin = (tc.rawInput ?? "").toString();
 
-      const stdout = runResult.stdout?.toString().trim() || "";
-      const stderr = runResult.stderr?.toString().trim() || "";
+        const runResult = spawnSync({
+          cmd: [
+            "docker",
+            "run",
+            "--rm",
+            "-i", // stdin from Bun
+            "-v",
+            dockerVolume,
+            langConfig.image,
+            ...langConfig.runCmdInContainer,
+          ],
+          stdin: new TextEncoder().encode(stdin),
+          stdout: "pipe",
+          stderr: "pipe",
+        });
 
-      const passed = stdout === output.trim();
+        const stdout = runResult.stdout?.toString().trim() || "";
+        const stderr = runResult.stderr?.toString().trim() || "";
 
-      results.push({
-        input,
-        expected: output,
-        output: stdout,
-        passed,
-        error: stderr || null,
+        const expectedOutput =
+          typeof tc.output === "string" ? tc.output.trim() : null;
+
+        const passed =
+          expectedOutput !== null ? stdout === expectedOutput : null;
+
+        results.push({
+          source: tc.__source,
+          input: stdin,
+          expected: expectedOutput,
+          output: stdout,
+          passed,
+          error: stderr || null,
+        });
+      }
+
+      return SuccessResponse(c, "Code executed successfully", 200, {
+        problem,
+        total: results.length,
+        passed: results.filter((r) => r.passed === true).length,
+        results,
       });
+    } finally {
+      // Clean once at the end
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
-
-    return SuccessResponse(c, "Code executed successfully", 200, {
-      problem,
-      total: results.length,
-      passed: results.filter((r) => r.passed).length,
-      results,
-    });
   } catch (err) {
     console.error("Unexpected error:", err);
     return ErrorResponse(c, "Internal server error", 500);

@@ -10,18 +10,15 @@ export const createContest = async (c: Context) => {
   let uploadedFilePath: string | null = null;
 
   try {
-    const body = await c.req.parseBody();
+    const formData = await c.req.formData();
 
-    const {
-      name,
-      conductedBy,
-      numberOfProblems,
-      durationMinutes,
-      teamSize,
-      questions,
-    } = body;
+    const name = formData.get("name") as string | null;
+    const conductedBy =
+      (formData.get("conductedBy") as string | null) || "IDCC";
+    const numberOfProblems = formData.get("numberOfProblems") as string | null;
+    const durationMinutes = formData.get("durationMinutes") as string | null;
 
-    if (!name || !numberOfProblems || !durationMinutes || !teamSize) {
+    if (!name || !numberOfProblems || !durationMinutes) {
       return ErrorResponse(c, "Missing required fields", 400);
     }
 
@@ -30,50 +27,51 @@ export const createContest = async (c: Context) => {
     }
 
     let bannerImage: string | null = null;
+    const bannerFile = formData.get("bannerImage");
 
-    if (body.bannerImage && body.bannerImage instanceof File) {
-      const file = body.bannerImage;
+    if (bannerFile && bannerFile instanceof File) {
+      const file = bannerFile as File;
       const filename = `${Date.now()}${path.extname(file.name)}`;
       const filepath = path.join(UPLOADS_PATH, filename);
 
       const buffer = Buffer.from(await file.arrayBuffer());
       fs.writeFileSync(filepath, buffer);
-
       uploadedFilePath = filepath;
 
       bannerImage = `/contests/${filename}`;
     }
 
-    let parsedQuestions: any[] = [];
-    try {
-      if (typeof questions === "string") {
-        parsedQuestions = JSON.parse(questions);
-      } else if (Array.isArray(questions)) {
-        parsedQuestions = questions;
+    const rawLanguages = formData.get("languages");
+
+    let parsedLanguages: string[] = [];
+
+    if (rawLanguages) {
+      try {
+        const arr = JSON.parse(String(rawLanguages));
+
+        if (Array.isArray(arr)) {
+          parsedLanguages = arr.map((l) => String(l));
+        } else {
+          parsedLanguages = [String(rawLanguages)];
+        }
+      } catch (e) {
+        parsedLanguages = [String(rawLanguages)];
       }
-    } catch (err) {
-      console.error("Invalid questions JSON:", err);
-      return ErrorResponse(c, "Invalid questions format", 400);
     }
 
-    for (const q of parsedQuestions) {
-      if (!q.name || q.points == null) {
-        return ErrorResponse(
-          c,
-          "Each question must include name and points",
-          400,
-        );
-      }
-    }
+    const allowedLanguages = ["python", "c", "cpp", "java"];
+
+    parsedLanguages = parsedLanguages
+      .map((l) => l.toLowerCase())
+      .filter((l) => allowedLanguages.includes(l));
 
     const contest = new Contest({
       name,
-      conductedBy: conductedBy || "IDCC",
+      conductedBy,
       numberOfProblems: Number(numberOfProblems),
       durationMinutes: Number(durationMinutes),
-      teamSize,
       bannerImage,
-      questions: parsedQuestions,
+      languages: parsedLanguages,
     });
 
     await contest.save();

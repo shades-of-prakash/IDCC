@@ -7,13 +7,15 @@ import AdminLayout from "../layouts/AdminLayout";
 import Loader from "../components/Loader";
 import ProblemEditor from "../components/Admin/ProblemEditor";
 import { ContestProvider } from "../contexts/ContestContext";
-// Lazy load pages/components
+
 const AdminLogin = lazy(() => import("../pages/AdminLogin"));
 const DashboardRouter = lazy(() => import("../layouts/Dashboard"));
 const RichTextEditor = lazy(() => import("../components/Admin/RichTextEditor"));
 const AddProblem = lazy(() => import("../components/Admin/AddProblem"));
 const Credentials = lazy(() => import("../components/Admin/Credentials"));
 const Logiq404 = lazy(() => import("../pages/Logiq404"));
+import TestCaseManager from "../components/Admin/TestCaseManager";
+
 const AdminRoutes = () => {
   return (
     <AuthProvider>
@@ -40,6 +42,7 @@ const AdminRoutes = () => {
                 }
               />
               <Route path="results" element={<div>Settings Page</div>} />
+              <Route path="testcase/:problemId" element={<TestCaseManager />} />
 
               <Route
                 path="credentials"
@@ -49,8 +52,9 @@ const AdminRoutes = () => {
                   </Suspense>
                 }
               />
-              <Route path="add-problem" element={<ProblemEditor />} />
-              {/* <Route path="add-problem" element={<Problem/>} /> */}
+
+              <Route path="statement/:problemId" element={<ProblemEditor />} />
+
               <Route
                 path="editor"
                 element={
