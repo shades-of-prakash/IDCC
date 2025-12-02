@@ -1,0 +1,8 @@
+FROM openjdk:21-jdk-slim
+
+RUN useradd -m runner
+USER runner
+
+WORKDIR /workspace
+
+CMD ["sleep", "infinity"]
