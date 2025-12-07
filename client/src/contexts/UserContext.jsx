@@ -1,75 +1,89 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react"; // 1. Import useMemo
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../utils/fetch";
 import { useSession } from "./SessionContext";
 
 const UserContext = createContext({
-  user: null,
-  isLoading: true,
-  login: async () => {},
-  logout: async () => {},
-  refetchUser: async () => {},
+    user: null,
+    isLoading: true,
+    login: async () => {},
+    logout: async () => {},
+    refetchUser: async () => {},
 });
 
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
-  const queryClient = useQueryClient();
-  const { setSession } = useSession();
+    const queryClient = useQueryClient();
+    const { setSession } = useSession();
 
-  const {
-    data: user,
-    isLoading,
-    refetch: refetchUser,
-  } = useQuery({
-    queryKey: ["authUser"],
-    queryFn: () => apiFetch("/api/user/me", { credentials: "include" }),
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+    const {
+        data: user,
+        isLoading,
+        refetch: refetchUser,
+    } = useQuery({
+        queryKey: ["authUser"],
+        queryFn: () => apiFetch("/api/user/me", { credentials: "include" }),
+        retry: false,
+        refetchOnWindowFocus: false,
+    });
 
-  const loginMutation = useMutation({
-    mutationFn: (credentials) =>
-      apiFetch("/api/user/login", {
-        method: "POST",
-        body: credentials,
-        credentials: "include",
-      }),
-    onSuccess: async (data) => {
-      if (data?.session) {
-        setSession({
-          sessionId: data.session._id,
-          user: data.session.userId,
-          contest: data.session.contestId,
-        });
-      }
+    const loginMutation = useMutation({
+        mutationFn: (credentials) =>
+            apiFetch("/api/user/login", {
+                method: "POST",
+                body: credentials,
+                credentials: "include",
+            }),
+        onSuccess: async (data) => {
+            if (data?.session) {
+                setSession({
+                    sessionId: data.session._id,
+                    user: data.session.userId,
+                    contest: data.session.contestId,
+                });
+            }
 
-      await refetchUser();
-      await queryClient.invalidateQueries(["authUser"]);
-    },
-  });
+            await refetchUser();
+            await queryClient.invalidateQueries(["authUser"]);
+        },
+    });
 
-  const logoutMutation = useMutation({
-    mutationFn: async () =>
-      apiFetch("/api/user/logout", {
-        method: "POST",
-        credentials: "include",
-      }),
-    onSettled: () => {
-      queryClient.setQueryData(["authUser"], null);
-      setSession(null);
-    },
-  });
+    const logoutMutation = useMutation({
+        mutationFn: async () =>
+            apiFetch("/api/user/logout", {
+                method: "POST",
+                credentials: "include",
+            }),
+        onSettled: () => {
+            queryClient.setQueryData(["authUser"], null);
+            setSession(null);
+        },
+    });
 
-  const value = {
-    user,
-    isLoading,
-    login: loginMutation.mutateAsync,
-    loginLoading: loginMutation.isPending,
-    logout: logoutMutation.mutateAsync,
-    logoutLoading: logoutMutation.isPending,
-    refetchUser,
-  };
+    // 2. Wrap the value in useMemo
+    const value = useMemo(
+        () => ({
+            user,
+            isLoading,
+            login: loginMutation.mutateAsync,
+            loginLoading: loginMutation.isPending,
+            logout: logoutMutation.mutateAsync,
+            logoutLoading: logoutMutation.isPending,
+            refetchUser,
+        }),
+        [
+            user,
+            isLoading,
+            loginMutation.mutateAsync,
+            loginMutation.isPending,
+            logoutMutation.mutateAsync,
+            logoutMutation.isPending,
+            refetchUser,
+        ],
+    );
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+    return (
+        <UserContext.Provider value={value}>{children}</UserContext.Provider>
+    );
 };

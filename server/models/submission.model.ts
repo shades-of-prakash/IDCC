@@ -1,99 +1,80 @@
 import mongoose from "mongoose";
 
-const { Schema } = mongoose;
-
-const TestcaseResultSchema = new Schema(
-  {
-    visibility: {
-      type: String,
-      enum: ["visible", "hidden"],
-      default: "visible",
+const TestResultSchema = new mongoose.Schema(
+    {
+        testcase: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "TestCase",
+            required: true,
+        },
+        input: { type: String, default: "" },
+        output: { type: String, default: "" },
+        expected: { type: String, default: "" },
+        passed: { type: Boolean, default: false },
+        error: { type: String, default: null },
+        isHidden: { type: Boolean, default: false },
+        pointsAwarded: { type: Number, default: 0 },
     },
-    hidden: {
-      type: Boolean,
-      default: false,
-    },
-
-    input: {
-      type: String,
-      default: null,
-    },
-    expected: {
-      type: String,
-      default: null,
-    },
-    output: {
-      type: String,
-      default: "",
-    },
-
-    passed: {
-      type: Boolean,
-      default: null,
-    },
-
-    error: {
-      type: String,
-      default: null,
-    },
-  },
-  { _id: false },
+    { _id: false },
 );
 
-const SubmissionSchema = new Schema(
-  {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: false,
-    },
-    problem: {
-      type: Schema.Types.ObjectId,
-      ref: "Problem",
-      required: true,
-    },
+const SubmissionSchema = new mongoose.Schema(
+    {
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
 
-    language: {
-      type: String,
-      required: true,
-    },
+        problemId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Problem",
+            required: true,
+        },
 
-    code: {
-      type: String,
-      required: true,
-    },
+        contestId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Contest",
+            required: true,
+        },
 
-    results: {
-      type: [TestcaseResultSchema],
-      default: [],
-    },
+        language: {
+            type: String,
+            enum: ["c", "cpp", "java", "python"],
+            required: true,
+        },
 
-    totalTests: {
-      type: Number,
-      default: 0,
-    },
+        code: {
+            type: String,
+            required: true,
+        },
 
-    passedCount: {
-      type: Number,
-      default: 0,
-    },
+        totalTests: { type: Number, required: true },
+        passedTests: { type: Number, required: true },
 
-    status: {
-      type: String,
-      enum: [
-        "ACCEPTED",
-        "PARTIAL",
-        "WRONG_ANSWER",
-        "RUNTIME_ERROR",
-        "COMPILATION_ERROR",
-      ],
-      default: "PARTIAL",
+        maxPoints: { type: Number, required: true },
+        pointsPerTest: { type: Number, required: true },
+        awardedPoints: { type: Number, required: true },
+
+        results: [TestResultSchema],
+
+        status: {
+            type: String,
+            enum: [
+                "Accepted",
+                "Wrong Answer",
+                "Runtime Error",
+                "Compile Error",
+            ],
+            required: true,
+        },
     },
-  },
-  { timestamps: true },
+    { timestamps: true },
 );
 
-const Submission =
-  mongoose.models.Submission || mongoose.model("Submission", SubmissionSchema);
+// OPTIONAL BUT HIGHLY RECOMMENDED
+// Ensures 1 submission per (user, contest, problem)
+SubmissionSchema.index({ user: 1, contest: 1, problem: 1 }, { unique: true });
 
+const Submission = mongoose.model("Submission", SubmissionSchema);
 export default Submission;

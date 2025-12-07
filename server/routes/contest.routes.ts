@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { createContest } from "../controllers/contest/create.controller";
 import {
-  getContests,
-  getContestsWithoutQuestions,
+    getContests,
+    getContestsWithoutQuestions,
+    getRunningContestsWithoutQuestions,
 } from "../controllers/contest/get.controller";
 import { getContestById } from "../controllers/contest/id.controller";
 import { upsertQuestion } from "../controllers/contest/questionUpsert.controller";
@@ -20,10 +21,7 @@ import { finalizeProblem } from "../controllers/contest/AddProblemToContest.cont
 import { unfinalizeProblem } from "../controllers/contest/unFinalize.controller";
 import { deleteContest } from "../controllers/contest/delete.controller";
 import { startSession } from "../controllers/user/startSession.controller";
-import {
-  runCode,
-  runCodeController,
-} from "../controllers/contest/runCode.controller";
+import { runCode } from "../controllers/contest/runCode.controller";
 import { createSimpleProblem } from "../controllers/contest/createSimpleProblem.controller";
 import Contest from "../models/contest.model";
 import { updateSessionElapsed } from "../controllers/user/session.controller";
@@ -36,6 +34,7 @@ import { removeTestCase } from "../controllers/contest/removeTestcase.controller
 import { updateTestCase } from "../controllers/contest/updateTestcase.controller";
 import { addProblemCompleteStatus } from "../controllers/contest/makeCompleted.controller";
 import { makeContestRunning } from "../controllers/contest/makecontestrunning.controller";
+import { submitCode } from "../controllers/contest/submitcode.controller";
 
 export const ContestRoutes = new Hono();
 
@@ -46,6 +45,11 @@ ContestRoutes.post("add", requireRole(["volunteer"]), createContest);
 ContestRoutes.delete("delete/:contestId", deleteContest);
 ContestRoutes.get("list", getContests);
 ContestRoutes.get("list/without-questions", getContestsWithoutQuestions);
+ContestRoutes.get(
+    "list/running/without-questions",
+    getRunningContestsWithoutQuestions,
+);
+
 ContestRoutes.get(":id", getContestById);
 ContestRoutes.post(":id/upsert", upsertQuestion);
 ContestRoutes.post("images/upload", uploadImage);
@@ -75,10 +79,11 @@ ContestRoutes.put("admin/testcase/update/:id", updateTestCase);
 ContestRoutes.get("admin/problem/get/:problemId", getProblemById);
 
 ContestRoutes.get(
-  "admin/getFinalizedProblemsByContest",
-  getFinalizedProblemsByContest,
+    "admin/getFinalizedProblemsByContest",
+    getFinalizedProblemsByContest,
 );
 ContestRoutes.post("admin/finalized", finalizeProblem);
 ContestRoutes.post("admin/unfinalized", unfinalizeProblem);
 
 ContestRoutes.post("/runcode", runCode);
+ContestRoutes.post("/submitcode", submitCode);

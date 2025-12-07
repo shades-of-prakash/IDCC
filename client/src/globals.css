@@ -208,3 +208,13 @@ blockquote code {
 .preview li {
     margin-bottom: 0.5rem;
 }
+
+.scroll-2px::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+}
+
+.scroll-2px::-webkit-scrollbar-thumb {
+    background: #bfbfbf;
+    border-radius: 1px;
+}

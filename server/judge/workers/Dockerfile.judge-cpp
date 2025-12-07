@@ -1,5 +1,9 @@
 FROM gcc:13
 
+# Non-root user
 RUN useradd -m runner
+
 WORKDIR /workspace
 USER runner
+
+CMD ["sleep", "infinity"]

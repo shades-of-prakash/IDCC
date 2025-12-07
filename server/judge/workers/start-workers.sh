@@ -1,28 +1,42 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
-mkdir -p /judge/work/c /judge/work/cpp /judge/work/java /judge/work/python
-chmod -R 777 /judge/work
+echo "[*] Creating host work directories..."
+mkdir -p /judge/work/gcc
+mkdir -p /judge/work/cpp
+mkdir -p /judge/work/java
+mkdir -p /judge/work/python
 
-docker build -f Dockerfile.judge-gcc -t judge-gcc-worker .
-docker build -f Dockerfile.judge-python -t judge-python-worker .
-docker build -f Dockerfile.judge-java -t judge-java-worker .
+echo "[*] Removing old containers..."
+docker rm -f judge-gcc-worker judge-cpp-worker judge-java-worker judge-python-worker 2>/dev/null || true
 
-docker rm -f judge-c-worker judge-cpp-worker judge-java-worker judge-python-worker 2>/dev/null
+echo "[*] Building images..."
+docker build -f Dockerfile.judge-gcc     -t judge-gcc-image     .
+docker build -f Dockerfile.judge-cpp     -t judge-cpp-image     .
+docker build -f Dockerfile.judge-java    -t judge-java-image    .
+docker build -f Dockerfile.judge-python  -t judge-python-image  .
 
-docker run -d --name judge-c-worker \
-  -v /judge/work/c:/workspace \
-  judge-gcc-worker
+echo "[*] Starting workers with volume mounts..."
+
+docker run -d --name judge-gcc-worker \
+  -v /judge/work/gcc:/workspace \
+  judge-gcc-image \
+  sleep infinity
 
 docker run -d --name judge-cpp-worker \
   -v /judge/work/cpp:/workspace \
-  judge-gcc-worker
+  judge-cpp-image \
+  sleep infinity
 
 docker run -d --name judge-java-worker \
   -v /judge/work/java:/workspace \
-  judge-java-worker
+  judge-java-image \
+  sleep infinity
 
 docker run -d --name judge-python-worker \
   -v /judge/work/python:/workspace \
-  judge-python-worker
+  judge-python-image \
+  sleep infinity
 
-echo "Workers started successfully!"
+echo "[*] Started workers:"
+docker ps | grep judge || echo "No judge workers running!"
