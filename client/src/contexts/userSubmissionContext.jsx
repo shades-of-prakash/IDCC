@@ -9,6 +9,7 @@ const useUserSubmissionsQuery = () => {
         queryKey: ["user-submissions"],
         queryFn: async () => {
             const data = await apiFetch("/api/user/submissions");
+            // data = { contestId, questions, submissions, latestSubmissions }
 
             const rawSubmissions = data?.submissions || [];
             const rawLatest = data?.latestSubmissions || [];
@@ -25,6 +26,7 @@ const useUserSubmissionsQuery = () => {
             }));
 
             return {
+                contestId: data?.contestId || "", // ✅ keep contestId
                 questions: data?.questions || [],
                 submissions, // [{ problemId, createdAt }]
                 latestSubmissions, // [{ problemId, latest }]
@@ -39,6 +41,7 @@ export const UserSubmissionsProvider = ({ children }) => {
     const { data, isLoading, error, refetch } = useUserSubmissionsQuery();
 
     const value = {
+        contestId: data?.contestId || "", // ✅ expose contestId
         questions: data?.questions || [],
         submissions: data?.submissions || [],
         latestSubmissions: data?.latestSubmissions || [],

@@ -79,6 +79,7 @@ export const getUserSubmissions = async (c: Context) => {
             "User submissions fetched successfully",
             200,
             {
+                contestId: user._id,
                 questions: questionIds,
                 submissions: submissionList,
                 latestSubmissions: Object.values(latestSubmissions),

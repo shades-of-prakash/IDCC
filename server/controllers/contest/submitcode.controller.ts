@@ -145,7 +145,7 @@ export const submitCode = async (c: Context) => {
         const body = await c.req.json();
         const { userId, language, code, problem, contestId } = body;
 
-        console.log(userId, language, code, contestId);
+        console.log(userId, language, contestId);
 
         if (!language || !code) {
             return ErrorResponse(c, "Language and code are required", 400);
@@ -184,7 +184,7 @@ export const submitCode = async (c: Context) => {
             );
         }
 
-        // ✅ Use testcase points instead of problemDoc.points
+        // ✅ Build test meta (with points)
         const allTests = problemDoc.testcases.map((t: any) => ({
             testcase: t._id,
             rawInput: t.rawInput ?? t.input ?? "",
@@ -293,7 +293,7 @@ export const submitCode = async (c: Context) => {
             const totalTests = baseResults.length;
             const passedTests = baseResults.filter((r) => r.passed).length;
 
-            // ✅ Attach per-test points and awarded points
+            // ✅ Attach per-test points and awarded points (for DB only)
             const resultsWithPoints = baseResults.map((r, i) => {
                 const tcMeta = allTests[i];
                 const testPoints = tcMeta?.points ?? 0;
@@ -304,19 +304,16 @@ export const submitCode = async (c: Context) => {
                 };
             });
 
-            // ✅ Total max points is sum of testcase points
             const maxPoints = resultsWithPoints.reduce(
                 (sum, r) => sum + (r.points ?? 0),
                 0,
             );
 
-            // ✅ Total awarded points is sum of pointsAwarded for passed tests
             const awardedPoints = resultsWithPoints.reduce(
                 (sum, r) => sum + (r.pointsAwarded ?? 0),
                 0,
             );
 
-            // (Optional) average points per test – you can ignore this in UI if not needed
             const pointsPerTest =
                 totalTests > 0
                     ? Math.round((maxPoints / totalTests) * 100) / 100
@@ -332,7 +329,7 @@ export const submitCode = async (c: Context) => {
                 submissionStatus = "Accepted";
             }
 
-            // ✅ Upsert with contest
+            // ✅ Store everything (including points + io) in DB
             const submissionDoc = await Submission.findOneAndUpdate(
                 {
                     userId: userId,
@@ -363,7 +360,36 @@ export const submitCode = async (c: Context) => {
                 },
             );
 
-            const responseResults = resultsWithPoints.map((r) => r);
+            // ✅ Response shaping:
+            // - no points / pointsAwarded
+            // - for hidden tests: no input / output / expected
+            const responseResults = resultsWithPoints.map(
+                ({
+                    points,
+                    pointsAwarded,
+                    input,
+                    output,
+                    expected,
+                    ...rest
+                }) => {
+                    if (rest.isHidden) {
+                        // hide sensitive info
+                        return {
+                            testcase: rest.testcase,
+                            passed: rest.passed,
+                            isHidden: rest.isHidden,
+                        };
+                    }
+
+                    // visible tests → show io + expected
+                    return {
+                        ...rest,
+                        input,
+                        output,
+                        expected,
+                    };
+                },
+            );
 
             return SuccessResponse(c, "Submission saved", 200, {
                 submissionId: submissionDoc._id,
@@ -372,9 +398,7 @@ export const submitCode = async (c: Context) => {
                 language,
                 totalTests,
                 passedTests,
-                maxPoints,
-                pointsPerTest,
-                awardedPoints,
+                // no maxPoints / pointsPerTest / awardedPoints in response
                 results: responseResults,
             });
         } finally {

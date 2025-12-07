@@ -29,7 +29,6 @@ const ContestResults = () => {
             ),
         getNextPageParam: (lastPage, allPages) => {
             if (!Array.isArray(lastPage)) return undefined;
-            // if full page, assume more pages exist
             if (lastPage.length === PAGE_SIZE) {
                 return allPages.length + 1;
             }
@@ -70,7 +69,7 @@ const ContestResults = () => {
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     return (
-        <div className="w-full h-full flex flex-col bg-white">
+        <div className="w-full h-full flex flex-col bg-white overflow-hidden">
             {/* 🔵 STICKY HEADER WITH BACK BUTTON */}
             <div className="h-16 px-3 flex items-center gap-3 border-b bg-white sticky top-0 z-20">
                 <button
@@ -83,31 +82,30 @@ const ContestResults = () => {
                 <div className="flex flex-col">
                     <h1 className="text-lg font-semibold">Contest Results</h1>
                     <span className="text-sm text-gray-600">
-                        Showing participants and their submission count
+                        Showing participants, total marks and their submission
+                        count
                     </span>
                 </div>
             </div>
 
-            {/* 🔥 BODY SCROLLABLE AREA */}
+            {/* 🔥 BODY SCROLLABLE AREA – only vertical here */}
             <div className="flex-1 overflow-y-auto px-3 py-3">
-                {/* Initial Loading */}
                 {isLoading && (
                     <div className="p-4">
                         <Loader text="Loading submissions..." />
                     </div>
                 )}
 
-                {/* Error */}
                 {isError && (
                     <div className="p-4 text-red-600">
                         Failed to load results: {error?.message}
                     </div>
                 )}
 
-                {/* Table */}
                 {!isLoading && !isError && (
-                    <div className="relative overflow-x-auto rounded-lg border border-gray-300">
-                        <table className="min-w-full text-base">
+                    <div className="relative w-full overflow-x-auto rounded-lg border border-gray-300">
+                        {/* 👇 table fills wrapper; wrapper handles horizontal scroll */}
+                        <table className="min-w-full text-sm table-fixed">
                             <thead className="bg-gray-100 border-b border-gray-300 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
@@ -138,6 +136,9 @@ const ContestResults = () => {
                                         Department
                                     </th>
                                     <th className="px-4 py-4 text-center text-xs font-semibold uppercase">
+                                        Total Marks
+                                    </th>
+                                    <th className="px-4 py-4 text-center text-xs font-semibold uppercase">
                                         Submissions
                                     </th>
                                 </tr>
@@ -147,7 +148,7 @@ const ContestResults = () => {
                                 {users.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={10}
+                                            colSpan={11}
                                             className="text-center px-4 py-6 text-gray-500"
                                         >
                                             No submissions found for this
@@ -159,6 +160,7 @@ const ContestResults = () => {
                                         const {
                                             userId,
                                             submissionCount,
+                                            totalPoints,
                                             email,
                                             phone,
                                             college,
@@ -177,12 +179,10 @@ const ContestResults = () => {
                                                 }
                                                 className="hover:bg-gray-100 cursor-pointer transition"
                                             >
-                                                {/* S.No */}
                                                 <td className="px-4 py-4">
                                                     {index + 1}
                                                 </td>
 
-                                                {/* P1 Name */}
                                                 <td
                                                     className="px-4 py-4 max-w-[150px] truncate"
                                                     title={p1.name || ""}
@@ -190,7 +190,6 @@ const ContestResults = () => {
                                                     {p1.name || "-"}
                                                 </td>
 
-                                                {/* P1 ID */}
                                                 <td
                                                     className="px-4 py-4 max-w-[120px] truncate"
                                                     title={p1.regNo || ""}
@@ -198,7 +197,6 @@ const ContestResults = () => {
                                                     {p1.regNo || "-"}
                                                 </td>
 
-                                                {/* P2 Name */}
                                                 <td
                                                     className="px-4 py-4 max-w-[150px] truncate"
                                                     title={p2.name || ""}
@@ -206,7 +204,6 @@ const ContestResults = () => {
                                                     {p2.name || "-"}
                                                 </td>
 
-                                                {/* P2 ID */}
                                                 <td
                                                     className="px-4 py-4 max-w-[120px] truncate"
                                                     title={p2.regNo || ""}
@@ -214,38 +211,39 @@ const ContestResults = () => {
                                                     {p2.regNo || "-"}
                                                 </td>
 
-                                                {/* Email */}
                                                 <td
-                                                    className="px-4 py-4 max-w-[200px] truncate"
+                                                    className="px-4 py-4 max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis"
                                                     title={email}
                                                 >
                                                     {email}
                                                 </td>
 
-                                                {/* Contact */}
                                                 <td className="px-4 py-4">
                                                     {phone}
                                                 </td>
 
-                                                {/* College */}
                                                 <td
-                                                    className="px-4 py-4 max-w-[220px] truncate"
+                                                    className="px-4 py-4 max-w-[180px] overflow-hidden whitespace-nowrap text-ellipsis"
                                                     title={college}
                                                 >
                                                     {college}
                                                 </td>
 
-                                                {/* Department */}
                                                 <td
-                                                    className="px-4 py-4 max-w-[180px] truncate"
+                                                    className="px-4 py-4 max-w-[150px] truncate"
                                                     title={dept}
                                                 >
                                                     {dept}
                                                 </td>
 
-                                                {/* Submission Count */}
                                                 <td className="px-4 py-4 text-center">
-                                                    <span className="px-3 py-1 rounded-full bg-gray-200 text-gray-900 font-semibold">
+                                                    <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-semibold text-xs">
+                                                        {totalPoints ?? 0}
+                                                    </span>
+                                                </td>
+
+                                                <td className="px-4 py-4 text-center">
+                                                    <span className="px-3 py-1 rounded-full bg-gray-200 text-gray-900 font-semibold text-xs">
                                                         {submissionCount}
                                                     </span>
                                                 </td>
@@ -255,7 +253,7 @@ const ContestResults = () => {
                                 )}
 
                                 <tr>
-                                    <td colSpan={10} className="h-1">
+                                    <td colSpan={11} className="h-1">
                                         <div
                                             ref={loaderRef}
                                             className="w-full flex justify-center items-center py-1.5"

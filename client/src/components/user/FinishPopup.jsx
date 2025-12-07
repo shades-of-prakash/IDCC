@@ -7,6 +7,7 @@ const FinishPopup = ({
     onClose,
     problems = [],
     setActive,
+    contestId,
     submittedQuestions = [],
     lastSubmittedAt = {},
 }) => {
@@ -51,7 +52,6 @@ const FinishPopup = ({
 
     const { hasFinishedRef } = useFinish();
 
-    // 🔥 Helper: remove all localStorage items starting with "code:"
     const clearCodeDrafts = () => {
         try {
             const keysToRemove = [];
@@ -90,7 +90,12 @@ const FinishPopup = ({
                 },
             });
 
-            window.location.href = "/user/login";
+            // just in case, fallback if contestId is missing
+            if (contestId) {
+                window.location.href = `/thankyou/${contestId}`;
+            } else {
+                window.location.href = `/thankyou`;
+            }
         } catch (err) {
             console.error(err);
             window.location.href = "/login";
@@ -99,19 +104,18 @@ const FinishPopup = ({
         }
     };
 
-    // Keyboard shortcuts (disabled while finishing)
     useEffect(() => {
         if (!isOpen) return;
 
         const handler = (e) => {
-            if (isFinishing) return; // don't allow ESC/Enter during finish
+            if (isFinishing) return;
             if (e.key === "Escape") onClose();
             if (e.key === "Enter") handleFinish();
         };
 
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [isOpen, isFinishing]);
+    }, [isOpen, isFinishing, onClose]);
 
     const totalSegments = 40;
     const targetFilledSegments = Math.round(
@@ -146,7 +150,7 @@ const FinishPopup = ({
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
             onClick={() => {
-                if (isFinishing) return; // don't close on overlay click while finishing
+                if (isFinishing) return;
                 onClose();
             }}
             role="dialog"
@@ -219,7 +223,7 @@ const FinishPopup = ({
                                 key={problem.id}
                                 ref={isFirst ? firstUnsubmittedRef : null}
                                 onClick={() => {
-                                    if (isFinishing) return; // block navigation during finish
+                                    if (isFinishing) return;
                                     const i = problems.findIndex(
                                         (p) => p.id === problem.id,
                                     );

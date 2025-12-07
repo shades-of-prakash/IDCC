@@ -1,0 +1,23 @@
+# Dockerfile.client
+
+########### 1) Build stage ###########
+FROM oven/bun:1 AS builder
+
+WORKDIR /app/client
+
+# Install client deps
+COPY client/package.json client/bun.lockb* ./
+# Dockerfile.client
+FROM oven/bun:1 AS client-builder
+
+WORKDIR /app/client
+
+# Install client deps
+COPY client/package.json client/bun.lockb* ./
+RUN bun install
+
+# Copy client source
+COPY client/ ./
+
+# Build React/Vite app
+RUN bunx vite build

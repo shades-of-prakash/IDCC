@@ -9,20 +9,27 @@ const Navbar = ({ problems, setActive }) => {
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [submittedQuestions, setSubmittedQuestions] = useState([]);
     const [lastSubmittedAt, setLastSubmittedAt] = useState({});
+    const [contestId, setContestId] = useState(null);
 
     const handleFinish = async () => {
         try {
             const result = await refetch();
-            const questions = result?.data?.questions || [];
-            const submissions = result?.data?.submissions || [];
+            // result.data is what queryFn returned:
+            // { contestId, questions, submissions, latestSubmissions }
+            const data = result?.data || {};
+
+            const questions = data.questions || [];
+            const submissions = data.submissions || [];
+            const id = data.contestId || "";
+
+            console.log("API response in Navbar:", data);
+            console.log("Extracted contestId:", id);
 
             setSubmittedQuestions(questions);
 
-            // Build map: problemId -> lastSubmittedAt
             const map = {};
 
             submissions.forEach((s) => {
-                // with your new API shape this is usually s.problem & s.createdAt
                 let pid = null;
 
                 if (typeof s === "string") {
@@ -48,6 +55,7 @@ const Navbar = ({ problems, setActive }) => {
                 }
             });
 
+            setContestId(id);
             setLastSubmittedAt(map);
             setIsPopupOpen(true);
         } catch (err) {
@@ -83,6 +91,7 @@ const Navbar = ({ problems, setActive }) => {
                 onClose={() => setIsPopupOpen(false)}
                 problems={problems}
                 setActive={setActive}
+                contestId={contestId}
                 submittedQuestions={submittedQuestions}
                 lastSubmittedAt={lastSubmittedAt}
             />

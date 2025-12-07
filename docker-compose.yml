@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+    mongo:
+        image: mongo:7
+        container_name: logiq-mongo
+        restart: unless-stopped
+        ports:
+            - "27017:27017"
+        volumes:
+            - mongo_data:/data/db
+
+    server:
+        build:
+            context: .
+            dockerfile: Dockerfile.server
+        container_name: logiq-server
+        restart: unless-stopped
+        env_file:
+            - .env
+        ports:
+            - "3000:3000" # optional to expose externally, can remove if only Nginx uses it
+        depends_on:
+            - mongo
+            - judge-gcc-worker
+            - judge-cpp-worker
+            - judge-java-worker
+            - judge-python-worker
+        # If you use dockerode to talk to Docker inside server:
+        # volumes:
+        #   - /var/run/docker.sock:/var/run/docker.sock
+
+    nginx:
+        build:
+            context: .
+            dockerfile: Dockerfile.nginx
+        container_name: logiq-nginx
+        restart: unless-stopped
+        ports:
+            - "5173:80" # access app at http://localhost:5173
+        depends_on:
+            - server
+
+    judge-gcc-worker:
+        build:
+            context: .
+            dockerfile: server/judge/workers/Dockerfile.judge-gcc
+        container_name: judge-gcc-worker
+        restart: unless-stopped
+        volumes:
+            - ./server/judge/work/gcc:/workspace
+        command: ["sleep", "infinity"]
+
+    judge-cpp-worker:
+        build:
+            context: .
+            dockerfile: server/judge/workers/Dockerfile.judge-cpp
+        container_name: judge-cpp-worker
+        restart: unless-stopped
+        volumes:
+            - ./server/judge/work/cpp:/workspace
+        command: ["sleep", "infinity"]
+
+    judge-java-worker:
+        build:
+            context: .
+            dockerfile: server/judge/workers/Dockerfile.judge-java
+        container_name: judge-java-worker
+        restart: unless-stopped
+        volumes:
+            - ./server/judge/work/java:/workspace
+        command: ["sleep", "infinity"]
+
+    judge-python-worker:
+        build:
+            context: .
+            dockerfile: server/judge/workers/Dockerfile.judge-python
+        container_name: judge-python-worker
+        restart: unless-stopped
+        volumes:
+            - ./server/judge/work/python:/workspace
+        command: ["sleep", "infinity"]
+
+volumes:
+    mongo_data:

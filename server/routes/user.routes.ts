@@ -9,6 +9,7 @@ import { getUserSubmissions } from "../controllers/user/getUserSubmission.contro
 import { finishSession } from "../controllers/user/finish.controller";
 import { getContestUserSubmissionSummary } from "../controllers/user/getContestSubmissions.controller";
 import { getContestUserProblemSummary } from "../controllers/user/getUserDetailedSubmission.controller";
+import { submitContestFeedback } from "../controllers/user/feedback.controller";
 
 export const userRoute = new Hono();
 
@@ -17,6 +18,8 @@ userRoute.post("login", loginUser);
 userRoute.get("me", getMe);
 
 userRoute.get("session/get", getSession);
+
+userRoute.post("feedback", submitContestFeedback);
 
 userRoute.put("session/update-elapsed", updateElapsedTime);
 

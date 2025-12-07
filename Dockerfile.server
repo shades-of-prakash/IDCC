@@ -1,0 +1,19 @@
+# Dockerfile.server
+FROM oven/bun:1 AS base
+
+WORKDIR /app
+
+# Install deps
+COPY package.json bun.lockb* ./
+RUN bun install
+
+# Copy server source
+COPY server ./server
+
+# Build server (same as your script)
+RUN bun build ./server/index.ts --outdir ./dist --target bun
+
+EXPOSE 3000
+
+# Run built file (same as: bun run dist/index.js)
+CMD ["bun", "run", "dist/index.js"]

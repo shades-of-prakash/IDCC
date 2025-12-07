@@ -1,3 +1,14 @@
+
+#FROM gcc:14
+
+#RUN useradd -m judge
+#WORKDIR /workspace
+#RUN chown -R judge:judge /workspace
+
+#USER judge
+
+
+
 FROM gcc:13
 
 RUN useradd -m runner

@@ -38,6 +38,27 @@ const encodeKey = (key) => {
 const TAB_COUNT_KEY = encodeKey("contest_tab_count_v1");
 const TAB_AUTO_SUBMITTED_KEY = encodeKey("contest_tab_auto_submitted_v1");
 
+// 🔄 clear ONLY tab-tracking keys (old + encoded)
+const clearTabTracking = () => {
+    try {
+        if (typeof window === "undefined" || !window.localStorage) return;
+        const { localStorage } = window;
+
+        // old plain keys
+        localStorage.removeItem("contest_tab_count_v1");
+        localStorage.removeItem("contest_tab_auto_submitted_v1");
+
+        // new encoded keys
+        localStorage.removeItem(TAB_COUNT_KEY);
+        localStorage.removeItem(TAB_AUTO_SUBMITTED_KEY);
+    } catch (err) {
+        console.error(
+            "Failed to clear tab tracking keys from localStorage:",
+            err,
+        );
+    }
+};
+
 // Clears all saved "code:*" drafts + old + encoded tab keys from localStorage
 const clearCodeDrafts = () => {
     try {
@@ -141,6 +162,35 @@ const Playground = () => {
     const nProblems = problems.length;
 
     const toggle = () => setIsOpen((prev) => !prev);
+
+    // ✅ On mount: start fresh tab-tracking state (but keep code drafts)
+    useEffect(() => {
+        clearTabTracking();
+        setTabSwitchCount(0);
+        setHasAutoSubmitted(false);
+    }, []);
+
+    // restore state from encoded keys (if any set after mount in same tab)
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.localStorage) return;
+
+        try {
+            const storedCount = window.localStorage.getItem(TAB_COUNT_KEY);
+            const restoredCount = decodeCount(storedCount);
+            if (restoredCount > 0 && restoredCount < MAX_TAB_SWITCHES) {
+                setTabSwitchCount(restoredCount);
+            }
+
+            const storedAuto = window.localStorage.getItem(
+                TAB_AUTO_SUBMITTED_KEY,
+            );
+            if (storedAuto === "1") {
+                setHasAutoSubmitted(true);
+            }
+        } catch (err) {
+            console.error("Failed to restore tab state:", err);
+        }
+    }, []);
 
     // default language when data loads
     useEffect(() => {
@@ -278,6 +328,7 @@ const Playground = () => {
 
         // clear all drafts + tab-related keys when finishing
         clearCodeDrafts();
+        clearTabTracking();
 
         try {
             setIsFinishing(true);
@@ -290,47 +341,24 @@ const Playground = () => {
                 },
             });
 
-            window.location.href = "/user/login";
+            toast.success(
+                "Your contest was auto-submitted due to repeated tab switches. Redirecting to summary...",
+            );
+
+            const contestId = user?.user?.contestId;
+
+            if (contestId) {
+                window.location.href = `/thankyou/${contestId}`;
+            } else {
+                window.location.href = "/thankyou";
+            }
         } catch (err) {
             console.error(err);
-            window.location.href = "/login";
+            window.location.href = "/user/login";
         } finally {
             setIsFinishing(false);
         }
     }, [isFinishing, hasFinishedRef]);
-
-    // one-time cleanup of old (non-encoded) keys to avoid conflicts
-    useEffect(() => {
-        if (typeof window === "undefined" || !window.localStorage) return;
-        try {
-            window.localStorage.removeItem("contest_tab_count_v1");
-            window.localStorage.removeItem("contest_tab_auto_submitted_v1");
-        } catch (err) {
-            console.error("Failed to cleanup old contest tab keys:", err);
-        }
-    }, []);
-
-    // restore state from encoded keys
-    useEffect(() => {
-        if (typeof window === "undefined" || !window.localStorage) return;
-
-        try {
-            const storedCount = window.localStorage.getItem(TAB_COUNT_KEY);
-            const restoredCount = decodeCount(storedCount);
-            if (restoredCount > 0) {
-                setTabSwitchCount(restoredCount);
-            }
-
-            const storedAuto = window.localStorage.getItem(
-                TAB_AUTO_SUBMITTED_KEY,
-            );
-            if (storedAuto === "1") {
-                setHasAutoSubmitted(true);
-            }
-        } catch (err) {
-            console.error("Failed to restore tab state:", err);
-        }
-    }, []);
 
     // persist tab count
     useEffect(() => {
@@ -374,6 +402,9 @@ const Playground = () => {
                         !hasAutoSubmitted &&
                         !hasFinishedRef.current
                     ) {
+                        // 💣 hard reset tab keys right when auto-submitting
+                        clearTabTracking();
+
                         setShowTabWarning(false);
                         setHasAutoSubmitted(true);
                         toast.error(
@@ -403,8 +434,6 @@ const Playground = () => {
 
     return (
         <div className="relative w-screen h-dvh flex flex-col">
-            {/* <Toaster /> */}
-
             <Navbar problems={problems} setActive={setActive} />
 
             <ProblemNavbar

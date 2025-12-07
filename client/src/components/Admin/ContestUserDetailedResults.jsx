@@ -12,9 +12,8 @@ import {
     BookOpen,
     ChevronDown,
 } from "lucide-react";
-
-// ✅ Shiki (keep github-light)
 import { codeToHtml } from "shiki/bundle/web";
+import ContestPointsSummaryPopup from "./ContestPointsSummaryPopup";
 
 const normalizeLanguage = (langRaw) => {
     const lang = (langRaw || "").toLowerCase();
@@ -43,18 +42,15 @@ const ContestUserDetailedResults = () => {
 
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [isUserOpen, setIsUserOpen] = useState(false);
-
-    // 🔹 HTML from Shiki
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [highlightedCode, setHighlightedCode] = useState("");
 
-    // reset selected index when problems change
     useEffect(() => {
         if (data?.problems?.length > 0) {
             setSelectedIndex(0);
         }
     }, [data?.problems?.length]);
 
-    // 🔹 Highlight code with Shiki whenever data / selectedIndex changes
     useEffect(() => {
         let cancelled = false;
 
@@ -78,8 +74,6 @@ const ContestUserDetailedResults = () => {
 
             try {
                 const lang = normalizeLanguage(problem?.language);
-
-                // ✅ Shiki, still github-light
                 const html = await codeToHtml(code, {
                     lang,
                     theme: "github-light",
@@ -156,12 +150,13 @@ const ContestUserDetailedResults = () => {
     return (
         <div className="w-full h-full">
             <div className="flex flex-col w-full h-full">
-                {/* TOP: Back + User details card + Problems card (same UI style) */}
-                <div className="flex items-center  justify-between w-full px-3 gap-3 h-14">
-                    <div className="w-1/2  flex  items-center gap-3">
+                {/* TOP BAR */}
+                <div className="flex items-center justify-between w-full px-3 gap-3 h-14">
+                    {/* Left: Back + User */}
+                    <div className="w-1/2 flex items-center gap-3">
                         <button
                             onClick={() => navigate(-1)}
-                            className=" flex items-center gap-2 px-3 py-2.5 border border-gray-300 text-sm rounded-md hover:bg-gray-50 shrink-0"
+                            className="flex items-center gap-2 px-3 py-2.5 border border-gray-300 text-sm rounded-md hover:bg-gray-50 shrink-0"
                         >
                             <ArrowLeft size={18} className="text-gray-700" />
                             <span className="hidden sm:inline text-gray-700">
@@ -169,7 +164,7 @@ const ContestUserDetailedResults = () => {
                             </span>
                         </button>
 
-                        <div className="flex   border border-gray-300 rounded-md ">
+                        <div className="flex border border-gray-300 rounded-md">
                             {userDetails.participants?.map((p, idx) => (
                                 <div
                                     key={idx}
@@ -289,45 +284,55 @@ const ContestUserDetailedResults = () => {
                         </div>
                     </div>
 
-                    <div className="w-1/2 flex border border-gray-300 rounded-md overflow-hidden items-center">
-                        {/* Problems title */}
-                        <div className="w-24 px-3 py-3 border-r border-gray-300 flex items-center h-full bg-gray-50">
-                            <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
-                                Problems
-                            </span>
-                        </div>
+                    {/* Right: Problems + Points summary button */}
+                    <div className="w-1/2 flex items-center gap-2 justify-end">
+                        <div className="flex border border-gray-300 rounded-md overflow-hidden items-center flex-1">
+                            {/* Problems title */}
+                            <div className="w-24 px-3 py-3 border-r border-gray-300 flex items-center h-full bg-gray-50">
+                                <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
+                                    Problems
+                                </span>
+                            </div>
 
-                        {/* Scrollable problem buttons */}
-                        <div className="flex-1 overflow-x-auto scroll-2px">
-                            <div className="flex flex-nowrap">
-                                {[...problems].map((p, idx) => {
-                                    const isActive = idx === selectedIndex;
+                            {/* Scrollable problem buttons */}
+                            <div className="flex-1 overflow-x-auto scroll-2px">
+                                <div className="flex flex-nowrap">
+                                    {[...problems].map((p, idx) => {
+                                        const isActive = idx === selectedIndex;
 
-                                    return (
-                                        <button
-                                            key={idx}
-                                            onClick={() =>
-                                                setSelectedIndex(idx)
-                                            }
-                                            className={`
-                                                flex items-center gap-2 px-4 py-3 text-xs font-semibold border-r border-gray-300
-                                                transition-all
-                                                ${
-                                                    isActive
-                                                        ? "bg-blue-50"
-                                                        : "bg-white hover:bg-gray-50"
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() =>
+                                                    setSelectedIndex(idx)
                                                 }
-                                                flex-shrink-0
-                                            `}
-                                        >
-                                            <span className="text-gray-800">
-                                                {idx + 1}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
+                                                className={`
+                                                    flex items-center gap-2 px-4 py-3 text-xs font-semibold border-r border-gray-300
+                                                    transition-all
+                                                    ${
+                                                        isActive
+                                                            ? "bg-blue-50"
+                                                            : "bg-white hover:bg-gray-50"
+                                                    }
+                                                    flex-shrink-0
+                                                `}
+                                            >
+                                                <span className="text-gray-800">
+                                                    {idx + 1}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
+
+                        <button
+                            onClick={() => setIsSummaryOpen(true)}
+                            className="px-3 py-3 text-xs font-medium border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+                        >
+                            Points summary
+                        </button>
                     </div>
                 </div>
 
@@ -337,9 +342,9 @@ const ContestUserDetailedResults = () => {
                         {/* Question Description */}
                         <div className="bg-white w-[55%] h-full">
                             <div className="h-full border border-gray-300 overflow-hidden rounded-md">
-                                <div className="h-12 bg-white flex items-center  border-b rounded-t-md border-gray-300 px-3">
-                                    <div className="flex items-center w-full  justify-between">
-                                        <h2 className="text-lg  font-semibold gap-3 flex items-center justify-center text-gray-900">
+                                <div className="h-12 bg-white flex items-center border-b rounded-t-md border-gray-300 px-3">
+                                    <div className="flex items-center w-full justify-between">
+                                        <h2 className="text-lg font-semibold gap-3 flex items-center justify-center text-gray-900">
                                             {selectedProblem.problem?.name ||
                                                 "Problem"}
 
@@ -410,7 +415,7 @@ const ContestUserDetailedResults = () => {
                                 </div>
                             </div>
 
-                            <div className="h-[calc(100%-3rem)]  overflow-auto font-mono">
+                            <div className="h-[calc(100%-3rem)] overflow-auto font-mono">
                                 {highlightedCode ? (
                                     <div
                                         className="[&_pre]:p-3 [&_pre]:m-0 [&_code]:text-base"
@@ -429,6 +434,13 @@ const ContestUserDetailedResults = () => {
                     </div>
                 </div>
             </div>
+
+            {/* 🔹 Points Summary Popup (separate component) */}
+            <ContestPointsSummaryPopup
+                open={isSummaryOpen}
+                onClose={() => setIsSummaryOpen(false)}
+                problems={problems}
+            />
         </div>
     );
 };
