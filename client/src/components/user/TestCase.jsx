@@ -361,7 +361,7 @@ const TestCase = ({
     }, [cases, visible, onCustomCasesChange]);
 
     return (
-        <div className="h-full w-full flex flex-col border border-gray-300 rounded-lg overflow-hidden min-h-0">
+        <div className="h-full w-full flex flex-col  overflow-hidden min-h-0">
             <TestCaseNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {activeTab === "testcase" ? (

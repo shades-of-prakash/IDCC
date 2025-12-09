@@ -4,11 +4,13 @@ import { Link } from "react-router";
 import ContestNavbar from "../components/Admin/ContestNavbar";
 import ContestModal from "../components/Admin/ContestModal";
 import CreateUsers from "../components/Admin/CreateUsers";
-import { Pause, Play, FilePlus, Trash, UserPlus } from "lucide-react";
+import EditContestModal from "../components/Admin/EditContestModal";
+import { Pause, Play, FilePlus, Trash, UserPlus, Edit } from "lucide-react";
 import Loader from "../components/Loader";
 import Logo from "../assets/images/logo.webp";
 import { toast } from "sonner";
 import InfoCard from "../components/InfoCard";
+import DeleteContestPopup from "../components/Admin/DeleteContestPopup"; // ⬅️ NEW IMPORT
 
 const Contest = () => {
     const [showModal, setShowModal] = useState(false);
@@ -16,12 +18,14 @@ const Contest = () => {
     const [selectedContest, setSelectedContest] = useState(null);
     const [openDropdown, setOpenDropdown] = useState(null);
     const [showDeletePopup, setShowDeletePopup] = useState(false);
-    const dropdownRef = useRef(null);
+    const [showEditModal, setShowEditModal] = useState(false);
 
+    const dropdownRef = useRef(null);
     const queryClient = useQueryClient();
 
     const toggleModal = () => setShowModal((prev) => !prev);
 
+    // Fetch contests
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ["contests"],
         queryFn: async () => {
@@ -31,6 +35,7 @@ const Contest = () => {
         },
     });
 
+    // Delete contest
     const deleteContestMutation = useMutation({
         mutationFn: async (contestId) => {
             const res = await fetch(`/api/contest/delete/${contestId}`, {
@@ -45,12 +50,10 @@ const Contest = () => {
             setShowDeletePopup(false);
             setSelectedContest(null);
         },
-        onError: (err) => {
-            toast.error(err.message || "Error deleting contest");
-        },
+        onError: (err) => toast.error(err.message),
     });
 
-    // 🔁 Toggle isRunning mutation (used by Play/Pause icon)
+    // Toggle running
     const toggleRunningMutation = useMutation({
         mutationFn: async ({ id, isRunning }) => {
             const res = await fetch(`/api/contest/${id}/running`, {
@@ -60,6 +63,7 @@ const Contest = () => {
                 },
                 body: JSON.stringify({ isRunning }),
             });
+
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
                 throw new Error(
@@ -72,23 +76,17 @@ const Contest = () => {
             queryClient.invalidateQueries(["contests"]);
             toast.success("Contest running status updated");
         },
-        onError: (err) => {
-            toast.error(err.message || "Failed to update running status");
-        },
+        onError: (err) => toast.error(err.message),
     });
 
     const getStatus = (contest) => {
-        console.log(
-            contest.questions.length,
-            contest.numberOfProblems,
-            contest.questions.length === contest.numberOfProblems,
-        );
         if (!contest.questions) return "Incomplete";
         return contest.questions.length === contest.numberOfProblems
             ? "Complete"
             : "Incomplete";
     };
 
+    // Close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (
@@ -103,10 +101,6 @@ const Contest = () => {
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleDropdownToggle = (id) => {
-        setOpenDropdown((prev) => (prev === id ? null : id));
-    };
-
     const handleCreateUsers = (contest) => {
         setSelectedContest(contest);
         setShowCreateUsers(true);
@@ -119,20 +113,29 @@ const Contest = () => {
         setOpenDropdown(null);
     };
 
-    const confirmDelete = () => {
-        if (selectedContest) {
-            deleteContestMutation.mutate(selectedContest._id);
-        }
+    const handleEditClick = (contest) => {
+        setSelectedContest(contest);
+        setShowEditModal(true);
+        setOpenDropdown(null);
+    };
+
+    // Called when popup confirms deletion
+    const handleConfirmDelete = () => {
+        if (!selectedContest?._id) return;
+        deleteContestMutation.mutate(selectedContest._id);
     };
 
     return (
         <div className="w-full h-full flex flex-col bg-gray-50 relative">
+            {/* Navbar */}
             <div className="h-16 border-b bg-white flex items-center px-4">
                 <ContestNavbar toggle={toggleModal} />
             </div>
 
+            {/* Create Contest Modal */}
             {showModal && <ContestModal close={setShowModal} />}
 
+            {/* No contests */}
             {!isLoading &&
                 !isError &&
                 (!data?.data || data.data.length === 0) && (
@@ -140,26 +143,29 @@ const Contest = () => {
                         <InfoCard
                             title="No Contests Found"
                             className="border border-gray-200 rounded-md"
-                            description="Looks like there are no contests available right now. You can create a new one using create contest button above"
+                            description="Looks like there are no contests available right now. You can create a new one using the create contest button above."
                         />
                     </div>
                 )}
 
+            {/* Loading */}
             {isLoading && (
                 <Loader text="Loading Contests" className="w-full h-full" />
             )}
 
+            {/* Error */}
             {isError && (
                 <div className="text-center py-6 text-red-600">
                     {error.message}
                 </div>
             )}
 
+            {/* Contest List */}
             {!isLoading && data?.data?.length > 0 && (
                 <div className="h-[calc(100%-4rem)] p-2 relative">
-                    <div className="bg-white rounded-md overflow-hidden  relative flex flex-col h-full">
-                        <div className="flex-1 max-h-fit   border border-gray-300 rounded-md  overflow-y-auto">
-                            <table className="min-w-fit  text-sm text-gray-700">
+                    <div className="bg-white rounded-md overflow-hidden relative flex flex-col h-full">
+                        <div className="flex-1 max-h-fit border border-gray-300 rounded-md overflow-y-auto">
+                            <table className="min-w-fit text-sm text-gray-700">
                                 <thead className="bg-gray-100 text-gray-800 border-b border-gray-300 text-sm font-semibold sticky top-0">
                                     <tr>
                                         <th className="px-4 py-3 text-center w-[5%]">
@@ -171,11 +177,9 @@ const Contest = () => {
                                         <th className="px-4 py-3 text-left w-[15%]">
                                             Conducted By
                                         </th>
-
                                         <th className="px-4 py-3 text-left w-[18%]">
                                             Languages
                                         </th>
-
                                         <th className="px-4 py-3 text-center w-[8%]">
                                             Problems
                                         </th>
@@ -194,6 +198,7 @@ const Contest = () => {
                                         <th className="w-[5%]">Actions</th>
                                     </tr>
                                 </thead>
+
                                 <tbody className="divide-y divide-gray-200">
                                     {data.data.map((contest, index) => {
                                         const languages =
@@ -204,7 +209,7 @@ const Contest = () => {
                                                 key={contest._id}
                                                 className="hover:bg-gray-50 transition-colors relative"
                                             >
-                                                <td className="px-4 py-3 text-center font-medium text-gray-500">
+                                                <td className="px-4 py-3 text-center text-gray-500">
                                                     {index + 1}
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -213,10 +218,8 @@ const Contest = () => {
                                                 <td className="px-4 py-3">
                                                     {contest.conductedBy}
                                                 </td>
-
                                                 <td className="px-4 py-3">
-                                                    {Array.isArray(languages) &&
-                                                    languages.length > 0 ? (
+                                                    {languages.length > 0 ? (
                                                         <div className="flex flex-wrap gap-1">
                                                             {languages.map(
                                                                 (lang) => (
@@ -224,7 +227,7 @@ const Contest = () => {
                                                                         key={
                                                                             lang
                                                                         }
-                                                                        className="px-2 py-0.5 rounded-full bg-blue-100/90 border border-blue-300 text-[11px] font-semibold text-blue-800 tracking-wide"
+                                                                        className="px-2 py-0.5 rounded-full bg-blue-100 border border-blue-300 text-[11px] font-semibold text-blue-800"
                                                                     >
                                                                         {lang}
                                                                     </span>
@@ -237,39 +240,31 @@ const Contest = () => {
                                                         </span>
                                                     )}
                                                 </td>
-
                                                 <td className="px-4 py-3 text-center">
                                                     {contest.numberOfProblems}
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     {contest.durationMinutes}
                                                 </td>
-
                                                 <td className="px-4 py-3 text-center">
-                                                    <div
-                                                        className={`flex gap-2 items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium`}
-                                                    >
+                                                    <div className="flex gap-2 items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium">
                                                         <div
-                                                            className={`w-1.5 h-1.5 ${
+                                                            className={`w-1.5 h-1.5 rounded-full ${
                                                                 contest.isRunning
                                                                     ? "bg-green-600"
                                                                     : "bg-gray-400"
-                                                            } rounded-full`}
+                                                            }`}
                                                         ></div>
                                                         {contest.isRunning
                                                             ? "Running"
                                                             : "Inactive"}
                                                     </div>
                                                 </td>
-
                                                 <td className="px-4 py-3 text-center">
-                                                    {contest.bannerImage ? (
+                                                    {contest.iconImage ? (
                                                         <img
-                                                            src={`${
-                                                                import.meta.env
-                                                                    .VITE_BACKEND_URL
-                                                            }${
-                                                                contest.bannerImage
+                                                            src={`/api${
+                                                                contest.iconImage
                                                             }`}
                                                             alt="banner"
                                                             className="h-12 w-12 object-contain rounded-md mx-auto border"
@@ -278,7 +273,7 @@ const Contest = () => {
                                                         <img
                                                             src={Logo}
                                                             alt="banner"
-                                                            className="h-14 w-14 object-contain overflow-hidden rounded-md mx-auto border"
+                                                            className="h-14 w-14 object-contain rounded-md mx-auto border"
                                                         />
                                                     )}
                                                 </td>
@@ -296,25 +291,23 @@ const Contest = () => {
                                                     </span>
                                                 </td>
 
-                                                {/* Actions column */}
-                                                <td className="text-center px-2 relative">
+                                                {/* Actions */}
+                                                <td className="text-center px-2">
                                                     <div className="max-w-fit flex rounded-md border border-gray-300">
-                                                        <div className="p-2 w-full h-full border-r border-gray-300">
+                                                        {/* Add Questions */}
+                                                        <div className="p-2 border-r border-gray-300">
                                                             <Link
                                                                 to={`add/${contest._id}`}
-                                                                className="w-full h-full"
                                                             >
                                                                 <FilePlus
                                                                     size={16}
-                                                                    className="transform transition-transform duration-200 group-hover:scale-110"
                                                                 />
                                                             </Link>
                                                         </div>
 
-                                                        {/* ▶ Play/Pause button controls isRunning */}
+                                                        {/* Play / Pause */}
                                                         <div
                                                             onClick={() =>
-                                                                !toggleRunningMutation.isPending &&
                                                                 toggleRunningMutation.mutate(
                                                                     {
                                                                         id: contest._id,
@@ -323,7 +316,7 @@ const Contest = () => {
                                                                     },
                                                                 )
                                                             }
-                                                            className="p-2 w-full h-full border-r border-gray-300 group cursor-pointer"
+                                                            className="p-2 border-r border-gray-300 cursor-pointer"
                                                         >
                                                             {contest.isRunning ? (
                                                                 <Pause
@@ -332,36 +325,46 @@ const Contest = () => {
                                                             ) : (
                                                                 <Play
                                                                     size={16}
-                                                                    className="transform transition-transform duration-200 group-hover:scale-110"
                                                                 />
                                                             )}
                                                         </div>
 
+                                                        {/* Create Users */}
                                                         <div
                                                             onClick={() =>
                                                                 handleCreateUsers(
                                                                     contest,
                                                                 )
                                                             }
-                                                            className="p-2 w-full h-full border-r border-gray-300 group cursor-pointer"
+                                                            className="p-2 border-r border-gray-300 cursor-pointer"
                                                         >
                                                             <UserPlus
                                                                 size={16}
-                                                                className="transform transition-transform duration-200 group-hover:scale-110"
                                                             />
                                                         </div>
+
+                                                        {/* Edit */}
+                                                        <div
+                                                            onClick={() =>
+                                                                handleEditClick(
+                                                                    contest,
+                                                                )
+                                                            }
+                                                            className="p-2 border-r border-gray-300 cursor-pointer"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </div>
+
+                                                        {/* Delete */}
                                                         <div
                                                             onClick={() =>
                                                                 handleDeleteClick(
                                                                     contest,
                                                                 )
                                                             }
-                                                            className="p-2 w-full h-full border-r border-gray-300 group cursor-pointer"
+                                                            className="p-2 cursor-pointer text-red-500 hover:text-red-700"
                                                         >
-                                                            <Trash
-                                                                size={16}
-                                                                className="transform transition-transform duration-200 group-hover:scale-110"
-                                                            />
+                                                            <Trash size={16} />
                                                         </div>
                                                     </div>
                                                 </td>
@@ -375,42 +378,27 @@ const Contest = () => {
                 </div>
             )}
 
-            {/* Delete Confirmation Popup */}
-            {showDeletePopup && selectedContest && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[99999]">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-[22rem] text-center">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-                            Delete Contest
-                        </h2>
-                        <p className="text-gray-600 mb-5">
-                            Are you sure you want to delete{" "}
-                            <span className="font-medium text-gray-900">
-                                {selectedContest.name}
-                            </span>
-                            ?
-                        </p>
-                        <div className="flex justify-center gap-3">
-                            <button
-                                onClick={() => setShowDeletePopup(false)}
-                                disabled={deleteContestMutation.isPending}
-                                className="px-4 py-2 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                disabled={deleteContestMutation.isPending}
-                                className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
-                            >
-                                {deleteContestMutation.isPending
-                                    ? "Deleting..."
-                                    : "Delete"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* Edit Modal */}
+            {showEditModal && selectedContest && (
+                <EditContestModal
+                    isOpen={showEditModal}
+                    onClose={() => setShowEditModal(false)}
+                    contest={selectedContest}
+                />
             )}
 
+            {/* Delete Popup as separate component */}
+            {selectedContest && (
+                <DeleteContestPopup
+                    isOpen={showDeletePopup}
+                    contest={selectedContest}
+                    onClose={() => setShowDeletePopup(false)}
+                    onConfirmDelete={handleConfirmDelete}
+                    isDeleting={deleteContestMutation.isPending}
+                />
+            )}
+
+            {/* Create Users */}
             {showCreateUsers && selectedContest && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-0">
                     <CreateUsers

@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { Editor } from "@monaco-editor/react";
-import { CodeXml, ChevronDown, Check, Loader2 } from "lucide-react";
+import { useEffect, useState, lazy, Suspense } from "react";
+import { CodeXml, ChevronDown, Check } from "lucide-react";
 import { shikiToMonaco } from "@shikijs/monaco";
 import { createHighlighterCoreSync } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
@@ -19,10 +18,14 @@ import python from "@shikijs/langs/python";
 import cpp from "@shikijs/langs/cpp";
 import java from "@shikijs/langs/java";
 
-// Languages we fully support in Monaco/Shiki
+// ⬇️ adjust this path to where your Loader is
+import Loader from "../Loader";
+
+// Lazy-load Monaco
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+
 const SUPPORTED_LANG_IDS = ["c", "python", "cpp", "java"];
 
-// Mapping from language id -> label + monaco id + sample code
 const languageConfig = {
     c: {
         label: "C",
@@ -30,7 +33,6 @@ const languageConfig = {
         sample: `// Sample C code
 #include<stdio.h>
 int main(){
-    // Replace \`name\` with your logic
     int name = 42;
     return printf("%d", name);
 }`,
@@ -90,8 +92,8 @@ public class HelloWorld {
 const ActualPlayground = ({
     problem,
     editorRef,
-    languages = [], // e.g. ["python", "c", "java"] from API
-    selectedLang, // e.g. "python" (backend id)
+    languages = [],
+    selectedLang,
     onLangChange,
 }) => {
     const [theme, setTheme] = useState("github-light");
@@ -99,11 +101,9 @@ const ActualPlayground = ({
     const [highlighter, setHighlighter] = useState(null);
     const [code, setCode] = useState("");
 
-    // If backend doesn't send languages, fall back to all supported
     const effectiveLanguages =
         languages.length > 0 ? languages : SUPPORTED_LANG_IDS;
 
-    // Decide which language is currently active
     const currentLangId =
         selectedLang && effectiveLanguages.includes(selectedLang)
             ? selectedLang
@@ -128,12 +128,8 @@ const ActualPlayground = ({
         "material-theme-darker",
     ];
 
-    // Helper: get a stable problem id
-    const getProblemId = () => {
-        return problem?._id || problem?.id || "default-problem";
-    };
+    const getProblemId = () => problem?._id || problem?.id || "default-problem";
 
-    // Helper: build storage key for this problem + language
     const getStorageKey = (problemId, languageId) =>
         `code:${problemId}:${languageId}`;
 
@@ -175,7 +171,6 @@ const ActualPlayground = ({
         }
     }, []);
 
-    // Load code from localStorage whenever problem or language changes
     useEffect(() => {
         if (!currentLangId) return;
 
@@ -197,7 +192,6 @@ const ActualPlayground = ({
 
     const handleSelect = (type, value) => {
         if (type === "lang") {
-            // value is language id: "python", "c", "java", "cpp"
             onLangChange && onLangChange(value);
         } else {
             setTheme(value);
@@ -206,7 +200,9 @@ const ActualPlayground = ({
     };
 
     const handleEditorBeforeMount = (monaco) => {
+        // Don't block if highlighter is not ready – just skip Shiki
         if (!highlighter) return;
+
         SUPPORTED_LANG_IDS.forEach((id) => monaco.languages.register({ id }));
         shikiToMonaco(highlighter, monaco);
     };
@@ -223,6 +219,7 @@ const ActualPlayground = ({
 
         const problemId = getProblemId();
         const key = getStorageKey(problemId, currentLangId);
+
         try {
             window.localStorage.setItem(key, newCode);
         } catch (e) {
@@ -230,17 +227,18 @@ const ActualPlayground = ({
         }
     };
 
-    if (!highlighter) {
-        return (
-            <div className="select-none h-full w-full border border-neutral-300 rounded-lg flex items-center justify-center bg-neutral-50">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-500" />
-            </div>
-        );
-    }
+    const renderEditorLoader = () => (
+        <Loader
+            text="Loading editor..."
+            className="h-full w-full bg-neutral-50"
+            textClassName="text-sm"
+            color="black"
+        />
+    );
 
     return (
-        <div className="select-none h-full w-full border border-neutral-300 rounded-lg flex flex-col overflow-hidden">
-            {/* Header */}
+        <div className="select-none h-full w-full flex flex-col overflow-hidden">
+            {/* Header / Navbar – always visible */}
             <div className="w-full h-[45px] flex items-center justify-between border-b border-neutral-200 p-2 bg-white sticky top-0 z-20">
                 <div className="h-full items-center flex gap-2">
                     <div className="flex text-green-600">
@@ -270,7 +268,6 @@ const ActualPlayground = ({
 
                             {dropdownOpen === "theme" && (
                                 <div className="absolute right-0 mt-1 w-56 bg-white border border-neutral-300 rounded shadow-lg z-10 overflow-hidden">
-                                    {/* Light section */}
                                     <div>
                                         <div className="border-b border-neutral-200 p-2 px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50">
                                             Light Themes
@@ -298,7 +295,6 @@ const ActualPlayground = ({
                                         </div>
                                     </div>
 
-                                    {/* Dark section */}
                                     <div>
                                         <div className="p-2 px-3 text-xs uppercase text-neutral-500 font-medium bg-neutral-50 border-y border-neutral-200">
                                             Dark Themes
@@ -377,47 +373,50 @@ const ActualPlayground = ({
                 </div>
             </div>
 
-            {/* Editor */}
+            {/* Editor area – only ONE Loader via Suspense */}
             <div className="flex-1 flex items-center justify-center bg-neutral-50 overflow-auto">
-                <Editor
-                    height="100%"
-                    value={code}
-                    language={currentLangConfig.monaco}
-                    beforeMount={handleEditorBeforeMount}
-                    onMount={handleEditorMount}
-                    onChange={handleCodeChange}
-                    theme={theme}
-                    options={{
-                        minimap: { enabled: false },
-                        scrollBeyondLastLine: false,
-                        wordWrap: "on",
-                        autoIndent: "advanced",
-                        formatOnPaste: true,
-                        formatOnType: true,
-                        automaticLayout: true,
-                        fontSize: 15,
-                        lineNumbersMinChars: 2,
-                        lineDecorationsWidth: 0,
-                        glyphMargin: false,
-                        tabSize: 4,
-                        insertSpaces: true,
-                        quickSuggestions: false,
-                        folding: true,
-                        detectIndentation: false,
-                        trimAutoWhitespace: false,
-                        lineHeight: 22,
-                        fontFamily: "'Geist Mono', monospace",
-                        fontLigatures: true,
-                        contextmenu: false,
-                        renderLineHighlight: "none",
-                        renderLineHighlightOnlyWhenFocus: false,
-                        suggestOnTriggerCharacters: false,
-                        acceptSuggestionOnEnter: "off",
-                        parameterHints: { enabled: false },
-                        lightbulb: { enabled: false },
-                        padding: { top: 10, bottom: 10 },
-                    }}
-                />
+                <Suspense fallback={renderEditorLoader()}>
+                    <MonacoEditor
+                        height="100%"
+                        value={code}
+                        language={currentLangConfig.monaco}
+                        beforeMount={handleEditorBeforeMount}
+                        onMount={handleEditorMount}
+                        onChange={handleCodeChange}
+                        theme={theme}
+                        loading={null}
+                        options={{
+                            minimap: { enabled: false },
+                            scrollBeyondLastLine: false,
+                            wordWrap: "on",
+                            autoIndent: "advanced",
+                            formatOnPaste: true,
+                            formatOnType: true,
+                            automaticLayout: true,
+                            fontSize: 15,
+                            lineNumbersMinChars: 2,
+                            lineDecorationsWidth: 0,
+                            glyphMargin: false,
+                            tabSize: 4,
+                            insertSpaces: true,
+                            quickSuggestions: false,
+                            folding: true,
+                            detectIndentation: false,
+                            trimAutoWhitespace: false,
+                            lineHeight: 22,
+                            fontFamily: "'Geist Mono', monospace",
+                            fontLigatures: true,
+                            contextmenu: false,
+                            renderLineHighlight: "none",
+                            renderLineHighlightOnlyWhenFocus: false,
+                            suggestOnTriggerCharacters: false,
+                            acceptSuggestionOnEnter: "off",
+                            parameterHints: { enabled: false },
+                            lightbulb: { enabled: false },
+                            padding: { top: 10, bottom: 10 },
+                        }}
+                    />
+                </Suspense>
             </div>
         </div>
     );

@@ -1,27 +1,30 @@
 # Dockerfile.nginx
 
-# --- Build client first ---
+# --- Build client (React/Vite) first ---
 FROM oven/bun:1 AS client-builder
 
 WORKDIR /app/client
 
+# Install client deps
 COPY client/package.json client/bun.lockb* ./
 RUN bun install
 
+# Copy client source
 COPY client/ ./
+
+# Build React/Vite app
 RUN bunx vite build
 
 # --- Nginx runtime ---
 FROM nginx:alpine
 
-# Use the default nginx.conf (it already includes mime.types)
-# We only replace the default server config
+# Replace default server config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Remove any existing static content
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy built frontend from builder
+# Copy built frontend from builder stage
 COPY --from=client-builder /app/client/dist /usr/share/nginx/html
 
 EXPOSE 80

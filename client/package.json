@@ -4,7 +4,7 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
-        "dev": "bunx --run vite",
+        "dev": "bunx --run --hot vite",
         "build": "bunx --run vite build",
         "lint": "eslint .",
         "preview": "vite preview"

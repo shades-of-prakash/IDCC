@@ -1,40 +1,40 @@
 {
-  "name": "server",
-  "type": "module",
-  "scripts": {
-    "client": "cd client && bun dev",
-    "server": "bun run --hot server/index.ts",
-    "dev": "concurrently \"bun run server\" \"bun run client\"",
-    "build": "bun build ./server/index.ts --outdir ./dist --target bun  && cd client && bun run build",
-    "start": "bun run dist/index.js"
-  },
-  "dependencies": {
-    "@hono/zod-validator": "^0.7.3",
-    "@shikijs/langs": "^3.13.0",
-    "@shikijs/themes": "^3.13.0",
-    "@tailwindcss/typography": "^0.5.19",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/multer": "^2.0.0",
-    "bcryptjs": "^3.0.2",
-    "dockernode": "^0.1.0",
-    "dockerode": "^4.0.9",
-    "hono": "^4.9.8",
-    "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.555.0",
-    "monaco-editor": "^0.53.0",
-    "monaco-themes": "^0.4.7",
-    "mongoose": "^8.18.2",
-    "multer": "^2.0.2",
-    "path": "^0.12.7",
-    "shiki": "^3.19.0",
-    "tm-themes": "^1.10.9",
-    "vite-plugin-svgr": "^4.5.0",
-    "zod": "^4.1.11"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^3.0.0",
-    "@types/bun": "latest",
-    "concurrently": "^9.2.1",
-    "vite-plugin-monaco-editor": "^1.1.0"
-  }
+    "name": "server",
+    "type": "module",
+    "scripts": {
+        "client": "cd client && bun dev",
+        "server": "bun run --hot server/index.ts",
+        "dev": "concurrently \"bun run server\" \"bun run client\"",
+        "build": "bun build ./server/index.ts --outdir ./dist --target bun  && cd client && bun run build",
+        "start": "bun run dist/index.js"
+    },
+    "dependencies": {
+        "@hono/zod-validator": "^0.7.3",
+        "@shikijs/langs": "^3.13.0",
+        "@shikijs/themes": "^3.13.0",
+        "@tailwindcss/typography": "^0.5.19",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/multer": "^2.0.0",
+        "bcryptjs": "^3.0.2",
+        "dockernode": "^0.1.0",
+        "dockerode": "^4.0.9",
+        "hono": "^4.9.8",
+        "jsonwebtoken": "^9.0.2",
+        "lucide-react": "^0.555.0",
+        "monaco-editor": "^0.53.0",
+        "monaco-themes": "^0.4.7",
+        "mongoose": "^8.18.2",
+        "multer": "^2.0.2",
+        "path": "^0.12.7",
+        "shiki": "^3.19.0",
+        "tm-themes": "^1.10.9",
+        "vite-plugin-svgr": "^4.5.0",
+        "zod": "^4.1.11"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^3.0.0",
+        "@types/bun": "latest",
+        "concurrently": "^9.2.1",
+        "vite-plugin-monaco-editor": "^1.1.0"
+    }
 }

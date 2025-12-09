@@ -35,10 +35,13 @@ import { updateTestCase } from "../controllers/contest/updateTestcase.controller
 import { addProblemCompleteStatus } from "../controllers/contest/makeCompleted.controller";
 import { makeContestRunning } from "../controllers/contest/makecontestrunning.controller";
 import { submitCode } from "../controllers/contest/submitcode.controller";
+import { updateContest } from "../controllers/contest/update.controller";
 
 export const ContestRoutes = new Hono();
 
 ContestRoutes.post("create", createContest);
+ContestRoutes.patch("update/:id", updateContest);
+
 ContestRoutes.patch(":id/running", makeContestRunning);
 
 ContestRoutes.post("add", requireRole(["volunteer"]), createContest);

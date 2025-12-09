@@ -489,7 +489,7 @@ const Playground = () => {
                         pane2Style={{ overflow: "auto" }}
                         className="gap-1 p-2 pl-1.5 overflow-hidden"
                     >
-                        <div className="h-full w-full flex flex-col">
+                        <div className="h-full w-full flex flex-col rounded-lg  border border-neutral-300 overflow-hidden">
                             {nProblems > 0 && (
                                 <ActualPlayground
                                     problem={problems[active]}
@@ -500,7 +500,7 @@ const Playground = () => {
                                 />
                             )}
                         </div>
-                        <div className="h-full w-full">
+                        <div className="h-full w-full rounded-lg  border border-neutral-300 overflow-hidden">
                             {nProblems > 0 && (
                                 <TestCase
                                     visible={problems[active]}

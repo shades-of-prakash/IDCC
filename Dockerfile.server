@@ -3,17 +3,17 @@ FROM oven/bun:1 AS base
 
 WORKDIR /app
 
-# Install deps
+# Install deps for the server (root package.json)
 COPY package.json bun.lockb* ./
 RUN bun install
 
 # Copy server source
 COPY server ./server
 
-# Build server (same as your script)
+# Build server (TS -> JS bundle)
 RUN bun build ./server/index.ts --outdir ./dist --target bun
 
-EXPOSE 3000
+EXPOSE 4000
 
-# Run built file (same as: bun run dist/index.js)
+# Run built server
 CMD ["bun", "run", "dist/index.js"]
