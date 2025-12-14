@@ -7,6 +7,7 @@ import {
     Edit3,
     SquarePlus,
     KeyRound,
+    MessageCircleReply,
 } from "lucide-react";
 import { AuthContext } from "../../contexts/adminAuthContext";
 
@@ -33,6 +34,12 @@ const SideMenu = () => {
             content: "Results",
             path: "/results",
             icon: <Trophy size={18} />,
+        },
+        {
+            id: 3,
+            content: "Feedback",
+            path: "/feedback",
+            icon: <MessageCircleReply size={18} />,
         },
     ];
     const coordinatorMenu = [

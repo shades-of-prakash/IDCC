@@ -61,7 +61,7 @@ const PreviewModal = ({ selectedProblem, closeModal }) => {
                 </div>
 
                 <div
-                    className="preview text-gray-700 leading-6 w-full h-[calc(100%-5rem)]
+                    className="admin preview text-gray-700 leading-6 w-full h-[calc(100%-5rem)]
                      bg-neutral-100/30 border border-gray-200 p-4 rounded-md text-base
                      overflow-auto prose prose-neutral max-w-none
                      space-y-3
@@ -71,7 +71,7 @@ const PreviewModal = ({ selectedProblem, closeModal }) => {
                      [&_li]:my-1
                      [&_pre]:whitespace-pre-wrap
                      [&_*]:break-words
-                     [&_img]:w-[420px] [&_img]:h-auto [&_img]:rounded-lg [&_img]:mx-auto [&_img]:my-10"
+                     [&_img]:w-[450px] [&_img]:h-auto [&_img]:rounded-lg [&_img]:mx-auto [&_img]:my-10"
                     dangerouslySetInnerHTML={{
                         __html: selectedProblem.statement,
                     }}

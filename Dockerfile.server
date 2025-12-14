@@ -7,6 +7,9 @@ WORKDIR /app
 COPY package.json bun.lockb* ./
 RUN bun install
 
+
+COPY public ./public
+
 # Copy server source
 COPY server ./server
 

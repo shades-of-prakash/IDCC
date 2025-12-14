@@ -21,6 +21,9 @@ export default function ContestFeedback() {
     const [answers, setAnswers] = useState(Array(questions.length).fill(0));
     const [feedback, setFeedback] = useState("");
 
+    /* ---------- LOGIC ONLY ---------- */
+    const isFormValid = answers.every((a) => a > 0);
+
     const updateRating = (qIndex, value) => {
         const updated = [...answers];
         updated[qIndex] = value;
@@ -43,7 +46,6 @@ export default function ContestFeedback() {
             });
 
             const data = await res.json();
-            console.log("FEEDBACK RESPONSE:", data);
 
             if (!res.ok || data?.success === false) {
                 throw new Error(data?.message || "Failed to submit feedback");
@@ -57,14 +59,13 @@ export default function ContestFeedback() {
                 navigate("/user/login", { replace: true });
             }
         },
-
-        onError: (error) => {
-            console.error("Feedback mutation error:", error);
-        },
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        if (!isFormValid) return;
+
         feedbackMutation.mutate({ contestId, answers, feedback });
     };
 
@@ -178,15 +179,6 @@ export default function ContestFeedback() {
                             />
                         </div>
 
-                        {/* Status row (no layout shift) */}
-                        <div className="h-5 mt-1 text-xs flex items-center">
-                            {feedbackMutation.isError && (
-                                <span className="text-red-600">
-                                    {feedbackMutation.error.message}
-                                </span>
-                            )}
-                        </div>
-
                         {/* Buttons */}
                         <div className="flex justify-end gap-3 pt-2 mt-2">
                             <button
@@ -201,7 +193,9 @@ export default function ContestFeedback() {
                             <button
                                 type="submit"
                                 className="w-20 px-5 py-2 bg-black text-white rounded-lg text-sm hover:bg-slate-800 disabled:opacity-70"
-                                disabled={feedbackMutation.isPending}
+                                disabled={
+                                    !isFormValid || feedbackMutation.isPending
+                                }
                             >
                                 {feedbackMutation.isPending ? "..." : "Submit"}
                             </button>

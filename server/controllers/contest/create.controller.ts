@@ -4,11 +4,11 @@ import * as path from "path";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 import { Context } from "hono";
 
-const UPLOADS_PATH = path.join("uploads", "contests");
+const PUBLIC_UPLOADS_BASE = path.join(process.cwd(), "public", "uploads");
 
 export const createContest = async (c: Context) => {
-    // Array to hold paths of uploaded files for cleanup in case of error
     const uploadedFilePaths: string[] = [];
+    let contest: any = null;
 
     try {
         const formData = await c.req.formData();
@@ -27,93 +27,109 @@ export const createContest = async (c: Context) => {
             return ErrorResponse(c, "Missing required fields", 400);
         }
 
-        if (!fs.existsSync(UPLOADS_PATH)) {
-            fs.mkdirSync(UPLOADS_PATH, { recursive: true });
+        /* ---------- UNIQUE NAME CHECK (CASE-INSENSITIVE) ---------- */
+        const existingContest = await Contest.findOne({
+            name: { $regex: `^${name}$`, $options: "i" },
+        });
+
+        if (existingContest) {
+            return ErrorResponse(c, "Contest name already exists", 409);
         }
 
-        let bannerImage: string | null = null;
-        let iconImage: string | null = null; // New state variable
-
-        /** ---------- FILE UPLOAD UTILITY FUNCTION ---------- **/
-        const handleFileUpload = async (
-            fileKey: string,
-        ): Promise<string | null> => {
-            const fileEntry = formData.get(fileKey);
-
-            if (fileEntry && fileEntry instanceof File) {
-                const file = fileEntry as File;
-                const filename = `${Date.now()}-${fileKey}${path.extname(file.name)}`;
-                const filepath = path.join(UPLOADS_PATH, filename);
-
-                const buffer = Buffer.from(await file.arrayBuffer());
-                fs.writeFileSync(filepath, buffer);
-                uploadedFilePaths.push(filepath); // Add to cleanup list
-
-                return `/contests/${filename}`; // Return the public path
-            }
-            return null;
-        };
-
-        /** ---------- HANDLE BANNER IMAGE UPLOAD ---------- **/
-        bannerImage = await handleFileUpload("bannerImage");
-
-        /** ---------- HANDLE CONTEST ICON UPLOAD (NEW) ---------- **/
-        iconImage = await handleFileUpload("iconImage");
-
-        /** ---------- PARSE LANGUAGES ---------- **/
+        /* ---------- LANGUAGES ---------- */
         const rawLanguages = formData.get("languages");
-
         let parsedLanguages: string[] = [];
 
         if (rawLanguages) {
             try {
                 const arr = JSON.parse(String(rawLanguages));
-
-                if (Array.isArray(arr)) {
-                    parsedLanguages = arr.map((l) => String(l));
-                } else {
-                    parsedLanguages = [String(rawLanguages)];
-                }
-            } catch (e) {
+                parsedLanguages = Array.isArray(arr)
+                    ? arr.map(String)
+                    : [String(rawLanguages)];
+            } catch {
                 parsedLanguages = [String(rawLanguages)];
             }
         }
 
         const allowedLanguages = ["python", "c", "cpp", "java"];
-
         parsedLanguages = parsedLanguages
             .map((l) => l.toLowerCase())
             .filter((l) => allowedLanguages.includes(l));
 
-        /** ---------- CREATE CONTEST ---------- **/
-        const contest = new Contest({
-            name,
+        /* ---------- ENSURE public/uploads EXISTS ---------- */
+        if (!fs.existsSync(PUBLIC_UPLOADS_BASE)) {
+            fs.mkdirSync(PUBLIC_UPLOADS_BASE, { recursive: true });
+        }
+
+        /* ---------- CREATE CONTEST ---------- */
+        contest = new Contest({
+            name: name.trim(),
             conductedBy,
             numberOfProblems: Number(numberOfProblems),
             durationMinutes: Number(durationMinutes),
-            bannerImage,
-            iconImage, // Save the new icon path
+            bannerImage: null,
+            iconImage: null,
             languages: parsedLanguages,
         });
+
+        await contest.save();
+        const contestId = contest._id.toString();
+
+        /* ---------- public/uploads/<contestId> ---------- */
+        const contestDir = path.join(PUBLIC_UPLOADS_BASE, contestId);
+        if (!fs.existsSync(contestDir)) {
+            fs.mkdirSync(contestDir, { recursive: true });
+        }
+
+        /* ---------- FILE UPLOAD HELPER ---------- */
+        const handleFileUpload = async (
+            fieldName: string,
+            prefix: string,
+        ): Promise<string | null> => {
+            const entry = formData.get(fieldName);
+
+            if (entry && entry instanceof File) {
+                const ext = path.extname(entry.name);
+                const filename = `${prefix}-${Date.now()}-${Math.random()
+                    .toString(36)
+                    .slice(2)}${ext}`;
+
+                const filePath = path.join(contestDir, filename);
+                const buffer = Buffer.from(await entry.arrayBuffer());
+
+                fs.writeFileSync(filePath, buffer);
+                uploadedFilePaths.push(filePath);
+
+                return `/api/uploads/${contestId}/${filename}`;
+            }
+            return null;
+        };
+
+        /* ---------- UPLOAD IMAGES ---------- */
+        const bannerImage = await handleFileUpload("bannerImage", "banner");
+        const iconImage = await handleFileUpload("iconImage", "icon");
+
+        if (bannerImage) contest.bannerImage = bannerImage;
+        if (iconImage) contest.iconImage = iconImage;
 
         await contest.save();
 
         return SuccessResponse(c, "Contest created successfully", 201, contest);
     } catch (err: any) {
-        // Cleanup: remove all successfully uploaded files in case of an error
-        if (uploadedFilePaths.length > 0) {
-            uploadedFilePaths.forEach((filepath) => {
-                if (fs.existsSync(filepath)) {
-                    try {
-                        fs.unlinkSync(filepath);
-                    } catch (cleanupErr) {
-                        console.error(
-                            `Failed to remove uploaded file ${filepath}:`,
-                            cleanupErr,
-                        );
-                    }
-                }
-            });
+        /* ---------- CLEANUP ---------- */
+        for (const filepath of uploadedFilePaths) {
+            try {
+                if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+            } catch {}
+        }
+
+        if (contest?._id) {
+            await Contest.findByIdAndDelete(contest._id).catch(() => {});
+        }
+
+        // Mongo unique index safety net
+        if (err.code === 11000) {
+            return ErrorResponse(c, "Contest name already exists", 409);
         }
 
         console.error("Contest creation failed:", err);

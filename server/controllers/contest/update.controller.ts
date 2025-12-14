@@ -4,7 +4,8 @@ import * as path from "path";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 import { Context } from "hono";
 
-const UPLOADS_PATH = path.join("uploads", "contests");
+// Base uploads folder: <project-root>/uploads
+const UPLOADS_BASE = path.join(process.cwd(), "public", "uploads");
 
 export const updateContest = async (c: Context) => {
     let uploadedBannerPath: string | null = null;
@@ -29,10 +30,83 @@ export const updateContest = async (c: Context) => {
             | string
             | null;
 
-        /** ---------- ENSURE UPLOADS FOLDER ---------- **/
-        if (!fs.existsSync(UPLOADS_PATH)) {
-            fs.mkdirSync(UPLOADS_PATH, { recursive: true });
+        /** ---------- ENSURE uploads/<contestId> FOLDER ---------- **/
+        const contestId = existing._id.toString();
+        if (!fs.existsSync(UPLOADS_BASE)) {
+            fs.mkdirSync(UPLOADS_BASE, { recursive: true });
         }
+
+        const contestDir = path.join(UPLOADS_BASE, contestId);
+        if (!fs.existsSync(contestDir)) {
+            fs.mkdirSync(contestDir, { recursive: true });
+        }
+
+        /** ---------- HELPER TO DELETE OLD FILES BY URL ---------- **/
+        const deleteOldFileByUrl = (url?: string | null) => {
+            if (!url) return;
+
+            // Format 1: /api/upload/<contestId>/<filename>
+            if (url.startsWith("/api/upload/")) {
+                const parts = url.split("/"); // ["", "api", "upload", contestId, filename]
+                if (parts.length >= 5) {
+                    const oldContestId = parts[3];
+                    const filename = parts[4];
+                    const filePath = path.join(
+                        UPLOADS_BASE,
+                        oldContestId,
+                        filename,
+                    );
+
+                    if (fs.existsSync(filePath)) {
+                        try {
+                            fs.unlinkSync(filePath);
+                            console.log("Deleted old file:", filePath);
+                        } catch (err) {
+                            console.error(
+                                "Failed to delete old file:",
+                                filePath,
+                                err,
+                            );
+                        }
+                    }
+                }
+                return;
+            }
+
+            // Format 2 (legacy): /uploads/<contestId>/<filename>
+            if (url.startsWith("/uploads/")) {
+                const parts = url.split("/"); // ["", "uploads", contestId, filename]
+                if (parts.length >= 4) {
+                    const oldContestId = parts[2];
+                    const filename = parts[3];
+                    const filePath = path.join(
+                        UPLOADS_BASE,
+                        oldContestId,
+                        filename,
+                    );
+
+                    if (fs.existsSync(filePath)) {
+                        try {
+                            fs.unlinkSync(filePath);
+                            console.log("Deleted old legacy file:", filePath);
+                        } catch (err) {
+                            console.error(
+                                "Failed to delete old legacy file:",
+                                filePath,
+                                err,
+                            );
+                        }
+                    }
+                }
+                return;
+            }
+
+            // You can add more legacy formats here if you had older schemes
+            console.warn(
+                "Unrecognized image URL format, skipping delete:",
+                url,
+            );
+        };
 
         /** ---------- HANDLE BANNER UPLOAD ---------- **/
         let bannerImage = existing.bannerImage; // default = old banner
@@ -40,70 +114,49 @@ export const updateContest = async (c: Context) => {
 
         if (bannerFile && bannerFile instanceof File) {
             const file = bannerFile as File;
-            const filename = `${Date.now()}${path.extname(file.name)}`;
-            const filepath = path.join(UPLOADS_PATH, filename);
+            const filename = `${Date.now()}-banner${path.extname(file.name)}`;
+
+            // Physical path: uploads/<contestId>/<filename>
+            const filepath = path.join(contestDir, filename);
 
             const buffer = Buffer.from(await file.arrayBuffer());
             fs.writeFileSync(filepath, buffer);
             uploadedBannerPath = filepath;
 
-            // what you store in DB (used later as /contests/... from backend url)
-            bannerImage = `/contests/${filename}`;
+            // Public URL stored in DB: /api/upload/<contestId>/<filename>
+            bannerImage = `/api/uploads/${contestId}/${filename}`;
 
             // delete old banner file if exists
             if (existing.bannerImage) {
-                const oldPath = path.join(
-                    "uploads",
-                    existing.bannerImage.replace("/contests/", "contests/"),
-                );
-                if (fs.existsSync(oldPath)) {
-                    try {
-                        fs.unlinkSync(oldPath);
-                    } catch (err) {
-                        console.error("Failed to delete old banner:", err);
-                    }
-                }
+                deleteOldFileByUrl(existing.bannerImage);
             }
         }
 
-        /** ---------- HANDLE ICON UPLOAD (NEW) ---------- **/
+        /** ---------- HANDLE ICON UPLOAD ---------- **/
         let iconImage = (existing as any).iconImage; // default = old icon
         const iconFile = formData.get("iconImage");
 
         if (iconFile && iconFile instanceof File) {
             const file = iconFile as File;
             const filename = `${Date.now()}-icon${path.extname(file.name)}`;
-            const filepath = path.join(UPLOADS_PATH, filename);
+
+            // Physical path: uploads/<contestId>/<filename>
+            const filepath = path.join(contestDir, filename);
 
             const buffer = Buffer.from(await file.arrayBuffer());
             fs.writeFileSync(filepath, buffer);
             uploadedIconPath = filepath;
 
-            // what you store in DB
-            iconImage = `/contests/${filename}`;
+            iconImage = `/uploads/${contestId}/${filename}`;
 
             // delete old icon file if exists
             if ((existing as any).iconImage) {
-                const oldIconPath = path.join(
-                    "uploads",
-                    (existing as any).iconImage.replace(
-                        "/contests/",
-                        "contests/",
-                    ),
-                );
-                if (fs.existsSync(oldIconPath)) {
-                    try {
-                        fs.unlinkSync(oldIconPath);
-                    } catch (err) {
-                        console.error("Failed to delete old icon:", err);
-                    }
-                }
+                deleteOldFileByUrl((existing as any).iconImage);
             }
         }
 
         /** ---------- PARSE LANGUAGES ---------- **/
         const rawLanguages = formData.get("languages");
-
         let parsedLanguages: string[] = [];
 
         if (rawLanguages) {
@@ -127,7 +180,6 @@ export const updateContest = async (c: Context) => {
 
         /** ---------- PARSE INSTRUCTIONS ---------- **/
         const rawInstructions = formData.get("instructions");
-
         let parsedInstructions: string[] = [];
 
         if (rawInstructions) {
@@ -159,7 +211,7 @@ export const updateContest = async (c: Context) => {
             : existing.durationMinutes;
 
         existing.bannerImage = bannerImage;
-        (existing as any).iconImage = iconImage; // NEW: save icon path
+        (existing as any).iconImage = iconImage;
         existing.languages = parsedLanguages;
         existing.instructions = parsedInstructions;
 

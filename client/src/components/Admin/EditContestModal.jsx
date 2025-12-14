@@ -38,12 +38,10 @@ const normalizeInstructions = (instructions) => {
     return [];
 };
 
-// Utility function to get the correct image source (local preview or backend URL)
 const getImageSrc = (previewUrl, file, existingPath) => {
     if (file) return previewUrl;
     if (existingPath && existingPath.startsWith("http")) return existingPath;
-    if (existingPath)
-        return `${import.meta.env.VITE_BACKEND_URL}${existingPath}`;
+    if (existingPath) return existingPath;
     return "";
 };
 
@@ -201,6 +199,11 @@ const EditContestModal = ({ isOpen, onClose, contest }) => {
         setNewInstruction("");
     };
 
+    // Disable button when there are any errors OR while saving
+    const hasErrors =
+        Object.values(errors).some((val) => Boolean(val)) ||
+        updateMutation.isPending;
+
     if (!isOpen) return null;
 
     const instructionCount = form.instructions.length;
@@ -216,10 +219,7 @@ const EditContestModal = ({ isOpen, onClose, contest }) => {
             {/* FLEX WRAPPER: Ensures Side-by-Side, Equal Height, and GAP */}
             <div className="relative z-[99991] flex items-stretch max-h-[85vh] transition-all duration-300 gap-1">
                 {/* 1. LEFT SIDE: MAIN FORM */}
-                <div
-                    // Note: Rounding is now consistently rounded-xl since there is a gap
-                    className="w-[500px] bg-white flex flex-col overflow-hidden transition-all duration-300 rounded-xl"
-                >
+                <div className="w-[500px] bg-white flex flex-col overflow-hidden transition-all duration-300 rounded-xl">
                     <div className="flex items-center justify-between px-6 py-2 border-b ">
                         <h2 className="text-xl font-bold">Edit Contest</h2>
                         <button
@@ -232,10 +232,10 @@ const EditContestModal = ({ isOpen, onClose, contest }) => {
 
                     {/* Scrollable Form Body */}
                     <form
-                        // *** CHANGE: Added custom CSS class 'hide-scrollbar' to suppress the scrollbar visual ***
                         className="flex-1 overflow-y-auto hide-scrollbar"
                         onSubmit={(e) => {
                             e.preventDefault();
+                            if (hasErrors) return;
                             updateMutation.mutate();
                         }}
                     >
@@ -519,7 +519,7 @@ const EditContestModal = ({ isOpen, onClose, contest }) => {
                             </button>
                             <button
                                 type="submit"
-                                disabled={updateMutation.isPending}
+                                disabled={hasErrors}
                                 className="px-4 py-2 text-sm font-medium bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition shadow-sm"
                             >
                                 {updateMutation.isPending

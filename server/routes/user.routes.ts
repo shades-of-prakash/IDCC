@@ -10,6 +10,7 @@ import { finishSession } from "../controllers/user/finish.controller";
 import { getContestUserSubmissionSummary } from "../controllers/user/getContestSubmissions.controller";
 import { getContestUserProblemSummary } from "../controllers/user/getUserDetailedSubmission.controller";
 import { submitContestFeedback } from "../controllers/user/feedback.controller";
+import { downloadResults } from "../controllers/user/download.controller";
 
 export const userRoute = new Hono();
 
@@ -33,3 +34,5 @@ userRoute.get(":contestId/submissions", getContestUserSubmissionSummary);
 userRoute.get(":contestId/:userId/problems", getContestUserProblemSummary);
 
 userRoute.post("contest/finish", finishSession);
+
+userRoute.get("/contest/:contestId/results/export", downloadResults);

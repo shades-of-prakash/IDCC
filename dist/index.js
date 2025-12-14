@@ -5035,6 +5035,9 @@ var require_error = __commonJS((exports) => {
     if (error instanceof MongoNetworkError) {
       return true;
     }
+    if (error instanceof MongoServerSelectionError) {
+      return true;
+    }
     if (wireVersion != null && wireVersion >= 9) {
       if (error.code === exports.MONGODB_ERROR_CODES.CursorNotFound) {
         return true;
@@ -5048,8 +5051,29 @@ var require_error = __commonJS((exports) => {
   }
 });
 
-// node_modules/mongodb/lib/constants.js
+// node_modules/mongodb/lib/cmap/wire_protocol/constants.js
 var require_constants = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.OP_MSG = exports.OP_COMPRESSED = exports.OP_DELETE = exports.OP_QUERY = exports.OP_INSERT = exports.OP_UPDATE = exports.OP_REPLY = exports.MIN_SUPPORTED_RAW_DATA_SERVER_VERSION = exports.MIN_SUPPORTED_RAW_DATA_WIRE_VERSION = exports.MIN_SUPPORTED_QE_SERVER_VERSION = exports.MIN_SUPPORTED_QE_WIRE_VERSION = exports.MAX_SUPPORTED_WIRE_VERSION = exports.MIN_SUPPORTED_WIRE_VERSION = exports.MAX_SUPPORTED_SERVER_VERSION = exports.MIN_SUPPORTED_SERVER_VERSION = undefined;
+  exports.MIN_SUPPORTED_SERVER_VERSION = "4.2";
+  exports.MAX_SUPPORTED_SERVER_VERSION = "8.2";
+  exports.MIN_SUPPORTED_WIRE_VERSION = 8;
+  exports.MAX_SUPPORTED_WIRE_VERSION = 27;
+  exports.MIN_SUPPORTED_QE_WIRE_VERSION = 21;
+  exports.MIN_SUPPORTED_QE_SERVER_VERSION = "7.0";
+  exports.MIN_SUPPORTED_RAW_DATA_WIRE_VERSION = 27;
+  exports.MIN_SUPPORTED_RAW_DATA_SERVER_VERSION = "8.2";
+  exports.OP_REPLY = 1;
+  exports.OP_UPDATE = 2001;
+  exports.OP_INSERT = 2002;
+  exports.OP_QUERY = 2004;
+  exports.OP_DELETE = 2006;
+  exports.OP_COMPRESSED = 2012;
+  exports.OP_MSG = 2013;
+});
+
+// node_modules/mongodb/lib/constants.js
+var require_constants2 = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.END = exports.CHANGE = exports.INIT = exports.MORE = exports.RESPONSE = exports.SERVER_HEARTBEAT_FAILED = exports.SERVER_HEARTBEAT_SUCCEEDED = exports.SERVER_HEARTBEAT_STARTED = exports.COMMAND_FAILED = exports.COMMAND_SUCCEEDED = exports.COMMAND_STARTED = exports.CLUSTER_TIME_RECEIVED = exports.CONNECTION_CHECKED_IN = exports.CONNECTION_CHECKED_OUT = exports.CONNECTION_CHECK_OUT_FAILED = exports.CONNECTION_CHECK_OUT_STARTED = exports.CONNECTION_CLOSED = exports.CONNECTION_READY = exports.CONNECTION_CREATED = exports.CONNECTION_POOL_READY = exports.CONNECTION_POOL_CLEARED = exports.CONNECTION_POOL_CLOSED = exports.CONNECTION_POOL_CREATED = exports.WAITING_FOR_SUITABLE_SERVER = exports.SERVER_SELECTION_SUCCEEDED = exports.SERVER_SELECTION_FAILED = exports.SERVER_SELECTION_STARTED = exports.TOPOLOGY_DESCRIPTION_CHANGED = exports.TOPOLOGY_CLOSED = exports.TOPOLOGY_OPENING = exports.SERVER_DESCRIPTION_CHANGED = exports.SERVER_CLOSED = exports.SERVER_OPENING = exports.DESCRIPTION_RECEIVED = exports.UNPINNED = exports.PINNED = exports.MESSAGE = exports.ENDED = exports.CLOSED = exports.CONNECT = exports.OPEN = exports.CLOSE = exports.TIMEOUT = exports.ERROR = exports.SYSTEM_JS_COLLECTION = exports.SYSTEM_COMMAND_COLLECTION = exports.SYSTEM_USER_COLLECTION = exports.SYSTEM_PROFILE_COLLECTION = exports.SYSTEM_INDEX_COLLECTION = exports.SYSTEM_NAMESPACE_COLLECTION = undefined;
   exports.kDecoratedKeys = exports.kDecorateResult = exports.LEGACY_HELLO_COMMAND_CAMEL_CASE = exports.LEGACY_HELLO_COMMAND = exports.MONGO_CLIENT_EVENTS = exports.LOCAL_SERVER_EVENTS = exports.SERVER_RELAY_EVENTS = exports.APM_EVENTS = exports.TOPOLOGY_EVENTS = exports.CMAP_EVENTS = exports.HEARTBEAT_EVENTS = exports.RESUME_TOKEN_CHANGED = undefined;
@@ -5163,25 +5187,6 @@ var require_constants = __commonJS((exports) => {
   exports.LEGACY_HELLO_COMMAND_CAMEL_CASE = "isMaster";
   exports.kDecorateResult = Symbol.for("@@mdb.decorateDecryptionResult");
   exports.kDecoratedKeys = Symbol.for("@@mdb.decryptedKeys");
-});
-
-// node_modules/mongodb/lib/cmap/wire_protocol/constants.js
-var require_constants2 = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.OP_MSG = exports.OP_COMPRESSED = exports.OP_DELETE = exports.OP_QUERY = exports.OP_INSERT = exports.OP_UPDATE = exports.OP_REPLY = exports.MIN_SUPPORTED_QE_SERVER_VERSION = exports.MIN_SUPPORTED_QE_WIRE_VERSION = exports.MAX_SUPPORTED_WIRE_VERSION = exports.MIN_SUPPORTED_WIRE_VERSION = exports.MAX_SUPPORTED_SERVER_VERSION = exports.MIN_SUPPORTED_SERVER_VERSION = undefined;
-  exports.MIN_SUPPORTED_SERVER_VERSION = "4.2";
-  exports.MAX_SUPPORTED_SERVER_VERSION = "8.0";
-  exports.MIN_SUPPORTED_WIRE_VERSION = 8;
-  exports.MAX_SUPPORTED_WIRE_VERSION = 25;
-  exports.MIN_SUPPORTED_QE_WIRE_VERSION = 21;
-  exports.MIN_SUPPORTED_QE_SERVER_VERSION = "7.0";
-  exports.OP_REPLY = 1;
-  exports.OP_UPDATE = 2001;
-  exports.OP_INSERT = 2002;
-  exports.OP_QUERY = 2004;
-  exports.OP_DELETE = 2006;
-  exports.OP_COMPRESSED = 2012;
-  exports.OP_MSG = 2013;
 });
 
 // node_modules/mongodb/lib/read_concern.js
@@ -5428,445 +5433,6 @@ var require_common = __commonJS((exports) => {
   }
 });
 
-// node_modules/mongodb/lib/cmap/wire_protocol/on_demand/document.js
-var require_document = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.OnDemandDocument = undefined;
-  var bson_1 = require_bson2();
-  var BSONElementOffset = {
-    type: 0,
-    nameOffset: 1,
-    nameLength: 2,
-    offset: 3,
-    length: 4
-  };
-
-  class OnDemandDocument {
-    constructor(bson, offset = 0, isArray = false, elements) {
-      this.cache = Object.create(null);
-      this.indexFound = Object.create(null);
-      this.bson = bson;
-      this.offset = offset;
-      this.isArray = isArray;
-      this.elements = elements ?? (0, bson_1.parseToElementsToArray)(this.bson, offset);
-    }
-    isElementName(name, element) {
-      const nameLength = element[BSONElementOffset.nameLength];
-      const nameOffset = element[BSONElementOffset.nameOffset];
-      if (name.length !== nameLength)
-        return false;
-      const nameEnd = nameOffset + nameLength;
-      for (let byteIndex = nameOffset, charIndex = 0;charIndex < name.length && byteIndex < nameEnd; charIndex++, byteIndex++) {
-        if (this.bson[byteIndex] !== name.charCodeAt(charIndex))
-          return false;
-      }
-      return true;
-    }
-    getElement(name) {
-      const cachedElement = this.cache[name];
-      if (cachedElement === false)
-        return null;
-      if (cachedElement != null) {
-        return cachedElement;
-      }
-      if (typeof name === "number") {
-        if (this.isArray) {
-          if (name < this.elements.length) {
-            const element = this.elements[name];
-            const cachedElement2 = { element, value: undefined };
-            this.cache[name] = cachedElement2;
-            this.indexFound[name] = true;
-            return cachedElement2;
-          } else {
-            return null;
-          }
-        } else {
-          return null;
-        }
-      }
-      for (let index = 0;index < this.elements.length; index++) {
-        const element = this.elements[index];
-        if (!(index in this.indexFound) && this.isElementName(name, element)) {
-          const cachedElement2 = { element, value: undefined };
-          this.cache[name] = cachedElement2;
-          this.indexFound[index] = true;
-          return cachedElement2;
-        }
-      }
-      this.cache[name] = false;
-      return null;
-    }
-    toJSValue(element, as) {
-      const type = element[BSONElementOffset.type];
-      const offset = element[BSONElementOffset.offset];
-      const length = element[BSONElementOffset.length];
-      if (as !== type) {
-        return null;
-      }
-      switch (as) {
-        case bson_1.BSONType.null:
-        case bson_1.BSONType.undefined:
-          return null;
-        case bson_1.BSONType.double:
-          return (0, bson_1.getFloat64LE)(this.bson, offset);
-        case bson_1.BSONType.int:
-          return (0, bson_1.getInt32LE)(this.bson, offset);
-        case bson_1.BSONType.long:
-          return (0, bson_1.getBigInt64LE)(this.bson, offset);
-        case bson_1.BSONType.bool:
-          return Boolean(this.bson[offset]);
-        case bson_1.BSONType.objectId:
-          return new bson_1.ObjectId(this.bson.subarray(offset, offset + 12));
-        case bson_1.BSONType.timestamp:
-          return new bson_1.Timestamp((0, bson_1.getBigInt64LE)(this.bson, offset));
-        case bson_1.BSONType.string:
-          return (0, bson_1.toUTF8)(this.bson, offset + 4, offset + length - 1, false);
-        case bson_1.BSONType.binData: {
-          const totalBinarySize = (0, bson_1.getInt32LE)(this.bson, offset);
-          const subType = this.bson[offset + 4];
-          if (subType === 2) {
-            const subType2BinarySize = (0, bson_1.getInt32LE)(this.bson, offset + 1 + 4);
-            if (subType2BinarySize < 0)
-              throw new bson_1.BSONError("Negative binary type element size found for subtype 0x02");
-            if (subType2BinarySize > totalBinarySize - 4)
-              throw new bson_1.BSONError("Binary type with subtype 0x02 contains too long binary size");
-            if (subType2BinarySize < totalBinarySize - 4)
-              throw new bson_1.BSONError("Binary type with subtype 0x02 contains too short binary size");
-            return new bson_1.Binary(this.bson.subarray(offset + 1 + 4 + 4, offset + 1 + 4 + 4 + subType2BinarySize), 2);
-          }
-          return new bson_1.Binary(this.bson.subarray(offset + 1 + 4, offset + 1 + 4 + totalBinarySize), subType);
-        }
-        case bson_1.BSONType.date:
-          return new Date(Number((0, bson_1.getBigInt64LE)(this.bson, offset)));
-        case bson_1.BSONType.object:
-          return new OnDemandDocument(this.bson, offset);
-        case bson_1.BSONType.array:
-          return new OnDemandDocument(this.bson, offset, true);
-        default:
-          throw new bson_1.BSONError(`Unsupported BSON type: ${as}`);
-      }
-    }
-    size() {
-      return this.elements.length;
-    }
-    has(name) {
-      const cachedElement = this.cache[name];
-      if (cachedElement === false)
-        return false;
-      if (cachedElement != null)
-        return true;
-      return this.getElement(name) != null;
-    }
-    get(name, as, required) {
-      const element = this.getElement(name);
-      if (element == null) {
-        if (required === true) {
-          throw new bson_1.BSONError(`BSON element "${name}" is missing`);
-        } else {
-          return null;
-        }
-      }
-      if (element.value == null) {
-        const value = this.toJSValue(element.element, as);
-        if (value == null) {
-          if (required === true) {
-            throw new bson_1.BSONError(`BSON element "${name}" is missing`);
-          } else {
-            return null;
-          }
-        }
-        element.value = value;
-      }
-      return element.value;
-    }
-    getNumber(name, required) {
-      const maybeBool = this.get(name, bson_1.BSONType.bool);
-      const bool = maybeBool == null ? null : maybeBool ? 1 : 0;
-      const maybeLong = this.get(name, bson_1.BSONType.long);
-      const long = maybeLong == null ? null : Number(maybeLong);
-      const result = bool ?? long ?? this.get(name, bson_1.BSONType.int) ?? this.get(name, bson_1.BSONType.double);
-      if (required === true && result == null) {
-        throw new bson_1.BSONError(`BSON element "${name}" is missing`);
-      }
-      return result;
-    }
-    toObject(options) {
-      return (0, bson_1.deserialize)(this.bson, {
-        ...options,
-        index: this.offset,
-        allowObjectSmallerThanBufferSize: true
-      });
-    }
-    toBytes() {
-      const size = (0, bson_1.getInt32LE)(this.bson, this.offset);
-      return this.bson.subarray(this.offset, this.offset + size);
-    }
-  }
-  exports.OnDemandDocument = OnDemandDocument;
-});
-
-// node_modules/mongodb/lib/cmap/wire_protocol/responses.js
-var require_responses = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ClientBulkWriteCursorResponse = exports.ExplainedCursorResponse = exports.CursorResponse = exports.MongoDBResponse = undefined;
-  exports.isErrorResponse = isErrorResponse;
-  var bson_1 = require_bson2();
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-  var document_1 = require_document();
-  var BSONElementOffset = {
-    type: 0,
-    nameOffset: 1,
-    nameLength: 2,
-    offset: 3,
-    length: 4
-  };
-  function isErrorResponse(bson, elements) {
-    for (let eIdx = 0;eIdx < elements.length; eIdx++) {
-      const element = elements[eIdx];
-      if (element[BSONElementOffset.nameLength] === 2) {
-        const nameOffset = element[BSONElementOffset.nameOffset];
-        if (bson[nameOffset] === 111 && bson[nameOffset + 1] === 107) {
-          const valueOffset = element[BSONElementOffset.offset];
-          const valueLength = element[BSONElementOffset.length];
-          for (let i = valueOffset;i < valueOffset + valueLength; i++) {
-            if (bson[i] !== 0)
-              return false;
-          }
-          return true;
-        }
-      }
-    }
-    return true;
-  }
-
-  class MongoDBResponse extends document_1.OnDemandDocument {
-    get(name, as, required) {
-      try {
-        return super.get(name, as, required);
-      } catch (cause) {
-        throw new error_1.MongoUnexpectedServerResponseError(cause.message, { cause });
-      }
-    }
-    static is(value) {
-      return value instanceof MongoDBResponse;
-    }
-    static make(bson) {
-      const elements = (0, bson_1.parseToElementsToArray)(bson, 0);
-      const isError = isErrorResponse(bson, elements);
-      return isError ? new MongoDBResponse(bson, 0, false, elements) : new this(bson, 0, false, elements);
-    }
-    get isMaxTimeExpiredError() {
-      const isTopLevel = this.ok === 0 && this.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
-      if (isTopLevel)
-        return true;
-      if (this.ok === 0)
-        return false;
-      const isWriteConcern = this.get("writeConcernError", bson_1.BSONType.object)?.getNumber("code") === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
-      if (isWriteConcern)
-        return true;
-      const writeErrors = this.get("writeErrors", bson_1.BSONType.array);
-      if (writeErrors?.size()) {
-        for (let i = 0;i < writeErrors.size(); i++) {
-          const isWriteError = writeErrors.get(i, bson_1.BSONType.object)?.getNumber("code") === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
-          if (isWriteError)
-            return true;
-        }
-      }
-      return false;
-    }
-    get recoveryToken() {
-      return this.get("recoveryToken", bson_1.BSONType.object)?.toObject({
-        promoteValues: false,
-        promoteLongs: false,
-        promoteBuffers: false,
-        validation: { utf8: true }
-      }) ?? null;
-    }
-    get atClusterTime() {
-      return this.get("cursor", bson_1.BSONType.object)?.get("atClusterTime", bson_1.BSONType.timestamp) ?? this.get("atClusterTime", bson_1.BSONType.timestamp);
-    }
-    get operationTime() {
-      return this.get("operationTime", bson_1.BSONType.timestamp);
-    }
-    get ok() {
-      return this.getNumber("ok") ? 1 : 0;
-    }
-    get $err() {
-      return this.get("$err", bson_1.BSONType.string);
-    }
-    get errmsg() {
-      return this.get("errmsg", bson_1.BSONType.string);
-    }
-    get code() {
-      return this.getNumber("code");
-    }
-    get $clusterTime() {
-      if (!("clusterTime" in this)) {
-        const clusterTimeDoc = this.get("$clusterTime", bson_1.BSONType.object);
-        if (clusterTimeDoc == null) {
-          this.clusterTime = null;
-          return null;
-        }
-        const clusterTime = clusterTimeDoc.get("clusterTime", bson_1.BSONType.timestamp, true);
-        const signature = clusterTimeDoc.get("signature", bson_1.BSONType.object)?.toObject();
-        this.clusterTime = { clusterTime, signature };
-      }
-      return this.clusterTime ?? null;
-    }
-    toObject(options) {
-      const exactBSONOptions = {
-        ...(0, bson_1.pluckBSONSerializeOptions)(options ?? {}),
-        validation: (0, bson_1.parseUtf8ValidationOption)(options)
-      };
-      return super.toObject(exactBSONOptions);
-    }
-  }
-  exports.MongoDBResponse = MongoDBResponse;
-  MongoDBResponse.empty = new MongoDBResponse(new Uint8Array([13, 0, 0, 0, 16, 111, 107, 0, 1, 0, 0, 0, 0]));
-
-  class CursorResponse extends MongoDBResponse {
-    constructor() {
-      super(...arguments);
-      this._batch = null;
-      this.iterated = 0;
-      this._encryptedBatch = null;
-    }
-    static get emptyGetMore() {
-      return new CursorResponse((0, bson_1.serialize)({ ok: 1, cursor: { id: 0n, nextBatch: [] } }));
-    }
-    static is(value) {
-      return value instanceof CursorResponse || value === CursorResponse.emptyGetMore;
-    }
-    get cursor() {
-      return this.get("cursor", bson_1.BSONType.object, true);
-    }
-    get id() {
-      try {
-        return bson_1.Long.fromBigInt(this.cursor.get("id", bson_1.BSONType.long, true));
-      } catch (cause) {
-        throw new error_1.MongoUnexpectedServerResponseError(cause.message, { cause });
-      }
-    }
-    get ns() {
-      const namespace = this.cursor.get("ns", bson_1.BSONType.string);
-      if (namespace != null)
-        return (0, utils_1.ns)(namespace);
-      return null;
-    }
-    get length() {
-      return Math.max(this.batchSize - this.iterated, 0);
-    }
-    get encryptedBatch() {
-      if (this.encryptedResponse == null)
-        return null;
-      if (this._encryptedBatch != null)
-        return this._encryptedBatch;
-      const cursor = this.encryptedResponse?.get("cursor", bson_1.BSONType.object);
-      if (cursor?.has("firstBatch"))
-        this._encryptedBatch = cursor.get("firstBatch", bson_1.BSONType.array, true);
-      else if (cursor?.has("nextBatch"))
-        this._encryptedBatch = cursor.get("nextBatch", bson_1.BSONType.array, true);
-      else
-        throw new error_1.MongoUnexpectedServerResponseError("Cursor document did not contain a batch");
-      return this._encryptedBatch;
-    }
-    get batch() {
-      if (this._batch != null)
-        return this._batch;
-      const cursor = this.cursor;
-      if (cursor.has("firstBatch"))
-        this._batch = cursor.get("firstBatch", bson_1.BSONType.array, true);
-      else if (cursor.has("nextBatch"))
-        this._batch = cursor.get("nextBatch", bson_1.BSONType.array, true);
-      else
-        throw new error_1.MongoUnexpectedServerResponseError("Cursor document did not contain a batch");
-      return this._batch;
-    }
-    get batchSize() {
-      return this.batch?.size();
-    }
-    get postBatchResumeToken() {
-      return this.cursor.get("postBatchResumeToken", bson_1.BSONType.object)?.toObject({
-        promoteValues: false,
-        promoteLongs: false,
-        promoteBuffers: false,
-        validation: { utf8: true }
-      }) ?? null;
-    }
-    shift(options) {
-      if (this.iterated >= this.batchSize) {
-        return null;
-      }
-      const result = this.batch.get(this.iterated, bson_1.BSONType.object, true) ?? null;
-      const encryptedResult = this.encryptedBatch?.get(this.iterated, bson_1.BSONType.object, true) ?? null;
-      this.iterated += 1;
-      if (options?.raw) {
-        return result.toBytes();
-      } else {
-        const object = result.toObject(options);
-        if (encryptedResult) {
-          (0, utils_1.decorateDecryptionResult)(object, encryptedResult.toObject(options), true);
-        }
-        return object;
-      }
-    }
-    clear() {
-      this.iterated = this.batchSize;
-    }
-  }
-  exports.CursorResponse = CursorResponse;
-
-  class ExplainedCursorResponse extends CursorResponse {
-    constructor() {
-      super(...arguments);
-      this.isExplain = true;
-      this._length = 1;
-    }
-    get id() {
-      return bson_1.Long.fromBigInt(0n);
-    }
-    get batchSize() {
-      return 0;
-    }
-    get ns() {
-      return null;
-    }
-    get length() {
-      return this._length;
-    }
-    shift(options) {
-      if (this._length === 0)
-        return null;
-      this._length -= 1;
-      return this.toObject(options);
-    }
-  }
-  exports.ExplainedCursorResponse = ExplainedCursorResponse;
-
-  class ClientBulkWriteCursorResponse extends CursorResponse {
-    get insertedCount() {
-      return this.get("nInserted", bson_1.BSONType.int, true);
-    }
-    get upsertedCount() {
-      return this.get("nUpserted", bson_1.BSONType.int, true);
-    }
-    get matchedCount() {
-      return this.get("nMatched", bson_1.BSONType.int, true);
-    }
-    get modifiedCount() {
-      return this.get("nModified", bson_1.BSONType.int, true);
-    }
-    get deletedCount() {
-      return this.get("nDeleted", bson_1.BSONType.int, true);
-    }
-    get writeConcernError() {
-      return this.get("writeConcernError", bson_1.BSONType.object, false);
-    }
-  }
-  exports.ClientBulkWriteCursorResponse = ClientBulkWriteCursorResponse;
-});
-
 // node_modules/mongodb/lib/write_concern.js
 var require_write_concern = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -6000,8 +5566,8 @@ var require_utils = __commonJS((exports) => {
   var url_1 = __require("url");
   var util_1 = __require("util");
   var bson_1 = require_bson2();
-  var constants_1 = require_constants2();
-  var constants_2 = require_constants();
+  var constants_1 = require_constants();
+  var constants_2 = require_constants2();
   var error_1 = require_error();
   var read_concern_1 = require_read_concern();
   var read_preference_1 = require_read_preference();
@@ -6074,14 +5640,9 @@ var require_utils = __commonJS((exports) => {
   function isPromiseLike(value) {
     return value != null && typeof value === "object" && "then" in value && typeof value.then === "function";
   }
-  function decorateWithCollation(command, target, options) {
-    const capabilities = getTopology(target).capabilities;
+  function decorateWithCollation(command, options) {
     if (options.collation && typeof options.collation === "object") {
-      if (capabilities && capabilities.commandsTakeCollation) {
-        command.collation = options.collation;
-      } else {
-        throw new error_1.MongoCompatibilityError(`Current topology does not support collation`);
-      }
+      command.collation = options.collation;
     }
   }
   function decorateWithReadConcern(command, coll, options) {
@@ -6154,22 +5715,25 @@ var require_utils = __commonJS((exports) => {
     result[8] = result[8] & 63 | 128;
     return result;
   }
-  function maxWireVersion(topologyOrServer) {
-    if (topologyOrServer) {
-      if (topologyOrServer.loadBalanced || topologyOrServer.serverApi?.version) {
+  function maxWireVersion(handshakeAware) {
+    if (handshakeAware) {
+      if (handshakeAware.hello) {
+        return handshakeAware.hello.maxWireVersion;
+      }
+      if (handshakeAware.serverApi?.version) {
         return constants_1.MAX_SUPPORTED_WIRE_VERSION;
       }
-      if (topologyOrServer.hello) {
-        return topologyOrServer.hello.maxWireVersion;
+      if (handshakeAware.loadBalanced) {
+        return constants_1.MAX_SUPPORTED_WIRE_VERSION;
       }
-      if ("lastHello" in topologyOrServer && typeof topologyOrServer.lastHello === "function") {
-        const lastHello = topologyOrServer.lastHello();
+      if ("lastHello" in handshakeAware && typeof handshakeAware.lastHello === "function") {
+        const lastHello = handshakeAware.lastHello();
         if (lastHello) {
           return lastHello.maxWireVersion;
         }
       }
-      if (topologyOrServer.description && "maxWireVersion" in topologyOrServer.description && topologyOrServer.description.maxWireVersion != null) {
-        return topologyOrServer.description.maxWireVersion;
+      if (handshakeAware.description && "maxWireVersion" in handshakeAware.description && handshakeAware.description.maxWireVersion != null) {
+        return handshakeAware.description.maxWireVersion;
       }
     }
     return 0;
@@ -6736,18 +6300,15 @@ var require_utils = __commonJS((exports) => {
       abortListener?.[exports.kDispose]();
     }
   }
-  function maybeAddIdToDocuments(coll, docOrDocs, options) {
-    const forceServerObjectId = typeof options.forceServerObjectId === "boolean" ? options.forceServerObjectId : coll.s.db.options?.forceServerObjectId;
-    if (forceServerObjectId === true) {
-      return docOrDocs;
+  function maybeAddIdToDocuments(collection, document2, options) {
+    const forceServerObjectId = options.forceServerObjectId ?? collection.db.options?.forceServerObjectId ?? false;
+    if (forceServerObjectId) {
+      return document2;
     }
-    const transform = (doc) => {
-      if (doc._id == null) {
-        doc._id = coll.s.pkFactory.createPk();
-      }
-      return doc;
-    };
-    return Array.isArray(docOrDocs) ? docOrDocs.map(transform) : transform(docOrDocs);
+    if (document2._id == null) {
+      document2._id = collection.s.pkFactory.createPk();
+    }
+    return document2;
   }
   async function fileIsAccessible(fileName, mode) {
     try {
@@ -6818,6 +6379,2932 @@ var require_utils = __commonJS((exports) => {
   }
 });
 
+// node_modules/mongodb/lib/cmap/wire_protocol/on_demand/document.js
+var require_document = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.OnDemandDocument = undefined;
+  var bson_1 = require_bson2();
+  var BSONElementOffset = {
+    type: 0,
+    nameOffset: 1,
+    nameLength: 2,
+    offset: 3,
+    length: 4
+  };
+
+  class OnDemandDocument {
+    constructor(bson, offset = 0, isArray = false, elements) {
+      this.cache = Object.create(null);
+      this.indexFound = Object.create(null);
+      this.bson = bson;
+      this.offset = offset;
+      this.isArray = isArray;
+      this.elements = elements ?? (0, bson_1.parseToElementsToArray)(this.bson, offset);
+    }
+    isElementName(name, element) {
+      const nameLength = element[BSONElementOffset.nameLength];
+      const nameOffset = element[BSONElementOffset.nameOffset];
+      if (name.length !== nameLength)
+        return false;
+      const nameEnd = nameOffset + nameLength;
+      for (let byteIndex = nameOffset, charIndex = 0;charIndex < name.length && byteIndex < nameEnd; charIndex++, byteIndex++) {
+        if (this.bson[byteIndex] !== name.charCodeAt(charIndex))
+          return false;
+      }
+      return true;
+    }
+    getElement(name) {
+      const cachedElement = this.cache[name];
+      if (cachedElement === false)
+        return null;
+      if (cachedElement != null) {
+        return cachedElement;
+      }
+      if (typeof name === "number") {
+        if (this.isArray) {
+          if (name < this.elements.length) {
+            const element = this.elements[name];
+            const cachedElement2 = { element, value: undefined };
+            this.cache[name] = cachedElement2;
+            this.indexFound[name] = true;
+            return cachedElement2;
+          } else {
+            return null;
+          }
+        } else {
+          return null;
+        }
+      }
+      for (let index = 0;index < this.elements.length; index++) {
+        const element = this.elements[index];
+        if (!(index in this.indexFound) && this.isElementName(name, element)) {
+          const cachedElement2 = { element, value: undefined };
+          this.cache[name] = cachedElement2;
+          this.indexFound[index] = true;
+          return cachedElement2;
+        }
+      }
+      this.cache[name] = false;
+      return null;
+    }
+    toJSValue(element, as) {
+      const type = element[BSONElementOffset.type];
+      const offset = element[BSONElementOffset.offset];
+      const length = element[BSONElementOffset.length];
+      if (as !== type) {
+        return null;
+      }
+      switch (as) {
+        case bson_1.BSONType.null:
+        case bson_1.BSONType.undefined:
+          return null;
+        case bson_1.BSONType.double:
+          return (0, bson_1.getFloat64LE)(this.bson, offset);
+        case bson_1.BSONType.int:
+          return (0, bson_1.getInt32LE)(this.bson, offset);
+        case bson_1.BSONType.long:
+          return (0, bson_1.getBigInt64LE)(this.bson, offset);
+        case bson_1.BSONType.bool:
+          return Boolean(this.bson[offset]);
+        case bson_1.BSONType.objectId:
+          return new bson_1.ObjectId(this.bson.subarray(offset, offset + 12));
+        case bson_1.BSONType.timestamp:
+          return new bson_1.Timestamp((0, bson_1.getBigInt64LE)(this.bson, offset));
+        case bson_1.BSONType.string:
+          return (0, bson_1.toUTF8)(this.bson, offset + 4, offset + length - 1, false);
+        case bson_1.BSONType.binData: {
+          const totalBinarySize = (0, bson_1.getInt32LE)(this.bson, offset);
+          const subType = this.bson[offset + 4];
+          if (subType === 2) {
+            const subType2BinarySize = (0, bson_1.getInt32LE)(this.bson, offset + 1 + 4);
+            if (subType2BinarySize < 0)
+              throw new bson_1.BSONError("Negative binary type element size found for subtype 0x02");
+            if (subType2BinarySize > totalBinarySize - 4)
+              throw new bson_1.BSONError("Binary type with subtype 0x02 contains too long binary size");
+            if (subType2BinarySize < totalBinarySize - 4)
+              throw new bson_1.BSONError("Binary type with subtype 0x02 contains too short binary size");
+            return new bson_1.Binary(this.bson.subarray(offset + 1 + 4 + 4, offset + 1 + 4 + 4 + subType2BinarySize), 2);
+          }
+          return new bson_1.Binary(this.bson.subarray(offset + 1 + 4, offset + 1 + 4 + totalBinarySize), subType);
+        }
+        case bson_1.BSONType.date:
+          return new Date(Number((0, bson_1.getBigInt64LE)(this.bson, offset)));
+        case bson_1.BSONType.object:
+          return new OnDemandDocument(this.bson, offset);
+        case bson_1.BSONType.array:
+          return new OnDemandDocument(this.bson, offset, true);
+        default:
+          throw new bson_1.BSONError(`Unsupported BSON type: ${as}`);
+      }
+    }
+    size() {
+      return this.elements.length;
+    }
+    has(name) {
+      const cachedElement = this.cache[name];
+      if (cachedElement === false)
+        return false;
+      if (cachedElement != null)
+        return true;
+      return this.getElement(name) != null;
+    }
+    get(name, as, required) {
+      const element = this.getElement(name);
+      if (element == null) {
+        if (required === true) {
+          throw new bson_1.BSONError(`BSON element "${name}" is missing`);
+        } else {
+          return null;
+        }
+      }
+      if (element.value == null) {
+        const value = this.toJSValue(element.element, as);
+        if (value == null) {
+          if (required === true) {
+            throw new bson_1.BSONError(`BSON element "${name}" is missing`);
+          } else {
+            return null;
+          }
+        }
+        element.value = value;
+      }
+      return element.value;
+    }
+    getNumber(name, required) {
+      const maybeBool = this.get(name, bson_1.BSONType.bool);
+      const bool = maybeBool == null ? null : maybeBool ? 1 : 0;
+      const maybeLong = this.get(name, bson_1.BSONType.long);
+      const long = maybeLong == null ? null : Number(maybeLong);
+      const result = bool ?? long ?? this.get(name, bson_1.BSONType.int) ?? this.get(name, bson_1.BSONType.double);
+      if (required === true && result == null) {
+        throw new bson_1.BSONError(`BSON element "${name}" is missing`);
+      }
+      return result;
+    }
+    toObject(options) {
+      return (0, bson_1.deserialize)(this.bson, {
+        ...options,
+        index: this.offset,
+        allowObjectSmallerThanBufferSize: true
+      });
+    }
+    toBytes() {
+      const size = (0, bson_1.getInt32LE)(this.bson, this.offset);
+      return this.bson.subarray(this.offset, this.offset + size);
+    }
+  }
+  exports.OnDemandDocument = OnDemandDocument;
+});
+
+// node_modules/mongodb/lib/cmap/wire_protocol/responses.js
+var require_responses = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ClientBulkWriteCursorResponse = exports.ExplainedCursorResponse = exports.CursorResponse = exports.MongoDBResponse = undefined;
+  exports.isErrorResponse = isErrorResponse;
+  var bson_1 = require_bson2();
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+  var document_1 = require_document();
+  var BSONElementOffset = {
+    type: 0,
+    nameOffset: 1,
+    nameLength: 2,
+    offset: 3,
+    length: 4
+  };
+  function isErrorResponse(bson, elements) {
+    for (let eIdx = 0;eIdx < elements.length; eIdx++) {
+      const element = elements[eIdx];
+      if (element[BSONElementOffset.nameLength] === 2) {
+        const nameOffset = element[BSONElementOffset.nameOffset];
+        if (bson[nameOffset] === 111 && bson[nameOffset + 1] === 107) {
+          const valueOffset = element[BSONElementOffset.offset];
+          const valueLength = element[BSONElementOffset.length];
+          for (let i = valueOffset;i < valueOffset + valueLength; i++) {
+            if (bson[i] !== 0)
+              return false;
+          }
+          return true;
+        }
+      }
+    }
+    return true;
+  }
+
+  class MongoDBResponse extends document_1.OnDemandDocument {
+    get(name, as, required) {
+      try {
+        return super.get(name, as, required);
+      } catch (cause) {
+        throw new error_1.MongoUnexpectedServerResponseError(cause.message, { cause });
+      }
+    }
+    static is(value) {
+      return value instanceof MongoDBResponse;
+    }
+    static make(bson) {
+      const elements = (0, bson_1.parseToElementsToArray)(bson, 0);
+      const isError = isErrorResponse(bson, elements);
+      return isError ? new MongoDBResponse(bson, 0, false, elements) : new this(bson, 0, false, elements);
+    }
+    get isMaxTimeExpiredError() {
+      const isTopLevel = this.ok === 0 && this.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
+      if (isTopLevel)
+        return true;
+      if (this.ok === 0)
+        return false;
+      const isWriteConcern = this.get("writeConcernError", bson_1.BSONType.object)?.getNumber("code") === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
+      if (isWriteConcern)
+        return true;
+      const writeErrors = this.get("writeErrors", bson_1.BSONType.array);
+      if (writeErrors?.size()) {
+        for (let i = 0;i < writeErrors.size(); i++) {
+          const isWriteError = writeErrors.get(i, bson_1.BSONType.object)?.getNumber("code") === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
+          if (isWriteError)
+            return true;
+        }
+      }
+      return false;
+    }
+    get recoveryToken() {
+      return this.get("recoveryToken", bson_1.BSONType.object)?.toObject({
+        promoteValues: false,
+        promoteLongs: false,
+        promoteBuffers: false,
+        validation: { utf8: true }
+      }) ?? null;
+    }
+    get atClusterTime() {
+      return this.get("cursor", bson_1.BSONType.object)?.get("atClusterTime", bson_1.BSONType.timestamp) ?? this.get("atClusterTime", bson_1.BSONType.timestamp);
+    }
+    get operationTime() {
+      return this.get("operationTime", bson_1.BSONType.timestamp);
+    }
+    get ok() {
+      return this.getNumber("ok") ? 1 : 0;
+    }
+    get $err() {
+      return this.get("$err", bson_1.BSONType.string);
+    }
+    get errmsg() {
+      return this.get("errmsg", bson_1.BSONType.string);
+    }
+    get code() {
+      return this.getNumber("code");
+    }
+    get $clusterTime() {
+      if (!("clusterTime" in this)) {
+        const clusterTimeDoc = this.get("$clusterTime", bson_1.BSONType.object);
+        if (clusterTimeDoc == null) {
+          this.clusterTime = null;
+          return null;
+        }
+        const clusterTime = clusterTimeDoc.get("clusterTime", bson_1.BSONType.timestamp, true);
+        const signature = clusterTimeDoc.get("signature", bson_1.BSONType.object)?.toObject();
+        this.clusterTime = { clusterTime, signature };
+      }
+      return this.clusterTime ?? null;
+    }
+    toObject(options) {
+      const exactBSONOptions = {
+        ...(0, bson_1.pluckBSONSerializeOptions)(options ?? {}),
+        validation: (0, bson_1.parseUtf8ValidationOption)(options)
+      };
+      return super.toObject(exactBSONOptions);
+    }
+  }
+  exports.MongoDBResponse = MongoDBResponse;
+  MongoDBResponse.empty = new MongoDBResponse(new Uint8Array([13, 0, 0, 0, 16, 111, 107, 0, 1, 0, 0, 0, 0]));
+
+  class CursorResponse extends MongoDBResponse {
+    constructor() {
+      super(...arguments);
+      this._batch = null;
+      this.iterated = 0;
+      this._encryptedBatch = null;
+    }
+    static get emptyGetMore() {
+      return new CursorResponse((0, bson_1.serialize)({ ok: 1, cursor: { id: 0n, nextBatch: [] } }));
+    }
+    static is(value) {
+      return value instanceof CursorResponse || value === CursorResponse.emptyGetMore;
+    }
+    get cursor() {
+      return this.get("cursor", bson_1.BSONType.object, true);
+    }
+    get id() {
+      try {
+        return bson_1.Long.fromBigInt(this.cursor.get("id", bson_1.BSONType.long, true));
+      } catch (cause) {
+        throw new error_1.MongoUnexpectedServerResponseError(cause.message, { cause });
+      }
+    }
+    get ns() {
+      const namespace = this.cursor.get("ns", bson_1.BSONType.string);
+      if (namespace != null)
+        return (0, utils_1.ns)(namespace);
+      return null;
+    }
+    get length() {
+      return Math.max(this.batchSize - this.iterated, 0);
+    }
+    get encryptedBatch() {
+      if (this.encryptedResponse == null)
+        return null;
+      if (this._encryptedBatch != null)
+        return this._encryptedBatch;
+      const cursor = this.encryptedResponse?.get("cursor", bson_1.BSONType.object);
+      if (cursor?.has("firstBatch"))
+        this._encryptedBatch = cursor.get("firstBatch", bson_1.BSONType.array, true);
+      else if (cursor?.has("nextBatch"))
+        this._encryptedBatch = cursor.get("nextBatch", bson_1.BSONType.array, true);
+      else
+        throw new error_1.MongoUnexpectedServerResponseError("Cursor document did not contain a batch");
+      return this._encryptedBatch;
+    }
+    get batch() {
+      if (this._batch != null)
+        return this._batch;
+      const cursor = this.cursor;
+      if (cursor.has("firstBatch"))
+        this._batch = cursor.get("firstBatch", bson_1.BSONType.array, true);
+      else if (cursor.has("nextBatch"))
+        this._batch = cursor.get("nextBatch", bson_1.BSONType.array, true);
+      else
+        throw new error_1.MongoUnexpectedServerResponseError("Cursor document did not contain a batch");
+      return this._batch;
+    }
+    get batchSize() {
+      return this.batch?.size();
+    }
+    get postBatchResumeToken() {
+      return this.cursor.get("postBatchResumeToken", bson_1.BSONType.object)?.toObject({
+        promoteValues: false,
+        promoteLongs: false,
+        promoteBuffers: false,
+        validation: { utf8: true }
+      }) ?? null;
+    }
+    shift(options) {
+      if (this.iterated >= this.batchSize) {
+        return null;
+      }
+      const result = this.batch.get(this.iterated, bson_1.BSONType.object, true) ?? null;
+      const encryptedResult = this.encryptedBatch?.get(this.iterated, bson_1.BSONType.object, true) ?? null;
+      this.iterated += 1;
+      if (options?.raw) {
+        return result.toBytes();
+      } else {
+        const object = result.toObject(options);
+        if (encryptedResult) {
+          (0, utils_1.decorateDecryptionResult)(object, encryptedResult.toObject(options), true);
+        }
+        return object;
+      }
+    }
+    clear() {
+      this.iterated = this.batchSize;
+    }
+  }
+  exports.CursorResponse = CursorResponse;
+
+  class ExplainedCursorResponse extends CursorResponse {
+    constructor() {
+      super(...arguments);
+      this.isExplain = true;
+      this._length = 1;
+    }
+    get id() {
+      return bson_1.Long.fromBigInt(0n);
+    }
+    get batchSize() {
+      return 0;
+    }
+    get ns() {
+      return null;
+    }
+    get length() {
+      return this._length;
+    }
+    shift(options) {
+      if (this._length === 0)
+        return null;
+      this._length -= 1;
+      return this.toObject(options);
+    }
+  }
+  exports.ExplainedCursorResponse = ExplainedCursorResponse;
+
+  class ClientBulkWriteCursorResponse extends CursorResponse {
+    get insertedCount() {
+      return this.get("nInserted", bson_1.BSONType.int, true);
+    }
+    get upsertedCount() {
+      return this.get("nUpserted", bson_1.BSONType.int, true);
+    }
+    get matchedCount() {
+      return this.get("nMatched", bson_1.BSONType.int, true);
+    }
+    get modifiedCount() {
+      return this.get("nModified", bson_1.BSONType.int, true);
+    }
+    get deletedCount() {
+      return this.get("nDeleted", bson_1.BSONType.int, true);
+    }
+    get writeConcernError() {
+      return this.get("writeConcernError", bson_1.BSONType.object, false);
+    }
+  }
+  exports.ClientBulkWriteCursorResponse = ClientBulkWriteCursorResponse;
+});
+
+// node_modules/mongodb/lib/explain.js
+var require_explain = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Explain = exports.ExplainVerbosity = undefined;
+  exports.validateExplainTimeoutOptions = validateExplainTimeoutOptions;
+  exports.decorateWithExplain = decorateWithExplain;
+  var error_1 = require_error();
+  exports.ExplainVerbosity = Object.freeze({
+    queryPlanner: "queryPlanner",
+    queryPlannerExtended: "queryPlannerExtended",
+    executionStats: "executionStats",
+    allPlansExecution: "allPlansExecution"
+  });
+
+  class Explain {
+    constructor(verbosity, maxTimeMS) {
+      if (typeof verbosity === "boolean") {
+        this.verbosity = verbosity ? exports.ExplainVerbosity.allPlansExecution : exports.ExplainVerbosity.queryPlanner;
+      } else {
+        this.verbosity = verbosity;
+      }
+      this.maxTimeMS = maxTimeMS;
+    }
+    static fromOptions({ explain } = {}) {
+      if (explain == null)
+        return;
+      if (typeof explain === "boolean" || typeof explain === "string") {
+        return new Explain(explain);
+      }
+      const { verbosity, maxTimeMS } = explain;
+      return new Explain(verbosity, maxTimeMS);
+    }
+  }
+  exports.Explain = Explain;
+  function validateExplainTimeoutOptions(options, explain) {
+    const { maxTimeMS, timeoutMS } = options;
+    if (timeoutMS != null && (maxTimeMS != null || explain?.maxTimeMS != null)) {
+      throw new error_1.MongoAPIError("Cannot use maxTimeMS with timeoutMS for explain commands.");
+    }
+  }
+  function decorateWithExplain(command, explain) {
+    const { verbosity, maxTimeMS } = explain;
+    const baseCommand = { explain: command, verbosity };
+    if (typeof maxTimeMS === "number") {
+      baseCommand.maxTimeMS = maxTimeMS;
+    }
+    return baseCommand;
+  }
+});
+
+// node_modules/mongodb/lib/operations/operation.js
+var require_operation = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.AbstractOperation = exports.Aspect = undefined;
+  exports.defineAspects = defineAspects;
+  var bson_1 = require_bson2();
+  var read_preference_1 = require_read_preference();
+  exports.Aspect = {
+    READ_OPERATION: Symbol("READ_OPERATION"),
+    WRITE_OPERATION: Symbol("WRITE_OPERATION"),
+    RETRYABLE: Symbol("RETRYABLE"),
+    EXPLAINABLE: Symbol("EXPLAINABLE"),
+    SKIP_COLLATION: Symbol("SKIP_COLLATION"),
+    CURSOR_CREATING: Symbol("CURSOR_CREATING"),
+    MUST_SELECT_SAME_SERVER: Symbol("MUST_SELECT_SAME_SERVER"),
+    COMMAND_BATCHING: Symbol("COMMAND_BATCHING"),
+    SUPPORTS_RAW_DATA: Symbol("SUPPORTS_RAW_DATA")
+  };
+
+  class AbstractOperation {
+    constructor(options = {}) {
+      this.readPreference = this.hasAspect(exports.Aspect.WRITE_OPERATION) ? read_preference_1.ReadPreference.primary : read_preference_1.ReadPreference.fromOptions(options) ?? read_preference_1.ReadPreference.primary;
+      this.bsonOptions = (0, bson_1.resolveBSONOptions)(options);
+      this._session = options.session != null ? options.session : undefined;
+      this.options = options;
+      this.bypassPinningCheck = !!options.bypassPinningCheck;
+    }
+    hasAspect(aspect) {
+      const ctor = this.constructor;
+      if (ctor.aspects == null) {
+        return false;
+      }
+      return ctor.aspects.has(aspect);
+    }
+    get session() {
+      return this._session;
+    }
+    set session(session) {
+      this._session = session;
+    }
+    clearSession() {
+      this._session = undefined;
+    }
+    resetBatch() {
+      return true;
+    }
+    get canRetryRead() {
+      return this.hasAspect(exports.Aspect.RETRYABLE) && this.hasAspect(exports.Aspect.READ_OPERATION);
+    }
+    get canRetryWrite() {
+      return this.hasAspect(exports.Aspect.RETRYABLE) && this.hasAspect(exports.Aspect.WRITE_OPERATION);
+    }
+    handleOk(response) {
+      return response.toObject(this.bsonOptions);
+    }
+    handleError(error) {
+      throw error;
+    }
+  }
+  exports.AbstractOperation = AbstractOperation;
+  function defineAspects(operation, aspects) {
+    if (!Array.isArray(aspects) && !(aspects instanceof Set)) {
+      aspects = [aspects];
+    }
+    aspects = new Set(aspects);
+    Object.defineProperty(operation, "aspects", {
+      value: aspects,
+      writable: false
+    });
+    return aspects;
+  }
+});
+
+// node_modules/mongodb/lib/operations/command.js
+var require_command = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.CommandOperation = undefined;
+  var constants_1 = require_constants();
+  var error_1 = require_error();
+  var explain_1 = require_explain();
+  var read_concern_1 = require_read_concern();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+  var operation_1 = require_operation();
+
+  class CommandOperation extends operation_1.AbstractOperation {
+    constructor(parent, options) {
+      super(options);
+      this.options = options ?? {};
+      const dbNameOverride = options?.dbName || options?.authdb;
+      if (dbNameOverride) {
+        this.ns = new utils_1.MongoDBNamespace(dbNameOverride, "$cmd");
+      } else {
+        this.ns = parent ? parent.s.namespace.withCollection("$cmd") : new utils_1.MongoDBNamespace("admin", "$cmd");
+      }
+      this.readConcern = read_concern_1.ReadConcern.fromOptions(options);
+      this.writeConcern = write_concern_1.WriteConcern.fromOptions(options);
+      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE)) {
+        this.explain = explain_1.Explain.fromOptions(options);
+        if (this.explain)
+          (0, explain_1.validateExplainTimeoutOptions)(this.options, this.explain);
+      } else if (options?.explain != null) {
+        throw new error_1.MongoInvalidArgumentError(`Option "explain" is not supported on this command`);
+      }
+    }
+    get canRetryWrite() {
+      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE)) {
+        return this.explain == null;
+      }
+      return super.canRetryWrite;
+    }
+    buildOptions(timeoutContext) {
+      return {
+        ...this.options,
+        ...this.bsonOptions,
+        timeoutContext,
+        readPreference: this.readPreference,
+        session: this.session
+      };
+    }
+    buildCommand(connection, session) {
+      const command = this.buildCommandDocument(connection, session);
+      const inTransaction = this.session && this.session.inTransaction();
+      if (this.readConcern && (0, utils_1.commandSupportsReadConcern)(command) && !inTransaction) {
+        Object.assign(command, { readConcern: this.readConcern });
+      }
+      if (this.writeConcern && this.hasAspect(operation_1.Aspect.WRITE_OPERATION) && !inTransaction) {
+        write_concern_1.WriteConcern.apply(command, this.writeConcern);
+      }
+      if (this.options.collation && typeof this.options.collation === "object" && !this.hasAspect(operation_1.Aspect.SKIP_COLLATION)) {
+        Object.assign(command, { collation: this.options.collation });
+      }
+      if (typeof this.options.maxTimeMS === "number") {
+        command.maxTimeMS = this.options.maxTimeMS;
+      }
+      if (this.options.rawData != null && this.hasAspect(operation_1.Aspect.SUPPORTS_RAW_DATA) && (0, utils_1.maxWireVersion)(connection) >= constants_1.MIN_SUPPORTED_RAW_DATA_WIRE_VERSION) {
+        command.rawData = this.options.rawData;
+      }
+      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE) && this.explain) {
+        return (0, explain_1.decorateWithExplain)(command, this.explain);
+      }
+      return command;
+    }
+  }
+  exports.CommandOperation = CommandOperation;
+});
+
+// node_modules/mongodb/lib/operations/delete.js
+var require_delete = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DeleteManyOperation = exports.DeleteOneOperation = exports.DeleteOperation = undefined;
+  exports.makeDeleteStatement = makeDeleteStatement;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class DeleteOperation extends command_1.CommandOperation {
+    constructor(ns, statements, options) {
+      super(undefined, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.ns = ns;
+      this.statements = statements;
+    }
+    get commandName() {
+      return "delete";
+    }
+    get canRetryWrite() {
+      if (super.canRetryWrite === false) {
+        return false;
+      }
+      return this.statements.every((op) => op.limit != null ? op.limit > 0 : true);
+    }
+    buildCommandDocument(connection, _session) {
+      const options = this.options;
+      const ordered = typeof options.ordered === "boolean" ? options.ordered : true;
+      const command = {
+        delete: this.ns.collection,
+        deletes: this.statements,
+        ordered
+      };
+      if (options.let) {
+        command.let = options.let;
+      }
+      if (options.comment !== undefined) {
+        command.comment = options.comment;
+      }
+      const unacknowledgedWrite = this.writeConcern && this.writeConcern.w === 0;
+      if (unacknowledgedWrite && (0, utils_1.maxWireVersion)(connection) < 9) {
+        if (this.statements.find((o) => o.hint)) {
+          throw new error_1.MongoCompatibilityError(`hint for the delete command is only supported on MongoDB 4.4+`);
+        }
+      }
+      return command;
+    }
+  }
+  exports.DeleteOperation = DeleteOperation;
+
+  class DeleteOneOperation extends DeleteOperation {
+    constructor(ns, filter, options) {
+      super(ns, [makeDeleteStatement(filter, { ...options, limit: 1 })], options);
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (this.explain)
+        return res;
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors)
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        deletedCount: res.n
+      };
+    }
+  }
+  exports.DeleteOneOperation = DeleteOneOperation;
+
+  class DeleteManyOperation extends DeleteOperation {
+    constructor(ns, filter, options) {
+      super(ns, [makeDeleteStatement(filter, options)], options);
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (this.explain)
+        return res;
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors)
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        deletedCount: res.n
+      };
+    }
+  }
+  exports.DeleteManyOperation = DeleteManyOperation;
+  function makeDeleteStatement(filter, options) {
+    const op = {
+      q: filter,
+      limit: typeof options.limit === "number" ? options.limit : 0
+    };
+    if (options.collation) {
+      op.collation = options.collation;
+    }
+    if (options.hint) {
+      op.hint = options.hint;
+    }
+    return op;
+  }
+  (0, operation_1.defineAspects)(DeleteOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(DeleteOneOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(DeleteManyOperation, [
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/sdam/server_selection.js
+var require_server_selection = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.MIN_SECONDARY_WRITE_WIRE_VERSION = undefined;
+  exports.writableServerSelector = writableServerSelector;
+  exports.sameServerSelector = sameServerSelector;
+  exports.secondaryWritableServerSelector = secondaryWritableServerSelector;
+  exports.readPreferenceServerSelector = readPreferenceServerSelector;
+  var error_1 = require_error();
+  var read_preference_1 = require_read_preference();
+  var common_1 = require_common();
+  var IDLE_WRITE_PERIOD = 1e4;
+  var SMALLEST_MAX_STALENESS_SECONDS = 90;
+  exports.MIN_SECONDARY_WRITE_WIRE_VERSION = 13;
+  function writableServerSelector() {
+    return function writableServer(topologyDescription, servers) {
+      return latencyWindowReducer(topologyDescription, servers.filter((s) => s.isWritable));
+    };
+  }
+  function sameServerSelector(description) {
+    return function sameServerSelector(topologyDescription, servers) {
+      if (!description)
+        return [];
+      return servers.filter((sd) => {
+        return sd.address === description.address && sd.type !== common_1.ServerType.Unknown;
+      });
+    };
+  }
+  function secondaryWritableServerSelector(wireVersion, readPreference) {
+    if (!readPreference || !wireVersion || wireVersion && wireVersion < exports.MIN_SECONDARY_WRITE_WIRE_VERSION) {
+      return readPreferenceServerSelector(read_preference_1.ReadPreference.primary);
+    }
+    return readPreferenceServerSelector(readPreference);
+  }
+  function maxStalenessReducer(readPreference, topologyDescription, servers) {
+    if (readPreference.maxStalenessSeconds == null || readPreference.maxStalenessSeconds < 0) {
+      return servers;
+    }
+    const maxStaleness = readPreference.maxStalenessSeconds;
+    const maxStalenessVariance = (topologyDescription.heartbeatFrequencyMS + IDLE_WRITE_PERIOD) / 1000;
+    if (maxStaleness < maxStalenessVariance) {
+      throw new error_1.MongoInvalidArgumentError(`Option "maxStalenessSeconds" must be at least ${maxStalenessVariance} seconds`);
+    }
+    if (maxStaleness < SMALLEST_MAX_STALENESS_SECONDS) {
+      throw new error_1.MongoInvalidArgumentError(`Option "maxStalenessSeconds" must be at least ${SMALLEST_MAX_STALENESS_SECONDS} seconds`);
+    }
+    if (topologyDescription.type === common_1.TopologyType.ReplicaSetWithPrimary) {
+      const primary = Array.from(topologyDescription.servers.values()).filter(primaryFilter)[0];
+      return servers.reduce((result, server) => {
+        const stalenessMS = server.lastUpdateTime - server.lastWriteDate - (primary.lastUpdateTime - primary.lastWriteDate) + topologyDescription.heartbeatFrequencyMS;
+        const staleness = stalenessMS / 1000;
+        const maxStalenessSeconds = readPreference.maxStalenessSeconds ?? 0;
+        if (staleness <= maxStalenessSeconds) {
+          result.push(server);
+        }
+        return result;
+      }, []);
+    }
+    if (topologyDescription.type === common_1.TopologyType.ReplicaSetNoPrimary) {
+      if (servers.length === 0) {
+        return servers;
+      }
+      const sMax = servers.reduce((max, s) => s.lastWriteDate > max.lastWriteDate ? s : max);
+      return servers.reduce((result, server) => {
+        const stalenessMS = sMax.lastWriteDate - server.lastWriteDate + topologyDescription.heartbeatFrequencyMS;
+        const staleness = stalenessMS / 1000;
+        const maxStalenessSeconds = readPreference.maxStalenessSeconds ?? 0;
+        if (staleness <= maxStalenessSeconds) {
+          result.push(server);
+        }
+        return result;
+      }, []);
+    }
+    return servers;
+  }
+  function tagSetMatch(tagSet, serverTags) {
+    const keys = Object.keys(tagSet);
+    const serverTagKeys = Object.keys(serverTags);
+    for (let i = 0;i < keys.length; ++i) {
+      const key = keys[i];
+      if (serverTagKeys.indexOf(key) === -1 || serverTags[key] !== tagSet[key]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  function tagSetReducer(readPreference, servers) {
+    if (readPreference.tags == null || Array.isArray(readPreference.tags) && readPreference.tags.length === 0) {
+      return servers;
+    }
+    for (let i = 0;i < readPreference.tags.length; ++i) {
+      const tagSet = readPreference.tags[i];
+      const serversMatchingTagset = servers.reduce((matched, server) => {
+        if (tagSetMatch(tagSet, server.tags))
+          matched.push(server);
+        return matched;
+      }, []);
+      if (serversMatchingTagset.length) {
+        return serversMatchingTagset;
+      }
+    }
+    return [];
+  }
+  function latencyWindowReducer(topologyDescription, servers) {
+    const low = servers.reduce((min, server) => Math.min(server.roundTripTime, min), Infinity);
+    const high = low + topologyDescription.localThresholdMS;
+    return servers.reduce((result, server) => {
+      if (server.roundTripTime <= high && server.roundTripTime >= low)
+        result.push(server);
+      return result;
+    }, []);
+  }
+  function primaryFilter(server) {
+    return server.type === common_1.ServerType.RSPrimary;
+  }
+  function secondaryFilter(server) {
+    return server.type === common_1.ServerType.RSSecondary;
+  }
+  function nearestFilter(server) {
+    return server.type === common_1.ServerType.RSSecondary || server.type === common_1.ServerType.RSPrimary;
+  }
+  function knownFilter(server) {
+    return server.type !== common_1.ServerType.Unknown;
+  }
+  function loadBalancerFilter(server) {
+    return server.type === common_1.ServerType.LoadBalancer;
+  }
+  function readPreferenceServerSelector(readPreference) {
+    if (!readPreference.isValid()) {
+      throw new error_1.MongoInvalidArgumentError("Invalid read preference specified");
+    }
+    return function readPreferenceServers(topologyDescription, servers, deprioritized = []) {
+      if (topologyDescription.type === common_1.TopologyType.LoadBalanced) {
+        return servers.filter(loadBalancerFilter);
+      }
+      if (topologyDescription.type === common_1.TopologyType.Unknown) {
+        return [];
+      }
+      if (topologyDescription.type === common_1.TopologyType.Single) {
+        return latencyWindowReducer(topologyDescription, servers.filter(knownFilter));
+      }
+      if (topologyDescription.type === common_1.TopologyType.Sharded) {
+        const filtered = servers.filter((server) => {
+          return !deprioritized.includes(server);
+        });
+        const selectable = filtered.length > 0 ? filtered : deprioritized;
+        return latencyWindowReducer(topologyDescription, selectable.filter(knownFilter));
+      }
+      const mode = readPreference.mode;
+      if (mode === read_preference_1.ReadPreference.PRIMARY) {
+        return servers.filter(primaryFilter);
+      }
+      if (mode === read_preference_1.ReadPreference.PRIMARY_PREFERRED) {
+        const result = servers.filter(primaryFilter);
+        if (result.length) {
+          return result;
+        }
+      }
+      const filter = mode === read_preference_1.ReadPreference.NEAREST ? nearestFilter : secondaryFilter;
+      const selectedServers = latencyWindowReducer(topologyDescription, tagSetReducer(readPreference, maxStalenessReducer(readPreference, topologyDescription, servers.filter(filter))));
+      if (mode === read_preference_1.ReadPreference.SECONDARY_PREFERRED && selectedServers.length === 0) {
+        return servers.filter(primaryFilter);
+      }
+      return selectedServers;
+    };
+  }
+});
+
+// node_modules/mongodb/lib/timeout.js
+var require_timeout = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.LegacyTimeoutContext = exports.CSOTTimeoutContext = exports.TimeoutContext = exports.Timeout = exports.TimeoutError = undefined;
+  var timers_1 = __require("timers");
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+
+  class TimeoutError extends Error {
+    get name() {
+      return "TimeoutError";
+    }
+    constructor(message, options) {
+      super(message, options);
+      this.duration = options.duration;
+    }
+    static is(error) {
+      return error != null && typeof error === "object" && "name" in error && error.name === "TimeoutError";
+    }
+  }
+  exports.TimeoutError = TimeoutError;
+
+  class Timeout extends Promise {
+    get remainingTime() {
+      if (this.timedOut)
+        return 0;
+      if (this.duration === 0)
+        return Infinity;
+      return this.start + this.duration - Math.trunc(performance.now());
+    }
+    get timeElapsed() {
+      return Math.trunc(performance.now()) - this.start;
+    }
+    constructor(executor = () => null, options) {
+      const duration = options?.duration ?? 0;
+      const unref = !!options?.unref;
+      const rejection = options?.rejection;
+      if (duration < 0) {
+        throw new error_1.MongoInvalidArgumentError("Cannot create a Timeout with a negative duration");
+      }
+      let reject;
+      super((_, promiseReject) => {
+        reject = promiseReject;
+        executor(utils_1.noop, promiseReject);
+      });
+      this.ended = null;
+      this.timedOut = false;
+      this.cleared = false;
+      this.duration = duration;
+      this.start = Math.trunc(performance.now());
+      if (rejection == null && this.duration > 0) {
+        this.id = (0, timers_1.setTimeout)(() => {
+          this.ended = Math.trunc(performance.now());
+          this.timedOut = true;
+          reject(new TimeoutError(`Expired after ${duration}ms`, { duration }));
+        }, this.duration);
+        if (typeof this.id.unref === "function" && unref) {
+          this.id.unref();
+        }
+      } else if (rejection != null) {
+        this.ended = Math.trunc(performance.now());
+        this.timedOut = true;
+        reject(rejection);
+      }
+    }
+    clear() {
+      (0, timers_1.clearTimeout)(this.id);
+      this.id = undefined;
+      this.timedOut = false;
+      this.cleared = true;
+    }
+    throwIfExpired() {
+      if (this.timedOut) {
+        this.then(undefined, utils_1.squashError);
+        throw new TimeoutError("Timed out", { duration: this.duration });
+      }
+    }
+    static expires(duration, unref) {
+      return new Timeout(undefined, { duration, unref });
+    }
+    static reject(rejection) {
+      return new Timeout(undefined, { duration: 0, unref: true, rejection });
+    }
+  }
+  exports.Timeout = Timeout;
+  function isLegacyTimeoutContextOptions(v) {
+    return v != null && typeof v === "object" && "serverSelectionTimeoutMS" in v && typeof v.serverSelectionTimeoutMS === "number" && "waitQueueTimeoutMS" in v && typeof v.waitQueueTimeoutMS === "number";
+  }
+  function isCSOTTimeoutContextOptions(v) {
+    return v != null && typeof v === "object" && "serverSelectionTimeoutMS" in v && typeof v.serverSelectionTimeoutMS === "number" && "timeoutMS" in v && typeof v.timeoutMS === "number";
+  }
+
+  class TimeoutContext {
+    static create(options) {
+      if (options.session?.timeoutContext != null)
+        return options.session?.timeoutContext;
+      if (isCSOTTimeoutContextOptions(options))
+        return new CSOTTimeoutContext(options);
+      else if (isLegacyTimeoutContextOptions(options))
+        return new LegacyTimeoutContext(options);
+      else
+        throw new error_1.MongoRuntimeError("Unrecognized options");
+    }
+  }
+  exports.TimeoutContext = TimeoutContext;
+
+  class CSOTTimeoutContext extends TimeoutContext {
+    constructor(options) {
+      super();
+      this.minRoundTripTime = 0;
+      this.start = Math.trunc(performance.now());
+      this.timeoutMS = options.timeoutMS;
+      this.serverSelectionTimeoutMS = options.serverSelectionTimeoutMS;
+      this.socketTimeoutMS = options.socketTimeoutMS;
+      this.clearServerSelectionTimeout = false;
+    }
+    get maxTimeMS() {
+      return this.remainingTimeMS - this.minRoundTripTime;
+    }
+    get remainingTimeMS() {
+      const timePassed = Math.trunc(performance.now()) - this.start;
+      return this.timeoutMS <= 0 ? Infinity : this.timeoutMS - timePassed;
+    }
+    csotEnabled() {
+      return true;
+    }
+    get serverSelectionTimeout() {
+      if (typeof this._serverSelectionTimeout !== "object" || this._serverSelectionTimeout?.cleared) {
+        const { remainingTimeMS, serverSelectionTimeoutMS } = this;
+        if (remainingTimeMS <= 0)
+          return Timeout.reject(new error_1.MongoOperationTimeoutError(`Timed out in server selection after ${this.timeoutMS}ms`));
+        const usingServerSelectionTimeoutMS = serverSelectionTimeoutMS !== 0 && (0, utils_1.csotMin)(remainingTimeMS, serverSelectionTimeoutMS) === serverSelectionTimeoutMS;
+        if (usingServerSelectionTimeoutMS) {
+          this._serverSelectionTimeout = Timeout.expires(serverSelectionTimeoutMS);
+        } else {
+          if (remainingTimeMS > 0 && Number.isFinite(remainingTimeMS)) {
+            this._serverSelectionTimeout = Timeout.expires(remainingTimeMS);
+          } else {
+            this._serverSelectionTimeout = null;
+          }
+        }
+      }
+      return this._serverSelectionTimeout;
+    }
+    get connectionCheckoutTimeout() {
+      if (typeof this._connectionCheckoutTimeout !== "object" || this._connectionCheckoutTimeout?.cleared) {
+        if (typeof this._serverSelectionTimeout === "object") {
+          this._connectionCheckoutTimeout = this._serverSelectionTimeout;
+        } else {
+          throw new error_1.MongoRuntimeError("Unreachable. If you are seeing this error, please file a ticket on the NODE driver project on Jira");
+        }
+      }
+      return this._connectionCheckoutTimeout;
+    }
+    get timeoutForSocketWrite() {
+      const { remainingTimeMS } = this;
+      if (!Number.isFinite(remainingTimeMS))
+        return null;
+      if (remainingTimeMS > 0)
+        return Timeout.expires(remainingTimeMS);
+      return Timeout.reject(new error_1.MongoOperationTimeoutError("Timed out before socket write"));
+    }
+    get timeoutForSocketRead() {
+      const { remainingTimeMS } = this;
+      if (!Number.isFinite(remainingTimeMS))
+        return null;
+      if (remainingTimeMS > 0)
+        return Timeout.expires(remainingTimeMS);
+      return Timeout.reject(new error_1.MongoOperationTimeoutError("Timed out before socket read"));
+    }
+    refresh() {
+      this.start = Math.trunc(performance.now());
+      this.minRoundTripTime = 0;
+      this._serverSelectionTimeout?.clear();
+      this._connectionCheckoutTimeout?.clear();
+    }
+    clear() {
+      this._serverSelectionTimeout?.clear();
+      this._connectionCheckoutTimeout?.clear();
+    }
+    getRemainingTimeMSOrThrow(message) {
+      const { remainingTimeMS } = this;
+      if (remainingTimeMS <= 0)
+        throw new error_1.MongoOperationTimeoutError(message ?? `Expired after ${this.timeoutMS}ms`);
+      return remainingTimeMS;
+    }
+    clone() {
+      const timeoutContext = new CSOTTimeoutContext({
+        timeoutMS: this.timeoutMS,
+        serverSelectionTimeoutMS: this.serverSelectionTimeoutMS
+      });
+      timeoutContext.start = this.start;
+      return timeoutContext;
+    }
+    refreshed() {
+      return new CSOTTimeoutContext(this);
+    }
+    addMaxTimeMSToCommand(command, options) {
+      if (options.omitMaxTimeMS)
+        return;
+      const maxTimeMS = this.remainingTimeMS - this.minRoundTripTime;
+      if (maxTimeMS > 0 && Number.isFinite(maxTimeMS))
+        command.maxTimeMS = maxTimeMS;
+    }
+    getSocketTimeoutMS() {
+      return 0;
+    }
+  }
+  exports.CSOTTimeoutContext = CSOTTimeoutContext;
+
+  class LegacyTimeoutContext extends TimeoutContext {
+    constructor(options) {
+      super();
+      this.options = options;
+      this.clearServerSelectionTimeout = true;
+    }
+    csotEnabled() {
+      return false;
+    }
+    get serverSelectionTimeout() {
+      if (this.options.serverSelectionTimeoutMS != null && this.options.serverSelectionTimeoutMS > 0)
+        return Timeout.expires(this.options.serverSelectionTimeoutMS);
+      return null;
+    }
+    get connectionCheckoutTimeout() {
+      if (this.options.waitQueueTimeoutMS != null && this.options.waitQueueTimeoutMS > 0)
+        return Timeout.expires(this.options.waitQueueTimeoutMS);
+      return null;
+    }
+    get timeoutForSocketWrite() {
+      return null;
+    }
+    get timeoutForSocketRead() {
+      return null;
+    }
+    refresh() {
+      return;
+    }
+    clear() {
+      return;
+    }
+    get maxTimeMS() {
+      return null;
+    }
+    refreshed() {
+      return new LegacyTimeoutContext(this.options);
+    }
+    addMaxTimeMSToCommand(_command, _options) {}
+    getSocketTimeoutMS() {
+      return this.options.socketTimeoutMS;
+    }
+  }
+  exports.LegacyTimeoutContext = LegacyTimeoutContext;
+});
+
+// node_modules/mongodb/lib/operations/aggregate.js
+var require_aggregate = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.AggregateOperation = exports.DB_AGGREGATE_COLLECTION = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var write_concern_1 = require_write_concern();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+  exports.DB_AGGREGATE_COLLECTION = 1;
+
+  class AggregateOperation extends command_1.CommandOperation {
+    constructor(ns, pipeline, options) {
+      super(undefined, { ...options, dbName: ns.db });
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
+      this.options = { ...options };
+      this.target = ns.collection || exports.DB_AGGREGATE_COLLECTION;
+      this.pipeline = pipeline;
+      this.hasWriteStage = false;
+      if (typeof options?.out === "string") {
+        this.pipeline = this.pipeline.concat({ $out: options.out });
+        this.hasWriteStage = true;
+      } else if (pipeline.length > 0) {
+        const finalStage = pipeline[pipeline.length - 1];
+        if (finalStage.$out || finalStage.$merge) {
+          this.hasWriteStage = true;
+        }
+      }
+      if (!this.hasWriteStage) {
+        delete this.options.writeConcern;
+      }
+      if (this.explain && this.writeConcern) {
+        throw new error_1.MongoInvalidArgumentError('Option "explain" cannot be used on an aggregate call with writeConcern');
+      }
+      if (options?.cursor != null && typeof options.cursor !== "object") {
+        throw new error_1.MongoInvalidArgumentError("Cursor options must be an object");
+      }
+      this.SERVER_COMMAND_RESPONSE_TYPE = this.explain ? responses_1.ExplainedCursorResponse : responses_1.CursorResponse;
+    }
+    get commandName() {
+      return "aggregate";
+    }
+    get canRetryRead() {
+      return !this.hasWriteStage;
+    }
+    addToPipeline(stage) {
+      this.pipeline.push(stage);
+    }
+    buildCommandDocument() {
+      const options = this.options;
+      const command = { aggregate: this.target, pipeline: this.pipeline };
+      if (this.hasWriteStage && this.writeConcern) {
+        write_concern_1.WriteConcern.apply(command, this.writeConcern);
+      }
+      if (options.bypassDocumentValidation === true) {
+        command.bypassDocumentValidation = options.bypassDocumentValidation;
+      }
+      if (typeof options.allowDiskUse === "boolean") {
+        command.allowDiskUse = options.allowDiskUse;
+      }
+      if (options.hint) {
+        command.hint = options.hint;
+      }
+      if (options.let) {
+        command.let = options.let;
+      }
+      if (options.comment !== undefined) {
+        command.comment = options.comment;
+      }
+      command.cursor = options.cursor || {};
+      if (options.batchSize && !this.hasWriteStage) {
+        command.cursor.batchSize = options.batchSize;
+      }
+      return command;
+    }
+    handleOk(response) {
+      return response;
+    }
+  }
+  exports.AggregateOperation = AggregateOperation;
+  (0, operation_1.defineAspects)(AggregateOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.CURSOR_CREATING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/operations/execute_operation.js
+var require_execute_operation = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.executeOperation = executeOperation;
+  exports.autoConnect = autoConnect;
+  var error_1 = require_error();
+  var read_preference_1 = require_read_preference();
+  var server_selection_1 = require_server_selection();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var aggregate_1 = require_aggregate();
+  var operation_1 = require_operation();
+  var MMAPv1_RETRY_WRITES_ERROR_CODE = error_1.MONGODB_ERROR_CODES.IllegalOperation;
+  var MMAPv1_RETRY_WRITES_ERROR_MESSAGE = "This MongoDB deployment does not support retryable writes. Please add retryWrites=false to your connection string.";
+  async function executeOperation(client, operation, timeoutContext) {
+    if (!(operation instanceof operation_1.AbstractOperation)) {
+      throw new error_1.MongoRuntimeError("This method requires a valid operation instance");
+    }
+    const topology = client.topology == null ? await (0, utils_1.abortable)(autoConnect(client), operation.options) : client.topology;
+    let session = operation.session;
+    let owner;
+    if (session == null) {
+      owner = Symbol();
+      session = client.startSession({ owner, explicit: false });
+    } else if (session.hasEnded) {
+      throw new error_1.MongoExpiredSessionError("Use of expired sessions is not permitted");
+    } else if (session.snapshotEnabled && !topology.capabilities.supportsSnapshotReads) {
+      throw new error_1.MongoCompatibilityError("Snapshot reads require MongoDB 5.0 or later");
+    } else if (session.client !== client) {
+      throw new error_1.MongoInvalidArgumentError("ClientSession must be from the same MongoClient");
+    }
+    operation.session ??= session;
+    const readPreference = operation.readPreference ?? read_preference_1.ReadPreference.primary;
+    const inTransaction = !!session?.inTransaction();
+    const hasReadAspect = operation.hasAspect(operation_1.Aspect.READ_OPERATION);
+    if (inTransaction && !readPreference.equals(read_preference_1.ReadPreference.primary) && (hasReadAspect || operation.commandName === "runCommand")) {
+      throw new error_1.MongoTransactionError(`Read preference in a transaction must be primary, not: ${readPreference.mode}`);
+    }
+    if (session?.isPinned && session.transaction.isCommitted && !operation.bypassPinningCheck) {
+      session.unpin();
+    }
+    timeoutContext ??= timeout_1.TimeoutContext.create({
+      session,
+      serverSelectionTimeoutMS: client.s.options.serverSelectionTimeoutMS,
+      waitQueueTimeoutMS: client.s.options.waitQueueTimeoutMS,
+      timeoutMS: operation.options.timeoutMS
+    });
+    try {
+      return await tryOperation(operation, {
+        topology,
+        timeoutContext,
+        session,
+        readPreference
+      });
+    } finally {
+      if (session?.owner != null && session.owner === owner) {
+        await session.endSession();
+      }
+    }
+  }
+  async function autoConnect(client) {
+    if (client.topology == null) {
+      if (client.s.hasBeenClosed) {
+        throw new error_1.MongoNotConnectedError("Client must be connected before running operations");
+      }
+      client.s.options.__skipPingOnConnect = true;
+      try {
+        await client.connect();
+        if (client.topology == null) {
+          throw new error_1.MongoRuntimeError("client.connect did not create a topology but also did not throw");
+        }
+        return client.topology;
+      } finally {
+        delete client.s.options.__skipPingOnConnect;
+      }
+    }
+    return client.topology;
+  }
+  async function tryOperation(operation, { topology, timeoutContext, session, readPreference }) {
+    let selector;
+    if (operation.hasAspect(operation_1.Aspect.MUST_SELECT_SAME_SERVER)) {
+      selector = (0, server_selection_1.sameServerSelector)(operation.server?.description);
+    } else if (operation instanceof aggregate_1.AggregateOperation && operation.hasWriteStage) {
+      selector = (0, server_selection_1.secondaryWritableServerSelector)(topology.commonWireVersion, readPreference);
+    } else {
+      selector = readPreference;
+    }
+    let server = await topology.selectServer(selector, {
+      session,
+      operationName: operation.commandName,
+      timeoutContext,
+      signal: operation.options.signal
+    });
+    const hasReadAspect = operation.hasAspect(operation_1.Aspect.READ_OPERATION);
+    const hasWriteAspect = operation.hasAspect(operation_1.Aspect.WRITE_OPERATION);
+    const inTransaction = session?.inTransaction() ?? false;
+    const willRetryRead = topology.s.options.retryReads && !inTransaction && operation.canRetryRead;
+    const willRetryWrite = topology.s.options.retryWrites && !inTransaction && (0, utils_1.supportsRetryableWrites)(server) && operation.canRetryWrite;
+    const willRetry = operation.hasAspect(operation_1.Aspect.RETRYABLE) && session != null && (hasReadAspect && willRetryRead || hasWriteAspect && willRetryWrite);
+    if (hasWriteAspect && willRetryWrite && session != null) {
+      operation.options.willRetryWrite = true;
+      session.incrementTransactionNumber();
+    }
+    const maxTries = willRetry ? timeoutContext.csotEnabled() ? Infinity : 2 : 1;
+    let previousOperationError;
+    let previousServer;
+    for (let tries = 0;tries < maxTries; tries++) {
+      if (previousOperationError) {
+        if (hasWriteAspect && previousOperationError.code === MMAPv1_RETRY_WRITES_ERROR_CODE) {
+          throw new error_1.MongoServerError({
+            message: MMAPv1_RETRY_WRITES_ERROR_MESSAGE,
+            errmsg: MMAPv1_RETRY_WRITES_ERROR_MESSAGE,
+            originalError: previousOperationError
+          });
+        }
+        if (operation.hasAspect(operation_1.Aspect.COMMAND_BATCHING) && !operation.canRetryWrite) {
+          throw previousOperationError;
+        }
+        if (hasWriteAspect && !(0, error_1.isRetryableWriteError)(previousOperationError))
+          throw previousOperationError;
+        if (hasReadAspect && !(0, error_1.isRetryableReadError)(previousOperationError)) {
+          throw previousOperationError;
+        }
+        if (previousOperationError instanceof error_1.MongoNetworkError && operation.hasAspect(operation_1.Aspect.CURSOR_CREATING) && session != null && session.isPinned && !session.inTransaction()) {
+          session.unpin({ force: true, forceClear: true });
+        }
+        server = await topology.selectServer(selector, {
+          session,
+          operationName: operation.commandName,
+          previousServer,
+          signal: operation.options.signal
+        });
+        if (hasWriteAspect && !(0, utils_1.supportsRetryableWrites)(server)) {
+          throw new error_1.MongoUnexpectedServerResponseError("Selected server does not support retryable writes");
+        }
+      }
+      operation.server = server;
+      try {
+        if (tries > 0 && operation.hasAspect(operation_1.Aspect.COMMAND_BATCHING)) {
+          operation.resetBatch();
+        }
+        try {
+          const result = await server.command(operation, timeoutContext);
+          return operation.handleOk(result);
+        } catch (error) {
+          return operation.handleError(error);
+        }
+      } catch (operationError) {
+        if (!(operationError instanceof error_1.MongoError))
+          throw operationError;
+        if (previousOperationError != null && operationError.hasErrorLabel(error_1.MongoErrorLabel.NoWritesPerformed)) {
+          throw previousOperationError;
+        }
+        previousServer = server.description;
+        previousOperationError = operationError;
+        timeoutContext.clear();
+      }
+    }
+    throw previousOperationError ?? new error_1.MongoRuntimeError("Tried to propagate retryability error, but no error was found.");
+  }
+});
+
+// node_modules/mongodb/lib/operations/insert.js
+var require_insert = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.InsertOneOperation = exports.InsertOperation = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class InsertOperation extends command_1.CommandOperation {
+    constructor(ns, documents, options) {
+      super(undefined, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = { ...options, checkKeys: options.checkKeys ?? false };
+      this.ns = ns;
+      this.documents = documents;
+    }
+    get commandName() {
+      return "insert";
+    }
+    buildCommandDocument(_connection, _session) {
+      const options = this.options ?? {};
+      const ordered = typeof options.ordered === "boolean" ? options.ordered : true;
+      const command = {
+        insert: this.ns.collection,
+        documents: this.documents,
+        ordered
+      };
+      if (typeof options.bypassDocumentValidation === "boolean") {
+        command.bypassDocumentValidation = options.bypassDocumentValidation;
+      }
+      if (options.comment !== undefined) {
+        command.comment = options.comment;
+      }
+      return command;
+    }
+  }
+  exports.InsertOperation = InsertOperation;
+
+  class InsertOneOperation extends InsertOperation {
+    constructor(collection, doc, options) {
+      super(collection.s.namespace, [(0, utils_1.maybeAddIdToDocuments)(collection, doc, options)], options);
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors) {
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      }
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        insertedId: this.documents[0]._id
+      };
+    }
+  }
+  exports.InsertOneOperation = InsertOneOperation;
+  (0, operation_1.defineAspects)(InsertOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(InsertOneOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/sort.js
+var require_sort = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.formatSort = formatSort;
+  var error_1 = require_error();
+  function prepareDirection(direction = 1) {
+    const value = `${direction}`.toLowerCase();
+    if (isMeta(direction))
+      return direction;
+    switch (value) {
+      case "ascending":
+      case "asc":
+      case "1":
+        return 1;
+      case "descending":
+      case "desc":
+      case "-1":
+        return -1;
+      default:
+        throw new error_1.MongoInvalidArgumentError(`Invalid sort direction: ${JSON.stringify(direction)}`);
+    }
+  }
+  function isMeta(t) {
+    return typeof t === "object" && t != null && "$meta" in t && typeof t.$meta === "string";
+  }
+  function isPair(t) {
+    if (Array.isArray(t) && t.length === 2) {
+      try {
+        prepareDirection(t[1]);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+  function isDeep(t) {
+    return Array.isArray(t) && Array.isArray(t[0]);
+  }
+  function isMap(t) {
+    return t instanceof Map && t.size > 0;
+  }
+  function isReadonlyArray(value) {
+    return Array.isArray(value);
+  }
+  function pairToMap(v) {
+    return new Map([[`${v[0]}`, prepareDirection([v[1]])]]);
+  }
+  function deepToMap(t) {
+    const sortEntries = t.map(([k, v]) => [`${k}`, prepareDirection(v)]);
+    return new Map(sortEntries);
+  }
+  function stringsToMap(t) {
+    const sortEntries = t.map((key) => [`${key}`, 1]);
+    return new Map(sortEntries);
+  }
+  function objectToMap(t) {
+    const sortEntries = Object.entries(t).map(([k, v]) => [
+      `${k}`,
+      prepareDirection(v)
+    ]);
+    return new Map(sortEntries);
+  }
+  function mapToMap(t) {
+    const sortEntries = Array.from(t).map(([k, v]) => [
+      `${k}`,
+      prepareDirection(v)
+    ]);
+    return new Map(sortEntries);
+  }
+  function formatSort(sort, direction) {
+    if (sort == null)
+      return;
+    if (typeof sort === "string")
+      return new Map([[sort, prepareDirection(direction)]]);
+    if (typeof sort !== "object") {
+      throw new error_1.MongoInvalidArgumentError(`Invalid sort format: ${JSON.stringify(sort)} Sort must be a valid object`);
+    }
+    if (!isReadonlyArray(sort)) {
+      if (isMap(sort))
+        return mapToMap(sort);
+      if (Object.keys(sort).length)
+        return objectToMap(sort);
+      return;
+    }
+    if (!sort.length)
+      return;
+    if (isDeep(sort))
+      return deepToMap(sort);
+    if (isPair(sort))
+      return pairToMap(sort);
+    return stringsToMap(sort);
+  }
+});
+
+// node_modules/mongodb/lib/operations/update.js
+var require_update = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ReplaceOneOperation = exports.UpdateManyOperation = exports.UpdateOneOperation = exports.UpdateOperation = undefined;
+  exports.makeUpdateStatement = makeUpdateStatement;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var sort_1 = require_sort();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class UpdateOperation extends command_1.CommandOperation {
+    constructor(ns, statements, options) {
+      super(undefined, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.ns = ns;
+      this.statements = statements;
+    }
+    get commandName() {
+      return "update";
+    }
+    get canRetryWrite() {
+      if (super.canRetryWrite === false) {
+        return false;
+      }
+      return this.statements.every((op) => op.multi == null || op.multi === false);
+    }
+    buildCommandDocument(_connection, _session) {
+      const options = this.options;
+      const command = {
+        update: this.ns.collection,
+        updates: this.statements,
+        ordered: options.ordered ?? true
+      };
+      if (typeof options.bypassDocumentValidation === "boolean") {
+        command.bypassDocumentValidation = options.bypassDocumentValidation;
+      }
+      if (options.let) {
+        command.let = options.let;
+      }
+      if (options.comment !== undefined) {
+        command.comment = options.comment;
+      }
+      return command;
+    }
+  }
+  exports.UpdateOperation = UpdateOperation;
+
+  class UpdateOneOperation extends UpdateOperation {
+    constructor(ns, filter, update, options) {
+      super(ns, [makeUpdateStatement(filter, update, { ...options, multi: false })], options);
+      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
+        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+      }
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (this.explain != null)
+        return res;
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors)
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        modifiedCount: res.nModified ?? res.n,
+        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
+        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
+        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
+      };
+    }
+  }
+  exports.UpdateOneOperation = UpdateOneOperation;
+
+  class UpdateManyOperation extends UpdateOperation {
+    constructor(ns, filter, update, options) {
+      super(ns, [makeUpdateStatement(filter, update, { ...options, multi: true })], options);
+      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
+        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+      }
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (this.explain != null)
+        return res;
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors)
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        modifiedCount: res.nModified ?? res.n,
+        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
+        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
+        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
+      };
+    }
+  }
+  exports.UpdateManyOperation = UpdateManyOperation;
+
+  class ReplaceOneOperation extends UpdateOperation {
+    constructor(ns, filter, replacement, options) {
+      super(ns, [makeUpdateStatement(filter, replacement, { ...options, multi: false })], options);
+      if ((0, utils_1.hasAtomicOperators)(replacement)) {
+        throw new error_1.MongoInvalidArgumentError("Replacement document must not contain atomic operators");
+      }
+    }
+    handleOk(response) {
+      const res = super.handleOk(response);
+      if (this.explain != null)
+        return res;
+      if (res.code)
+        throw new error_1.MongoServerError(res);
+      if (res.writeErrors)
+        throw new error_1.MongoServerError(res.writeErrors[0]);
+      return {
+        acknowledged: this.writeConcern?.w !== 0,
+        modifiedCount: res.nModified ?? res.n,
+        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
+        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
+        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
+      };
+    }
+  }
+  exports.ReplaceOneOperation = ReplaceOneOperation;
+  function makeUpdateStatement(filter, update, options) {
+    if (filter == null || typeof filter !== "object") {
+      throw new error_1.MongoInvalidArgumentError("Selector must be a valid JavaScript object");
+    }
+    if (update == null || typeof update !== "object") {
+      throw new error_1.MongoInvalidArgumentError("Document must be a valid JavaScript object");
+    }
+    const op = { q: filter, u: update };
+    if (typeof options.upsert === "boolean") {
+      op.upsert = options.upsert;
+    }
+    if (options.multi) {
+      op.multi = options.multi;
+    }
+    if (options.hint) {
+      op.hint = options.hint;
+    }
+    if (options.arrayFilters) {
+      op.arrayFilters = options.arrayFilters;
+    }
+    if (options.collation) {
+      op.collation = options.collation;
+    }
+    if (!options.multi && options.sort != null) {
+      op.sort = (0, sort_1.formatSort)(options.sort);
+    }
+    return op;
+  }
+  (0, operation_1.defineAspects)(UpdateOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(UpdateOneOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(UpdateManyOperation, [
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(ReplaceOneOperation, [
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.WRITE_OPERATION,
+    operation_1.Aspect.SKIP_COLLATION,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/bulk/common.js
+var require_common2 = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.BulkOperationBase = exports.FindOperators = exports.MongoBulkWriteError = exports.WriteError = exports.WriteConcernError = exports.BulkWriteResult = exports.Batch = exports.BatchType = undefined;
+  exports.mergeBatchResults = mergeBatchResults;
+  var bson_1 = require_bson2();
+  var error_1 = require_error();
+  var delete_1 = require_delete();
+  var execute_operation_1 = require_execute_operation();
+  var insert_1 = require_insert();
+  var update_1 = require_update();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+  exports.BatchType = Object.freeze({
+    INSERT: 1,
+    UPDATE: 2,
+    DELETE: 3
+  });
+
+  class Batch {
+    constructor(batchType, originalZeroIndex) {
+      this.originalZeroIndex = originalZeroIndex;
+      this.currentIndex = 0;
+      this.originalIndexes = [];
+      this.batchType = batchType;
+      this.operations = [];
+      this.size = 0;
+      this.sizeBytes = 0;
+    }
+  }
+  exports.Batch = Batch;
+
+  class BulkWriteResult {
+    static generateIdMap(ids) {
+      const idMap = {};
+      for (const doc of ids) {
+        idMap[doc.index] = doc._id;
+      }
+      return idMap;
+    }
+    constructor(bulkResult, isOrdered) {
+      this.result = bulkResult;
+      this.insertedCount = this.result.nInserted ?? 0;
+      this.matchedCount = this.result.nMatched ?? 0;
+      this.modifiedCount = this.result.nModified ?? 0;
+      this.deletedCount = this.result.nRemoved ?? 0;
+      this.upsertedCount = this.result.upserted.length ?? 0;
+      this.upsertedIds = BulkWriteResult.generateIdMap(this.result.upserted);
+      this.insertedIds = BulkWriteResult.generateIdMap(this.getSuccessfullyInsertedIds(bulkResult, isOrdered));
+      Object.defineProperty(this, "result", { value: this.result, enumerable: false });
+    }
+    get ok() {
+      return this.result.ok;
+    }
+    getSuccessfullyInsertedIds(bulkResult, isOrdered) {
+      if (bulkResult.writeErrors.length === 0)
+        return bulkResult.insertedIds;
+      if (isOrdered) {
+        return bulkResult.insertedIds.slice(0, bulkResult.writeErrors[0].index);
+      }
+      return bulkResult.insertedIds.filter(({ index }) => !bulkResult.writeErrors.some((writeError) => index === writeError.index));
+    }
+    getUpsertedIdAt(index) {
+      return this.result.upserted[index];
+    }
+    getRawResponse() {
+      return this.result;
+    }
+    hasWriteErrors() {
+      return this.result.writeErrors.length > 0;
+    }
+    getWriteErrorCount() {
+      return this.result.writeErrors.length;
+    }
+    getWriteErrorAt(index) {
+      return index < this.result.writeErrors.length ? this.result.writeErrors[index] : undefined;
+    }
+    getWriteErrors() {
+      return this.result.writeErrors;
+    }
+    getWriteConcernError() {
+      if (this.result.writeConcernErrors.length === 0) {
+        return;
+      } else if (this.result.writeConcernErrors.length === 1) {
+        return this.result.writeConcernErrors[0];
+      } else {
+        let errmsg = "";
+        for (let i = 0;i < this.result.writeConcernErrors.length; i++) {
+          const err = this.result.writeConcernErrors[i];
+          errmsg = errmsg + err.errmsg;
+          if (i === 0)
+            errmsg = errmsg + " and ";
+        }
+        return new WriteConcernError({ errmsg, code: error_1.MONGODB_ERROR_CODES.WriteConcernTimeout });
+      }
+    }
+    toString() {
+      return `BulkWriteResult(${bson_1.EJSON.stringify(this.result)})`;
+    }
+    isOk() {
+      return this.result.ok === 1;
+    }
+  }
+  exports.BulkWriteResult = BulkWriteResult;
+
+  class WriteConcernError {
+    constructor(error) {
+      this.serverError = error;
+    }
+    get code() {
+      return this.serverError.code;
+    }
+    get errmsg() {
+      return this.serverError.errmsg;
+    }
+    get errInfo() {
+      return this.serverError.errInfo;
+    }
+    toJSON() {
+      return this.serverError;
+    }
+    toString() {
+      return `WriteConcernError(${this.errmsg})`;
+    }
+  }
+  exports.WriteConcernError = WriteConcernError;
+
+  class WriteError {
+    constructor(err) {
+      this.err = err;
+    }
+    get code() {
+      return this.err.code;
+    }
+    get index() {
+      return this.err.index;
+    }
+    get errmsg() {
+      return this.err.errmsg;
+    }
+    get errInfo() {
+      return this.err.errInfo;
+    }
+    getOperation() {
+      return this.err.op;
+    }
+    toJSON() {
+      return { code: this.err.code, index: this.err.index, errmsg: this.err.errmsg, op: this.err.op };
+    }
+    toString() {
+      return `WriteError(${JSON.stringify(this.toJSON())})`;
+    }
+  }
+  exports.WriteError = WriteError;
+  function mergeBatchResults(batch, bulkResult, err, result) {
+    if (err) {
+      result = err;
+    } else if (result && result.result) {
+      result = result.result;
+    }
+    if (result == null) {
+      return;
+    }
+    if (result.ok === 0 && bulkResult.ok === 1) {
+      bulkResult.ok = 0;
+      const writeError = {
+        index: 0,
+        code: result.code || 0,
+        errmsg: result.message,
+        errInfo: result.errInfo,
+        op: batch.operations[0]
+      };
+      bulkResult.writeErrors.push(new WriteError(writeError));
+      return;
+    } else if (result.ok === 0 && bulkResult.ok === 0) {
+      return;
+    }
+    if (isInsertBatch(batch) && result.n) {
+      bulkResult.nInserted = bulkResult.nInserted + result.n;
+    }
+    if (isDeleteBatch(batch) && result.n) {
+      bulkResult.nRemoved = bulkResult.nRemoved + result.n;
+    }
+    let nUpserted = 0;
+    if (Array.isArray(result.upserted)) {
+      nUpserted = result.upserted.length;
+      for (let i = 0;i < result.upserted.length; i++) {
+        bulkResult.upserted.push({
+          index: result.upserted[i].index + batch.originalZeroIndex,
+          _id: result.upserted[i]._id
+        });
+      }
+    } else if (result.upserted) {
+      nUpserted = 1;
+      bulkResult.upserted.push({
+        index: batch.originalZeroIndex,
+        _id: result.upserted
+      });
+    }
+    if (isUpdateBatch(batch) && result.n) {
+      const nModified = result.nModified;
+      bulkResult.nUpserted = bulkResult.nUpserted + nUpserted;
+      bulkResult.nMatched = bulkResult.nMatched + (result.n - nUpserted);
+      if (typeof nModified === "number") {
+        bulkResult.nModified = bulkResult.nModified + nModified;
+      } else {
+        bulkResult.nModified = 0;
+      }
+    }
+    if (Array.isArray(result.writeErrors)) {
+      for (let i = 0;i < result.writeErrors.length; i++) {
+        const writeError = {
+          index: batch.originalIndexes[result.writeErrors[i].index],
+          code: result.writeErrors[i].code,
+          errmsg: result.writeErrors[i].errmsg,
+          errInfo: result.writeErrors[i].errInfo,
+          op: batch.operations[result.writeErrors[i].index]
+        };
+        bulkResult.writeErrors.push(new WriteError(writeError));
+      }
+    }
+    if (result.writeConcernError) {
+      bulkResult.writeConcernErrors.push(new WriteConcernError(result.writeConcernError));
+    }
+  }
+  async function executeCommands(bulkOperation, options) {
+    if (bulkOperation.s.batches.length === 0) {
+      return new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
+    }
+    for (const batch of bulkOperation.s.batches) {
+      const finalOptions = (0, utils_1.resolveOptions)(bulkOperation, {
+        ...options,
+        ordered: bulkOperation.isOrdered
+      });
+      if (finalOptions.bypassDocumentValidation !== true) {
+        delete finalOptions.bypassDocumentValidation;
+      }
+      if (bulkOperation.s.bypassDocumentValidation === true) {
+        finalOptions.bypassDocumentValidation = true;
+      }
+      if (bulkOperation.s.checkKeys === false) {
+        finalOptions.checkKeys = false;
+      }
+      if (finalOptions.retryWrites) {
+        if (isUpdateBatch(batch)) {
+          finalOptions.retryWrites = finalOptions.retryWrites && !batch.operations.some((op) => op.multi);
+        }
+        if (isDeleteBatch(batch)) {
+          finalOptions.retryWrites = finalOptions.retryWrites && !batch.operations.some((op) => op.limit === 0);
+        }
+      }
+      const operation = isInsertBatch(batch) ? new insert_1.InsertOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : isUpdateBatch(batch) ? new update_1.UpdateOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : isDeleteBatch(batch) ? new delete_1.DeleteOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : null;
+      if (operation == null)
+        throw new error_1.MongoRuntimeError(`Unknown batchType: ${batch.batchType}`);
+      let thrownError = null;
+      let result;
+      try {
+        result = await (0, execute_operation_1.executeOperation)(bulkOperation.s.collection.client, operation, finalOptions.timeoutContext);
+      } catch (error) {
+        thrownError = error;
+      }
+      if (thrownError != null) {
+        if (thrownError instanceof error_1.MongoWriteConcernError) {
+          mergeBatchResults(batch, bulkOperation.s.bulkResult, thrownError, result);
+          const writeResult3 = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
+          throw new MongoBulkWriteError({
+            message: thrownError.result.writeConcernError.errmsg,
+            code: thrownError.result.writeConcernError.code
+          }, writeResult3);
+        } else {
+          throw new MongoBulkWriteError(thrownError, new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered));
+        }
+      }
+      mergeBatchResults(batch, bulkOperation.s.bulkResult, thrownError, result);
+      const writeResult2 = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
+      bulkOperation.handleWriteError(writeResult2);
+    }
+    bulkOperation.s.batches.length = 0;
+    const writeResult = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
+    bulkOperation.handleWriteError(writeResult);
+    return writeResult;
+  }
+
+  class MongoBulkWriteError extends error_1.MongoServerError {
+    constructor(error, result) {
+      super(error);
+      this.writeErrors = [];
+      if (error instanceof WriteConcernError)
+        this.err = error;
+      else if (!(error instanceof Error)) {
+        this.message = error.message;
+        this.code = error.code;
+        this.writeErrors = error.writeErrors ?? [];
+      }
+      this.result = result;
+      Object.assign(this, error);
+    }
+    get name() {
+      return "MongoBulkWriteError";
+    }
+    get insertedCount() {
+      return this.result.insertedCount;
+    }
+    get matchedCount() {
+      return this.result.matchedCount;
+    }
+    get modifiedCount() {
+      return this.result.modifiedCount;
+    }
+    get deletedCount() {
+      return this.result.deletedCount;
+    }
+    get upsertedCount() {
+      return this.result.upsertedCount;
+    }
+    get insertedIds() {
+      return this.result.insertedIds;
+    }
+    get upsertedIds() {
+      return this.result.upsertedIds;
+    }
+  }
+  exports.MongoBulkWriteError = MongoBulkWriteError;
+
+  class FindOperators {
+    constructor(bulkOperation) {
+      this.bulkOperation = bulkOperation;
+    }
+    update(updateDocument) {
+      const currentOp = buildCurrentOp(this.bulkOperation);
+      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, updateDocument, {
+        ...currentOp,
+        multi: true
+      }));
+    }
+    updateOne(updateDocument) {
+      if (!(0, utils_1.hasAtomicOperators)(updateDocument, this.bulkOperation.bsonOptions)) {
+        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+      }
+      const currentOp = buildCurrentOp(this.bulkOperation);
+      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, updateDocument, { ...currentOp, multi: false }));
+    }
+    replaceOne(replacement) {
+      if ((0, utils_1.hasAtomicOperators)(replacement)) {
+        throw new error_1.MongoInvalidArgumentError("Replacement document must not use atomic operators");
+      }
+      const currentOp = buildCurrentOp(this.bulkOperation);
+      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, replacement, { ...currentOp, multi: false }));
+    }
+    deleteOne() {
+      const currentOp = buildCurrentOp(this.bulkOperation);
+      return this.bulkOperation.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(currentOp.selector, { ...currentOp, limit: 1 }));
+    }
+    delete() {
+      const currentOp = buildCurrentOp(this.bulkOperation);
+      return this.bulkOperation.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(currentOp.selector, { ...currentOp, limit: 0 }));
+    }
+    upsert() {
+      if (!this.bulkOperation.s.currentOp) {
+        this.bulkOperation.s.currentOp = {};
+      }
+      this.bulkOperation.s.currentOp.upsert = true;
+      return this;
+    }
+    collation(collation) {
+      if (!this.bulkOperation.s.currentOp) {
+        this.bulkOperation.s.currentOp = {};
+      }
+      this.bulkOperation.s.currentOp.collation = collation;
+      return this;
+    }
+    arrayFilters(arrayFilters) {
+      if (!this.bulkOperation.s.currentOp) {
+        this.bulkOperation.s.currentOp = {};
+      }
+      this.bulkOperation.s.currentOp.arrayFilters = arrayFilters;
+      return this;
+    }
+    hint(hint) {
+      if (!this.bulkOperation.s.currentOp) {
+        this.bulkOperation.s.currentOp = {};
+      }
+      this.bulkOperation.s.currentOp.hint = hint;
+      return this;
+    }
+  }
+  exports.FindOperators = FindOperators;
+
+  class BulkOperationBase {
+    constructor(collection, options, isOrdered) {
+      this.collection = collection;
+      this.isOrdered = isOrdered;
+      const topology = (0, utils_1.getTopology)(collection);
+      options = options == null ? {} : options;
+      const namespace = collection.s.namespace;
+      const executed = false;
+      const currentOp = undefined;
+      const hello = topology.lastHello();
+      const usingAutoEncryption = !!(topology.s.options && topology.s.options.autoEncrypter);
+      const maxBsonObjectSize = hello && hello.maxBsonObjectSize ? hello.maxBsonObjectSize : 1024 * 1024 * 16;
+      const maxBatchSizeBytes = usingAutoEncryption ? 1024 * 1024 * 2 : maxBsonObjectSize;
+      const maxWriteBatchSize = hello && hello.maxWriteBatchSize ? hello.maxWriteBatchSize : 1000;
+      const maxKeySize = (maxWriteBatchSize - 1).toString(10).length + 2;
+      let finalOptions = Object.assign({}, options);
+      finalOptions = (0, utils_1.applyRetryableWrites)(finalOptions, collection.db);
+      const bulkResult = {
+        ok: 1,
+        writeErrors: [],
+        writeConcernErrors: [],
+        insertedIds: [],
+        nInserted: 0,
+        nUpserted: 0,
+        nMatched: 0,
+        nModified: 0,
+        nRemoved: 0,
+        upserted: []
+      };
+      this.s = {
+        bulkResult,
+        currentBatch: undefined,
+        currentIndex: 0,
+        currentBatchSize: 0,
+        currentBatchSizeBytes: 0,
+        currentInsertBatch: undefined,
+        currentUpdateBatch: undefined,
+        currentRemoveBatch: undefined,
+        batches: [],
+        writeConcern: write_concern_1.WriteConcern.fromOptions(options),
+        maxBsonObjectSize,
+        maxBatchSizeBytes,
+        maxWriteBatchSize,
+        maxKeySize,
+        namespace,
+        topology,
+        options: finalOptions,
+        bsonOptions: (0, bson_1.resolveBSONOptions)(options),
+        currentOp,
+        executed,
+        collection,
+        err: undefined,
+        checkKeys: typeof options.checkKeys === "boolean" ? options.checkKeys : false
+      };
+      if (options.bypassDocumentValidation === true) {
+        this.s.bypassDocumentValidation = true;
+      }
+    }
+    insert(document2) {
+      (0, utils_1.maybeAddIdToDocuments)(this.collection, document2, {
+        forceServerObjectId: this.shouldForceServerObjectId()
+      });
+      return this.addToOperationsList(exports.BatchType.INSERT, document2);
+    }
+    find(selector) {
+      if (!selector) {
+        throw new error_1.MongoInvalidArgumentError("Bulk find operation must specify a selector");
+      }
+      this.s.currentOp = {
+        selector
+      };
+      return new FindOperators(this);
+    }
+    raw(op) {
+      if (op == null || typeof op !== "object") {
+        throw new error_1.MongoInvalidArgumentError("Operation must be an object with an operation key");
+      }
+      if ("insertOne" in op) {
+        const forceServerObjectId = this.shouldForceServerObjectId();
+        const document2 = op.insertOne && op.insertOne.document == null ? op.insertOne : op.insertOne.document;
+        (0, utils_1.maybeAddIdToDocuments)(this.collection, document2, { forceServerObjectId });
+        return this.addToOperationsList(exports.BatchType.INSERT, document2);
+      }
+      if ("replaceOne" in op || "updateOne" in op || "updateMany" in op) {
+        if ("replaceOne" in op) {
+          if ("q" in op.replaceOne) {
+            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
+          }
+          const updateStatement = (0, update_1.makeUpdateStatement)(op.replaceOne.filter, op.replaceOne.replacement, { ...op.replaceOne, multi: false });
+          if ((0, utils_1.hasAtomicOperators)(updateStatement.u)) {
+            throw new error_1.MongoInvalidArgumentError("Replacement document must not use atomic operators");
+          }
+          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
+        }
+        if ("updateOne" in op) {
+          if ("q" in op.updateOne) {
+            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
+          }
+          const updateStatement = (0, update_1.makeUpdateStatement)(op.updateOne.filter, op.updateOne.update, {
+            ...op.updateOne,
+            multi: false
+          });
+          if (!(0, utils_1.hasAtomicOperators)(updateStatement.u, this.bsonOptions)) {
+            throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+          }
+          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
+        }
+        if ("updateMany" in op) {
+          if ("q" in op.updateMany) {
+            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
+          }
+          const updateStatement = (0, update_1.makeUpdateStatement)(op.updateMany.filter, op.updateMany.update, {
+            ...op.updateMany,
+            multi: true
+          });
+          if (!(0, utils_1.hasAtomicOperators)(updateStatement.u, this.bsonOptions)) {
+            throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+          }
+          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
+        }
+      }
+      if ("deleteOne" in op) {
+        if ("q" in op.deleteOne) {
+          throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
+        }
+        return this.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(op.deleteOne.filter, { ...op.deleteOne, limit: 1 }));
+      }
+      if ("deleteMany" in op) {
+        if ("q" in op.deleteMany) {
+          throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
+        }
+        return this.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(op.deleteMany.filter, { ...op.deleteMany, limit: 0 }));
+      }
+      throw new error_1.MongoInvalidArgumentError("bulkWrite only supports insertOne, updateOne, updateMany, deleteOne, deleteMany");
+    }
+    get length() {
+      return this.s.currentIndex;
+    }
+    get bsonOptions() {
+      return this.s.bsonOptions;
+    }
+    get writeConcern() {
+      return this.s.writeConcern;
+    }
+    get batches() {
+      const batches = [...this.s.batches];
+      if (this.isOrdered) {
+        if (this.s.currentBatch)
+          batches.push(this.s.currentBatch);
+      } else {
+        if (this.s.currentInsertBatch)
+          batches.push(this.s.currentInsertBatch);
+        if (this.s.currentUpdateBatch)
+          batches.push(this.s.currentUpdateBatch);
+        if (this.s.currentRemoveBatch)
+          batches.push(this.s.currentRemoveBatch);
+      }
+      return batches;
+    }
+    async execute(options = {}) {
+      if (this.s.executed) {
+        throw new error_1.MongoBatchReExecutionError;
+      }
+      const writeConcern = write_concern_1.WriteConcern.fromOptions(options);
+      if (writeConcern) {
+        this.s.writeConcern = writeConcern;
+      }
+      if (this.isOrdered) {
+        if (this.s.currentBatch)
+          this.s.batches.push(this.s.currentBatch);
+      } else {
+        if (this.s.currentInsertBatch)
+          this.s.batches.push(this.s.currentInsertBatch);
+        if (this.s.currentUpdateBatch)
+          this.s.batches.push(this.s.currentUpdateBatch);
+        if (this.s.currentRemoveBatch)
+          this.s.batches.push(this.s.currentRemoveBatch);
+      }
+      if (this.s.batches.length === 0) {
+        throw new error_1.MongoInvalidArgumentError("Invalid BulkOperation, Batch cannot be empty");
+      }
+      this.s.executed = true;
+      const finalOptions = (0, utils_1.resolveOptions)(this.collection, { ...this.s.options, ...options });
+      finalOptions.timeoutContext ??= timeout_1.TimeoutContext.create({
+        session: finalOptions.session,
+        timeoutMS: finalOptions.timeoutMS,
+        serverSelectionTimeoutMS: this.collection.client.s.options.serverSelectionTimeoutMS,
+        waitQueueTimeoutMS: this.collection.client.s.options.waitQueueTimeoutMS
+      });
+      if (finalOptions.session == null) {
+        return await this.collection.client.withSession({ explicit: false }, async (session) => {
+          return await executeCommands(this, { ...finalOptions, session });
+        });
+      }
+      return await executeCommands(this, { ...finalOptions });
+    }
+    handleWriteError(writeResult) {
+      if (this.s.bulkResult.writeErrors.length > 0) {
+        const msg = this.s.bulkResult.writeErrors[0].errmsg ? this.s.bulkResult.writeErrors[0].errmsg : "write operation failed";
+        throw new MongoBulkWriteError({
+          message: msg,
+          code: this.s.bulkResult.writeErrors[0].code,
+          writeErrors: this.s.bulkResult.writeErrors
+        }, writeResult);
+      }
+      const writeConcernError = writeResult.getWriteConcernError();
+      if (writeConcernError) {
+        throw new MongoBulkWriteError(writeConcernError, writeResult);
+      }
+    }
+    shouldForceServerObjectId() {
+      return this.s.options.forceServerObjectId === true || this.s.collection.db.options?.forceServerObjectId === true;
+    }
+  }
+  exports.BulkOperationBase = BulkOperationBase;
+  function isInsertBatch(batch) {
+    return batch.batchType === exports.BatchType.INSERT;
+  }
+  function isUpdateBatch(batch) {
+    return batch.batchType === exports.BatchType.UPDATE;
+  }
+  function isDeleteBatch(batch) {
+    return batch.batchType === exports.BatchType.DELETE;
+  }
+  function buildCurrentOp(bulkOp) {
+    let { currentOp } = bulkOp.s;
+    bulkOp.s.currentOp = undefined;
+    if (!currentOp)
+      currentOp = {};
+    return currentOp;
+  }
+});
+
+// node_modules/mongoose/lib/drivers/node-mongodb-native/bulkWriteResult.js
+var require_bulkWriteResult = __commonJS((exports, module) => {
+  var BulkWriteResult = require_common2().BulkWriteResult;
+  module.exports = BulkWriteResult;
+});
+
+// node_modules/mongoose/lib/connectionState.js
+var require_connectionState = __commonJS((exports, module) => {
+  /*!
+   * Connection states
+   */
+  var STATES = module.exports = exports = Object.create(null);
+  var disconnected = "disconnected";
+  var connected = "connected";
+  var connecting = "connecting";
+  var disconnecting = "disconnecting";
+  var uninitialized = "uninitialized";
+  STATES[0] = disconnected;
+  STATES[1] = connected;
+  STATES[2] = connecting;
+  STATES[3] = disconnecting;
+  STATES[99] = uninitialized;
+  STATES[disconnected] = 0;
+  STATES[connected] = 1;
+  STATES[connecting] = 2;
+  STATES[disconnecting] = 3;
+  STATES[uninitialized] = 99;
+});
+
+// node_modules/mongoose/lib/helpers/immediate.js
+var require_immediate = __commonJS((exports, module) => {
+  /*!
+   * Centralize this so we can more easily work around issues with people
+   * stubbing out `process.nextTick()` in tests using sinon:
+   * https://github.com/sinonjs/lolex#automatically-incrementing-mocked-time
+   * See gh-6074
+   */
+  var nextTick = typeof process !== "undefined" && typeof process.nextTick === "function" ? process.nextTick.bind(process) : (cb) => setTimeout(cb, 0);
+  module.exports = function immediate(cb) {
+    return nextTick(cb);
+  };
+});
+
+// node_modules/mongoose/lib/collection.js
+var require_collection = __commonJS((exports, module) => {
+  /*!
+   * Module dependencies.
+   */
+  var EventEmitter = __require("events").EventEmitter;
+  var STATES = require_connectionState();
+  var immediate = require_immediate();
+  function Collection(name, conn, opts) {
+    if (opts === undefined) {
+      opts = {};
+    }
+    this.opts = opts;
+    this.name = name;
+    this.collectionName = name;
+    this.conn = conn;
+    this.queue = [];
+    this.buffer = !conn?._hasOpened;
+    this.emitter = new EventEmitter;
+    if (STATES.connected === this.conn.readyState) {
+      this.onOpen();
+    }
+  }
+  Collection.prototype.name;
+  Collection.prototype.collectionName;
+  Collection.prototype.conn;
+  Collection.prototype.onOpen = function() {
+    this.buffer = false;
+    immediate(() => this.doQueue());
+  };
+  Collection.prototype.onClose = function() {};
+  Collection.prototype.addQueue = function(name, args) {
+    this.queue.push([name, args]);
+    return this;
+  };
+  Collection.prototype.removeQueue = function(name, args) {
+    const index = this.queue.findIndex((v) => v[0] === name && v[1] === args);
+    if (index === -1) {
+      return false;
+    }
+    this.queue.splice(index, 1);
+    return true;
+  };
+  Collection.prototype.doQueue = function() {
+    for (const method of this.queue) {
+      if (typeof method[0] === "function") {
+        method[0].apply(this, method[1]);
+      } else {
+        this[method[0]].apply(this, method[1]);
+      }
+    }
+    this.queue = [];
+    const _this = this;
+    immediate(function() {
+      _this.emitter.emit("queue");
+    });
+    return this;
+  };
+  Collection.prototype.ensureIndex = function() {
+    throw new Error("Collection#ensureIndex unimplemented by driver");
+  };
+  Collection.prototype.createIndex = function() {
+    throw new Error("Collection#createIndex unimplemented by driver");
+  };
+  Collection.prototype.findAndModify = function() {
+    throw new Error("Collection#findAndModify unimplemented by driver");
+  };
+  Collection.prototype.findOneAndUpdate = function() {
+    throw new Error("Collection#findOneAndUpdate unimplemented by driver");
+  };
+  Collection.prototype.findOneAndDelete = function() {
+    throw new Error("Collection#findOneAndDelete unimplemented by driver");
+  };
+  Collection.prototype.findOneAndReplace = function() {
+    throw new Error("Collection#findOneAndReplace unimplemented by driver");
+  };
+  Collection.prototype.findOne = function() {
+    throw new Error("Collection#findOne unimplemented by driver");
+  };
+  Collection.prototype.find = function() {
+    throw new Error("Collection#find unimplemented by driver");
+  };
+  Collection.prototype.insert = function() {
+    throw new Error("Collection#insert unimplemented by driver");
+  };
+  Collection.prototype.insertOne = function() {
+    throw new Error("Collection#insertOne unimplemented by driver");
+  };
+  Collection.prototype.insertMany = function() {
+    throw new Error("Collection#insertMany unimplemented by driver");
+  };
+  Collection.prototype.save = function() {
+    throw new Error("Collection#save unimplemented by driver");
+  };
+  Collection.prototype.updateOne = function() {
+    throw new Error("Collection#updateOne unimplemented by driver");
+  };
+  Collection.prototype.updateMany = function() {
+    throw new Error("Collection#updateMany unimplemented by driver");
+  };
+  Collection.prototype.deleteOne = function() {
+    throw new Error("Collection#deleteOne unimplemented by driver");
+  };
+  Collection.prototype.deleteMany = function() {
+    throw new Error("Collection#deleteMany unimplemented by driver");
+  };
+  Collection.prototype.getIndexes = function() {
+    throw new Error("Collection#getIndexes unimplemented by driver");
+  };
+  Collection.prototype.watch = function() {
+    throw new Error("Collection#watch unimplemented by driver");
+  };
+  /*!
+   * ignore
+   */
+  Collection.prototype._shouldBufferCommands = function _shouldBufferCommands() {
+    const opts = this.opts;
+    if (opts.bufferCommands != null) {
+      return opts.bufferCommands;
+    }
+    if (opts && opts.schemaUserProvidedOptions != null && opts.schemaUserProvidedOptions.bufferCommands != null) {
+      return opts.schemaUserProvidedOptions.bufferCommands;
+    }
+    return this.conn._shouldBufferCommands();
+  };
+  /*!
+   * ignore
+   */
+  Collection.prototype._getBufferTimeoutMS = function _getBufferTimeoutMS() {
+    const conn = this.conn;
+    const opts = this.opts;
+    if (opts.bufferTimeoutMS != null) {
+      return opts.bufferTimeoutMS;
+    }
+    if (opts && opts.schemaUserProvidedOptions != null && opts.schemaUserProvidedOptions.bufferTimeoutMS != null) {
+      return opts.schemaUserProvidedOptions.bufferTimeoutMS;
+    }
+    return conn._getBufferTimeoutMS();
+  };
+  /*!
+   * Module exports.
+   */
+  module.exports = Collection;
+});
+
+// node_modules/mongoose/lib/error/mongooseError.js
+var require_mongooseError = __commonJS((exports, module) => {
+  /*!
+   * ignore
+   */
+
+  class MongooseError extends Error {
+  }
+  Object.defineProperty(MongooseError.prototype, "name", {
+    value: "MongooseError"
+  });
+  module.exports = MongooseError;
+});
+
+// node_modules/mongodb/lib/operations/list_databases.js
+var require_list_databases = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListDatabasesOperation = undefined;
+  var responses_1 = require_responses();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class ListDatabasesOperation extends command_1.CommandOperation {
+    constructor(db, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options ?? {};
+      this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
+    }
+    get commandName() {
+      return "listDatabases";
+    }
+    buildCommandDocument(connection, _session) {
+      const cmd = { listDatabases: 1 };
+      if (typeof this.options.nameOnly === "boolean") {
+        cmd.nameOnly = this.options.nameOnly;
+      }
+      if (this.options.filter) {
+        cmd.filter = this.options.filter;
+      }
+      if (typeof this.options.authorizedDatabases === "boolean") {
+        cmd.authorizedDatabases = this.options.authorizedDatabases;
+      }
+      if ((0, utils_1.maxWireVersion)(connection) >= 9 && this.options.comment !== undefined) {
+        cmd.comment = this.options.comment;
+      }
+      return cmd;
+    }
+  }
+  exports.ListDatabasesOperation = ListDatabasesOperation;
+  (0, operation_1.defineAspects)(ListDatabasesOperation, [operation_1.Aspect.READ_OPERATION, operation_1.Aspect.RETRYABLE]);
+});
+
+// node_modules/mongodb/lib/operations/remove_user.js
+var require_remove_user = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.RemoveUserOperation = undefined;
+  var responses_1 = require_responses();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class RemoveUserOperation extends command_1.CommandOperation {
+    constructor(db, username, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.username = username;
+    }
+    get commandName() {
+      return "dropUser";
+    }
+    buildCommandDocument(_connection) {
+      return { dropUser: this.username };
+    }
+    handleOk(_response) {
+      return true;
+    }
+  }
+  exports.RemoveUserOperation = RemoveUserOperation;
+  (0, operation_1.defineAspects)(RemoveUserOperation, [operation_1.Aspect.WRITE_OPERATION]);
+});
+
+// node_modules/mongodb/lib/operations/run_command.js
+var require_run_command = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.RunCursorCommandOperation = exports.RunCommandOperation = undefined;
+  var responses_1 = require_responses();
+  var operation_1 = require_operation();
+
+  class RunCommandOperation extends operation_1.AbstractOperation {
+    constructor(namespace, command, options) {
+      super(options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.command = command;
+      this.options = options;
+      this.ns = namespace.withCollection("$cmd");
+    }
+    get commandName() {
+      return "runCommand";
+    }
+    buildCommand(_connection, _session) {
+      return this.command;
+    }
+    buildOptions(timeoutContext) {
+      return {
+        ...this.options,
+        session: this.session,
+        timeoutContext,
+        signal: this.options.signal,
+        readPreference: this.options.readPreference
+      };
+    }
+  }
+  exports.RunCommandOperation = RunCommandOperation;
+
+  class RunCursorCommandOperation extends RunCommandOperation {
+    constructor() {
+      super(...arguments);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
+    }
+    handleOk(response) {
+      return response;
+    }
+  }
+  exports.RunCursorCommandOperation = RunCursorCommandOperation;
+});
+
+// node_modules/mongodb/lib/operations/validate_collection.js
+var require_validate_collection = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ValidateCollectionOperation = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var command_1 = require_command();
+
+  class ValidateCollectionOperation extends command_1.CommandOperation {
+    constructor(admin, collectionName, options) {
+      super(admin.s.db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.collectionName = collectionName;
+    }
+    get commandName() {
+      return "validate";
+    }
+    buildCommandDocument(_connection, _session) {
+      return {
+        validate: this.collectionName,
+        ...Object.fromEntries(Object.entries(this.options).filter((entry) => entry[0] !== "session"))
+      };
+    }
+    handleOk(response) {
+      const result = super.handleOk(response);
+      if (result.result != null && typeof result.result !== "string")
+        throw new error_1.MongoUnexpectedServerResponseError("Error with validation data");
+      if (result.result != null && result.result.match(/exception|corrupt/) != null)
+        throw new error_1.MongoUnexpectedServerResponseError(`Invalid collection ${this.collectionName}`);
+      if (result.valid != null && !result.valid)
+        throw new error_1.MongoUnexpectedServerResponseError(`Invalid collection ${this.collectionName}`);
+      return response;
+    }
+  }
+  exports.ValidateCollectionOperation = ValidateCollectionOperation;
+});
+
+// node_modules/mongodb/lib/admin.js
+var require_admin = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Admin = undefined;
+  var bson_1 = require_bson2();
+  var execute_operation_1 = require_execute_operation();
+  var list_databases_1 = require_list_databases();
+  var remove_user_1 = require_remove_user();
+  var run_command_1 = require_run_command();
+  var validate_collection_1 = require_validate_collection();
+  var utils_1 = require_utils();
+
+  class Admin {
+    constructor(db) {
+      this.s = { db };
+    }
+    async command(command, options) {
+      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new run_command_1.RunCommandOperation(new utils_1.MongoDBNamespace("admin"), command, {
+        ...(0, bson_1.resolveBSONOptions)(options),
+        session: options?.session,
+        readPreference: options?.readPreference,
+        timeoutMS: options?.timeoutMS ?? this.s.db.timeoutMS
+      }));
+    }
+    async buildInfo(options) {
+      return await this.command({ buildinfo: 1 }, options);
+    }
+    async serverInfo(options) {
+      return await this.command({ buildinfo: 1 }, options);
+    }
+    async serverStatus(options) {
+      return await this.command({ serverStatus: 1 }, options);
+    }
+    async ping(options) {
+      return await this.command({ ping: 1 }, options);
+    }
+    async removeUser(username, options) {
+      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new remove_user_1.RemoveUserOperation(this.s.db, username, { dbName: "admin", ...options }));
+    }
+    async validateCollection(collectionName, options = {}) {
+      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new validate_collection_1.ValidateCollectionOperation(this, collectionName, options));
+    }
+    async listDatabases(options) {
+      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new list_databases_1.ListDatabasesOperation(this.s.db, { timeoutMS: this.s.db.timeoutMS, ...options }));
+    }
+    async replSetGetStatus(options) {
+      return await this.command({ replSetGetStatus: 1 }, options);
+    }
+  }
+  exports.Admin = Admin;
+});
+
+// node_modules/mongodb/lib/bulk/ordered.js
+var require_ordered = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.OrderedBulkOperation = undefined;
+  var BSON = require_bson2();
+  var error_1 = require_error();
+  var common_1 = require_common2();
+
+  class OrderedBulkOperation extends common_1.BulkOperationBase {
+    constructor(collection, options) {
+      super(collection, options, true);
+    }
+    addToOperationsList(batchType, document2) {
+      const bsonSize = BSON.calculateObjectSize(document2, {
+        checkKeys: false,
+        ignoreUndefined: false
+      });
+      if (bsonSize >= this.s.maxBsonObjectSize)
+        throw new error_1.MongoInvalidArgumentError(`Document is larger than the maximum size ${this.s.maxBsonObjectSize}`);
+      if (this.s.currentBatch == null) {
+        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
+      }
+      const maxKeySize = this.s.maxKeySize;
+      if (this.s.currentBatchSize + 1 >= this.s.maxWriteBatchSize || this.s.currentBatchSize > 0 && this.s.currentBatchSizeBytes + maxKeySize + bsonSize >= this.s.maxBatchSizeBytes || this.s.currentBatch.batchType !== batchType) {
+        this.s.batches.push(this.s.currentBatch);
+        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
+        this.s.currentBatchSize = 0;
+        this.s.currentBatchSizeBytes = 0;
+      }
+      if (batchType === common_1.BatchType.INSERT) {
+        this.s.bulkResult.insertedIds.push({
+          index: this.s.currentIndex,
+          _id: document2._id
+        });
+      }
+      if (Array.isArray(document2)) {
+        throw new error_1.MongoInvalidArgumentError("Operation passed in cannot be an Array");
+      }
+      this.s.currentBatch.originalIndexes.push(this.s.currentIndex);
+      this.s.currentBatch.operations.push(document2);
+      this.s.currentBatchSize += 1;
+      this.s.currentBatchSizeBytes += maxKeySize + bsonSize;
+      this.s.currentIndex += 1;
+      return this;
+    }
+  }
+  exports.OrderedBulkOperation = OrderedBulkOperation;
+});
+
+// node_modules/mongodb/lib/bulk/unordered.js
+var require_unordered = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.UnorderedBulkOperation = undefined;
+  var BSON = require_bson2();
+  var error_1 = require_error();
+  var common_1 = require_common2();
+
+  class UnorderedBulkOperation extends common_1.BulkOperationBase {
+    constructor(collection, options) {
+      super(collection, options, false);
+    }
+    handleWriteError(writeResult) {
+      if (this.s.batches.length) {
+        return;
+      }
+      return super.handleWriteError(writeResult);
+    }
+    addToOperationsList(batchType, document2) {
+      const bsonSize = BSON.calculateObjectSize(document2, {
+        checkKeys: false,
+        ignoreUndefined: false
+      });
+      if (bsonSize >= this.s.maxBsonObjectSize) {
+        throw new error_1.MongoInvalidArgumentError(`Document is larger than the maximum size ${this.s.maxBsonObjectSize}`);
+      }
+      this.s.currentBatch = undefined;
+      if (batchType === common_1.BatchType.INSERT) {
+        this.s.currentBatch = this.s.currentInsertBatch;
+      } else if (batchType === common_1.BatchType.UPDATE) {
+        this.s.currentBatch = this.s.currentUpdateBatch;
+      } else if (batchType === common_1.BatchType.DELETE) {
+        this.s.currentBatch = this.s.currentRemoveBatch;
+      }
+      const maxKeySize = this.s.maxKeySize;
+      if (this.s.currentBatch == null) {
+        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
+      }
+      if (this.s.currentBatch.size + 1 >= this.s.maxWriteBatchSize || this.s.currentBatch.size > 0 && this.s.currentBatch.sizeBytes + maxKeySize + bsonSize >= this.s.maxBatchSizeBytes || this.s.currentBatch.batchType !== batchType) {
+        this.s.batches.push(this.s.currentBatch);
+        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
+      }
+      if (Array.isArray(document2)) {
+        throw new error_1.MongoInvalidArgumentError("Operation passed in cannot be an Array");
+      }
+      this.s.currentBatch.operations.push(document2);
+      this.s.currentBatch.originalIndexes.push(this.s.currentIndex);
+      this.s.currentIndex = this.s.currentIndex + 1;
+      if (batchType === common_1.BatchType.INSERT) {
+        this.s.currentInsertBatch = this.s.currentBatch;
+        this.s.bulkResult.insertedIds.push({
+          index: this.s.bulkResult.insertedIds.length,
+          _id: document2._id
+        });
+      } else if (batchType === common_1.BatchType.UPDATE) {
+        this.s.currentUpdateBatch = this.s.currentBatch;
+      } else if (batchType === common_1.BatchType.DELETE) {
+        this.s.currentRemoveBatch = this.s.currentBatch;
+      }
+      this.s.currentBatch.size += 1;
+      this.s.currentBatch.sizeBytes += maxKeySize + bsonSize;
+      return this;
+    }
+  }
+  exports.UnorderedBulkOperation = UnorderedBulkOperation;
+});
+
 // node_modules/mongodb/lib/mongo_logger.js
 var require_mongo_logger = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -6828,7 +9315,7 @@ var require_mongo_logger = __commonJS((exports) => {
   exports.defaultLogTransform = defaultLogTransform;
   var util_1 = __require("util");
   var bson_1 = require_bson2();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var utils_1 = require_utils();
   exports.SeverityLevel = Object.freeze({
     EMERGENCY: "emergency",
@@ -7412,649 +9899,6 @@ var require_mongo_types = __commonJS((exports) => {
   exports.CancellationToken = CancellationToken;
 });
 
-// node_modules/mongodb/lib/sdam/server_selection.js
-var require_server_selection = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.MIN_SECONDARY_WRITE_WIRE_VERSION = undefined;
-  exports.writableServerSelector = writableServerSelector;
-  exports.sameServerSelector = sameServerSelector;
-  exports.secondaryWritableServerSelector = secondaryWritableServerSelector;
-  exports.readPreferenceServerSelector = readPreferenceServerSelector;
-  var error_1 = require_error();
-  var read_preference_1 = require_read_preference();
-  var common_1 = require_common();
-  var IDLE_WRITE_PERIOD = 1e4;
-  var SMALLEST_MAX_STALENESS_SECONDS = 90;
-  exports.MIN_SECONDARY_WRITE_WIRE_VERSION = 13;
-  function writableServerSelector() {
-    return function writableServer(topologyDescription, servers) {
-      return latencyWindowReducer(topologyDescription, servers.filter((s) => s.isWritable));
-    };
-  }
-  function sameServerSelector(description) {
-    return function sameServerSelector(topologyDescription, servers) {
-      if (!description)
-        return [];
-      return servers.filter((sd) => {
-        return sd.address === description.address && sd.type !== common_1.ServerType.Unknown;
-      });
-    };
-  }
-  function secondaryWritableServerSelector(wireVersion, readPreference) {
-    if (!readPreference || !wireVersion || wireVersion && wireVersion < exports.MIN_SECONDARY_WRITE_WIRE_VERSION) {
-      return readPreferenceServerSelector(read_preference_1.ReadPreference.primary);
-    }
-    return readPreferenceServerSelector(readPreference);
-  }
-  function maxStalenessReducer(readPreference, topologyDescription, servers) {
-    if (readPreference.maxStalenessSeconds == null || readPreference.maxStalenessSeconds < 0) {
-      return servers;
-    }
-    const maxStaleness = readPreference.maxStalenessSeconds;
-    const maxStalenessVariance = (topologyDescription.heartbeatFrequencyMS + IDLE_WRITE_PERIOD) / 1000;
-    if (maxStaleness < maxStalenessVariance) {
-      throw new error_1.MongoInvalidArgumentError(`Option "maxStalenessSeconds" must be at least ${maxStalenessVariance} seconds`);
-    }
-    if (maxStaleness < SMALLEST_MAX_STALENESS_SECONDS) {
-      throw new error_1.MongoInvalidArgumentError(`Option "maxStalenessSeconds" must be at least ${SMALLEST_MAX_STALENESS_SECONDS} seconds`);
-    }
-    if (topologyDescription.type === common_1.TopologyType.ReplicaSetWithPrimary) {
-      const primary = Array.from(topologyDescription.servers.values()).filter(primaryFilter)[0];
-      return servers.reduce((result, server) => {
-        const stalenessMS = server.lastUpdateTime - server.lastWriteDate - (primary.lastUpdateTime - primary.lastWriteDate) + topologyDescription.heartbeatFrequencyMS;
-        const staleness = stalenessMS / 1000;
-        const maxStalenessSeconds = readPreference.maxStalenessSeconds ?? 0;
-        if (staleness <= maxStalenessSeconds) {
-          result.push(server);
-        }
-        return result;
-      }, []);
-    }
-    if (topologyDescription.type === common_1.TopologyType.ReplicaSetNoPrimary) {
-      if (servers.length === 0) {
-        return servers;
-      }
-      const sMax = servers.reduce((max, s) => s.lastWriteDate > max.lastWriteDate ? s : max);
-      return servers.reduce((result, server) => {
-        const stalenessMS = sMax.lastWriteDate - server.lastWriteDate + topologyDescription.heartbeatFrequencyMS;
-        const staleness = stalenessMS / 1000;
-        const maxStalenessSeconds = readPreference.maxStalenessSeconds ?? 0;
-        if (staleness <= maxStalenessSeconds) {
-          result.push(server);
-        }
-        return result;
-      }, []);
-    }
-    return servers;
-  }
-  function tagSetMatch(tagSet, serverTags) {
-    const keys = Object.keys(tagSet);
-    const serverTagKeys = Object.keys(serverTags);
-    for (let i = 0;i < keys.length; ++i) {
-      const key = keys[i];
-      if (serverTagKeys.indexOf(key) === -1 || serverTags[key] !== tagSet[key]) {
-        return false;
-      }
-    }
-    return true;
-  }
-  function tagSetReducer(readPreference, servers) {
-    if (readPreference.tags == null || Array.isArray(readPreference.tags) && readPreference.tags.length === 0) {
-      return servers;
-    }
-    for (let i = 0;i < readPreference.tags.length; ++i) {
-      const tagSet = readPreference.tags[i];
-      const serversMatchingTagset = servers.reduce((matched, server) => {
-        if (tagSetMatch(tagSet, server.tags))
-          matched.push(server);
-        return matched;
-      }, []);
-      if (serversMatchingTagset.length) {
-        return serversMatchingTagset;
-      }
-    }
-    return [];
-  }
-  function latencyWindowReducer(topologyDescription, servers) {
-    const low = servers.reduce((min, server) => Math.min(server.roundTripTime, min), Infinity);
-    const high = low + topologyDescription.localThresholdMS;
-    return servers.reduce((result, server) => {
-      if (server.roundTripTime <= high && server.roundTripTime >= low)
-        result.push(server);
-      return result;
-    }, []);
-  }
-  function primaryFilter(server) {
-    return server.type === common_1.ServerType.RSPrimary;
-  }
-  function secondaryFilter(server) {
-    return server.type === common_1.ServerType.RSSecondary;
-  }
-  function nearestFilter(server) {
-    return server.type === common_1.ServerType.RSSecondary || server.type === common_1.ServerType.RSPrimary;
-  }
-  function knownFilter(server) {
-    return server.type !== common_1.ServerType.Unknown;
-  }
-  function loadBalancerFilter(server) {
-    return server.type === common_1.ServerType.LoadBalancer;
-  }
-  function readPreferenceServerSelector(readPreference) {
-    if (!readPreference.isValid()) {
-      throw new error_1.MongoInvalidArgumentError("Invalid read preference specified");
-    }
-    return function readPreferenceServers(topologyDescription, servers, deprioritized = []) {
-      const commonWireVersion = topologyDescription.commonWireVersion;
-      if (commonWireVersion && readPreference.minWireVersion && readPreference.minWireVersion > commonWireVersion) {
-        throw new error_1.MongoCompatibilityError(`Minimum wire version '${readPreference.minWireVersion}' required, but found '${commonWireVersion}'`);
-      }
-      if (topologyDescription.type === common_1.TopologyType.LoadBalanced) {
-        return servers.filter(loadBalancerFilter);
-      }
-      if (topologyDescription.type === common_1.TopologyType.Unknown) {
-        return [];
-      }
-      if (topologyDescription.type === common_1.TopologyType.Single) {
-        return latencyWindowReducer(topologyDescription, servers.filter(knownFilter));
-      }
-      if (topologyDescription.type === common_1.TopologyType.Sharded) {
-        const filtered = servers.filter((server) => {
-          return !deprioritized.includes(server);
-        });
-        const selectable = filtered.length > 0 ? filtered : deprioritized;
-        return latencyWindowReducer(topologyDescription, selectable.filter(knownFilter));
-      }
-      const mode = readPreference.mode;
-      if (mode === read_preference_1.ReadPreference.PRIMARY) {
-        return servers.filter(primaryFilter);
-      }
-      if (mode === read_preference_1.ReadPreference.PRIMARY_PREFERRED) {
-        const result = servers.filter(primaryFilter);
-        if (result.length) {
-          return result;
-        }
-      }
-      const filter = mode === read_preference_1.ReadPreference.NEAREST ? nearestFilter : secondaryFilter;
-      const selectedServers = latencyWindowReducer(topologyDescription, tagSetReducer(readPreference, maxStalenessReducer(readPreference, topologyDescription, servers.filter(filter))));
-      if (mode === read_preference_1.ReadPreference.SECONDARY_PREFERRED && selectedServers.length === 0) {
-        return servers.filter(primaryFilter);
-      }
-      return selectedServers;
-    };
-  }
-});
-
-// node_modules/mongodb/lib/timeout.js
-var require_timeout = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.LegacyTimeoutContext = exports.CSOTTimeoutContext = exports.TimeoutContext = exports.Timeout = exports.TimeoutError = undefined;
-  var timers_1 = __require("timers");
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-
-  class TimeoutError extends Error {
-    get name() {
-      return "TimeoutError";
-    }
-    constructor(message, options) {
-      super(message, options);
-      this.duration = options.duration;
-    }
-    static is(error) {
-      return error != null && typeof error === "object" && "name" in error && error.name === "TimeoutError";
-    }
-  }
-  exports.TimeoutError = TimeoutError;
-
-  class Timeout extends Promise {
-    get remainingTime() {
-      if (this.timedOut)
-        return 0;
-      if (this.duration === 0)
-        return Infinity;
-      return this.start + this.duration - Math.trunc(performance.now());
-    }
-    get timeElapsed() {
-      return Math.trunc(performance.now()) - this.start;
-    }
-    constructor(executor = () => null, options) {
-      const duration = options?.duration ?? 0;
-      const unref = !!options?.unref;
-      const rejection = options?.rejection;
-      if (duration < 0) {
-        throw new error_1.MongoInvalidArgumentError("Cannot create a Timeout with a negative duration");
-      }
-      let reject;
-      super((_, promiseReject) => {
-        reject = promiseReject;
-        executor(utils_1.noop, promiseReject);
-      });
-      this.ended = null;
-      this.timedOut = false;
-      this.cleared = false;
-      this.duration = duration;
-      this.start = Math.trunc(performance.now());
-      if (rejection == null && this.duration > 0) {
-        this.id = (0, timers_1.setTimeout)(() => {
-          this.ended = Math.trunc(performance.now());
-          this.timedOut = true;
-          reject(new TimeoutError(`Expired after ${duration}ms`, { duration }));
-        }, this.duration);
-        if (typeof this.id.unref === "function" && unref) {
-          this.id.unref();
-        }
-      } else if (rejection != null) {
-        this.ended = Math.trunc(performance.now());
-        this.timedOut = true;
-        reject(rejection);
-      }
-    }
-    clear() {
-      (0, timers_1.clearTimeout)(this.id);
-      this.id = undefined;
-      this.timedOut = false;
-      this.cleared = true;
-    }
-    throwIfExpired() {
-      if (this.timedOut) {
-        this.then(undefined, utils_1.squashError);
-        throw new TimeoutError("Timed out", { duration: this.duration });
-      }
-    }
-    static expires(duration, unref) {
-      return new Timeout(undefined, { duration, unref });
-    }
-    static reject(rejection) {
-      return new Timeout(undefined, { duration: 0, unref: true, rejection });
-    }
-  }
-  exports.Timeout = Timeout;
-  function isLegacyTimeoutContextOptions(v) {
-    return v != null && typeof v === "object" && "serverSelectionTimeoutMS" in v && typeof v.serverSelectionTimeoutMS === "number" && "waitQueueTimeoutMS" in v && typeof v.waitQueueTimeoutMS === "number";
-  }
-  function isCSOTTimeoutContextOptions(v) {
-    return v != null && typeof v === "object" && "serverSelectionTimeoutMS" in v && typeof v.serverSelectionTimeoutMS === "number" && "timeoutMS" in v && typeof v.timeoutMS === "number";
-  }
-
-  class TimeoutContext {
-    static create(options) {
-      if (options.session?.timeoutContext != null)
-        return options.session?.timeoutContext;
-      if (isCSOTTimeoutContextOptions(options))
-        return new CSOTTimeoutContext(options);
-      else if (isLegacyTimeoutContextOptions(options))
-        return new LegacyTimeoutContext(options);
-      else
-        throw new error_1.MongoRuntimeError("Unrecognized options");
-    }
-  }
-  exports.TimeoutContext = TimeoutContext;
-
-  class CSOTTimeoutContext extends TimeoutContext {
-    constructor(options) {
-      super();
-      this.minRoundTripTime = 0;
-      this.start = Math.trunc(performance.now());
-      this.timeoutMS = options.timeoutMS;
-      this.serverSelectionTimeoutMS = options.serverSelectionTimeoutMS;
-      this.socketTimeoutMS = options.socketTimeoutMS;
-      this.clearServerSelectionTimeout = false;
-    }
-    get maxTimeMS() {
-      return this.remainingTimeMS - this.minRoundTripTime;
-    }
-    get remainingTimeMS() {
-      const timePassed = Math.trunc(performance.now()) - this.start;
-      return this.timeoutMS <= 0 ? Infinity : this.timeoutMS - timePassed;
-    }
-    csotEnabled() {
-      return true;
-    }
-    get serverSelectionTimeout() {
-      if (typeof this._serverSelectionTimeout !== "object" || this._serverSelectionTimeout?.cleared) {
-        const { remainingTimeMS, serverSelectionTimeoutMS } = this;
-        if (remainingTimeMS <= 0)
-          return Timeout.reject(new error_1.MongoOperationTimeoutError(`Timed out in server selection after ${this.timeoutMS}ms`));
-        const usingServerSelectionTimeoutMS = serverSelectionTimeoutMS !== 0 && (0, utils_1.csotMin)(remainingTimeMS, serverSelectionTimeoutMS) === serverSelectionTimeoutMS;
-        if (usingServerSelectionTimeoutMS) {
-          this._serverSelectionTimeout = Timeout.expires(serverSelectionTimeoutMS);
-        } else {
-          if (remainingTimeMS > 0 && Number.isFinite(remainingTimeMS)) {
-            this._serverSelectionTimeout = Timeout.expires(remainingTimeMS);
-          } else {
-            this._serverSelectionTimeout = null;
-          }
-        }
-      }
-      return this._serverSelectionTimeout;
-    }
-    get connectionCheckoutTimeout() {
-      if (typeof this._connectionCheckoutTimeout !== "object" || this._connectionCheckoutTimeout?.cleared) {
-        if (typeof this._serverSelectionTimeout === "object") {
-          this._connectionCheckoutTimeout = this._serverSelectionTimeout;
-        } else {
-          throw new error_1.MongoRuntimeError("Unreachable. If you are seeing this error, please file a ticket on the NODE driver project on Jira");
-        }
-      }
-      return this._connectionCheckoutTimeout;
-    }
-    get timeoutForSocketWrite() {
-      const { remainingTimeMS } = this;
-      if (!Number.isFinite(remainingTimeMS))
-        return null;
-      if (remainingTimeMS > 0)
-        return Timeout.expires(remainingTimeMS);
-      return Timeout.reject(new error_1.MongoOperationTimeoutError("Timed out before socket write"));
-    }
-    get timeoutForSocketRead() {
-      const { remainingTimeMS } = this;
-      if (!Number.isFinite(remainingTimeMS))
-        return null;
-      if (remainingTimeMS > 0)
-        return Timeout.expires(remainingTimeMS);
-      return Timeout.reject(new error_1.MongoOperationTimeoutError("Timed out before socket read"));
-    }
-    refresh() {
-      this.start = Math.trunc(performance.now());
-      this.minRoundTripTime = 0;
-      this._serverSelectionTimeout?.clear();
-      this._connectionCheckoutTimeout?.clear();
-    }
-    clear() {
-      this._serverSelectionTimeout?.clear();
-      this._connectionCheckoutTimeout?.clear();
-    }
-    getRemainingTimeMSOrThrow(message) {
-      const { remainingTimeMS } = this;
-      if (remainingTimeMS <= 0)
-        throw new error_1.MongoOperationTimeoutError(message ?? `Expired after ${this.timeoutMS}ms`);
-      return remainingTimeMS;
-    }
-    clone() {
-      const timeoutContext = new CSOTTimeoutContext({
-        timeoutMS: this.timeoutMS,
-        serverSelectionTimeoutMS: this.serverSelectionTimeoutMS
-      });
-      timeoutContext.start = this.start;
-      return timeoutContext;
-    }
-    refreshed() {
-      return new CSOTTimeoutContext(this);
-    }
-    addMaxTimeMSToCommand(command, options) {
-      if (options.omitMaxTimeMS)
-        return;
-      const maxTimeMS = this.remainingTimeMS - this.minRoundTripTime;
-      if (maxTimeMS > 0 && Number.isFinite(maxTimeMS))
-        command.maxTimeMS = maxTimeMS;
-    }
-    getSocketTimeoutMS() {
-      return 0;
-    }
-  }
-  exports.CSOTTimeoutContext = CSOTTimeoutContext;
-
-  class LegacyTimeoutContext extends TimeoutContext {
-    constructor(options) {
-      super();
-      this.options = options;
-      this.clearServerSelectionTimeout = true;
-    }
-    csotEnabled() {
-      return false;
-    }
-    get serverSelectionTimeout() {
-      if (this.options.serverSelectionTimeoutMS != null && this.options.serverSelectionTimeoutMS > 0)
-        return Timeout.expires(this.options.serverSelectionTimeoutMS);
-      return null;
-    }
-    get connectionCheckoutTimeout() {
-      if (this.options.waitQueueTimeoutMS != null && this.options.waitQueueTimeoutMS > 0)
-        return Timeout.expires(this.options.waitQueueTimeoutMS);
-      return null;
-    }
-    get timeoutForSocketWrite() {
-      return null;
-    }
-    get timeoutForSocketRead() {
-      return null;
-    }
-    refresh() {
-      return;
-    }
-    clear() {
-      return;
-    }
-    get maxTimeMS() {
-      return null;
-    }
-    refreshed() {
-      return new LegacyTimeoutContext(this.options);
-    }
-    addMaxTimeMSToCommand(_command, _options) {}
-    getSocketTimeoutMS() {
-      return this.options.socketTimeoutMS;
-    }
-  }
-  exports.LegacyTimeoutContext = LegacyTimeoutContext;
-});
-
-// node_modules/mongodb/lib/operations/operation.js
-var require_operation = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.AbstractOperation = exports.Aspect = undefined;
-  exports.defineAspects = defineAspects;
-  var bson_1 = require_bson2();
-  var read_preference_1 = require_read_preference();
-  exports.Aspect = {
-    READ_OPERATION: Symbol("READ_OPERATION"),
-    WRITE_OPERATION: Symbol("WRITE_OPERATION"),
-    RETRYABLE: Symbol("RETRYABLE"),
-    EXPLAINABLE: Symbol("EXPLAINABLE"),
-    SKIP_COLLATION: Symbol("SKIP_COLLATION"),
-    CURSOR_CREATING: Symbol("CURSOR_CREATING"),
-    MUST_SELECT_SAME_SERVER: Symbol("MUST_SELECT_SAME_SERVER"),
-    COMMAND_BATCHING: Symbol("COMMAND_BATCHING")
-  };
-
-  class AbstractOperation {
-    constructor(options = {}) {
-      this.readPreference = this.hasAspect(exports.Aspect.WRITE_OPERATION) ? read_preference_1.ReadPreference.primary : read_preference_1.ReadPreference.fromOptions(options) ?? read_preference_1.ReadPreference.primary;
-      this.bsonOptions = (0, bson_1.resolveBSONOptions)(options);
-      this._session = options.session != null ? options.session : undefined;
-      this.options = options;
-      this.bypassPinningCheck = !!options.bypassPinningCheck;
-      this.trySecondaryWrite = false;
-    }
-    hasAspect(aspect) {
-      const ctor = this.constructor;
-      if (ctor.aspects == null) {
-        return false;
-      }
-      return ctor.aspects.has(aspect);
-    }
-    get session() {
-      return this._session;
-    }
-    clearSession() {
-      this._session = undefined;
-    }
-    resetBatch() {
-      return true;
-    }
-    get canRetryRead() {
-      return this.hasAspect(exports.Aspect.RETRYABLE) && this.hasAspect(exports.Aspect.READ_OPERATION);
-    }
-    get canRetryWrite() {
-      return this.hasAspect(exports.Aspect.RETRYABLE) && this.hasAspect(exports.Aspect.WRITE_OPERATION);
-    }
-  }
-  exports.AbstractOperation = AbstractOperation;
-  function defineAspects(operation, aspects) {
-    if (!Array.isArray(aspects) && !(aspects instanceof Set)) {
-      aspects = [aspects];
-    }
-    aspects = new Set(aspects);
-    Object.defineProperty(operation, "aspects", {
-      value: aspects,
-      writable: false
-    });
-    return aspects;
-  }
-});
-
-// node_modules/mongodb/lib/operations/execute_operation.js
-var require_execute_operation = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.executeOperation = executeOperation;
-  var error_1 = require_error();
-  var read_preference_1 = require_read_preference();
-  var server_selection_1 = require_server_selection();
-  var timeout_1 = require_timeout();
-  var utils_1 = require_utils();
-  var operation_1 = require_operation();
-  var MMAPv1_RETRY_WRITES_ERROR_CODE = error_1.MONGODB_ERROR_CODES.IllegalOperation;
-  var MMAPv1_RETRY_WRITES_ERROR_MESSAGE = "This MongoDB deployment does not support retryable writes. Please add retryWrites=false to your connection string.";
-  async function executeOperation(client, operation, timeoutContext) {
-    if (!(operation instanceof operation_1.AbstractOperation)) {
-      throw new error_1.MongoRuntimeError("This method requires a valid operation instance");
-    }
-    const topology = client.topology == null ? await (0, utils_1.abortable)(autoConnect(client), operation.options) : client.topology;
-    let session = operation.session;
-    let owner;
-    if (session == null) {
-      owner = Symbol();
-      session = client.startSession({ owner, explicit: false });
-    } else if (session.hasEnded) {
-      throw new error_1.MongoExpiredSessionError("Use of expired sessions is not permitted");
-    } else if (session.snapshotEnabled && !topology.capabilities.supportsSnapshotReads) {
-      throw new error_1.MongoCompatibilityError("Snapshot reads require MongoDB 5.0 or later");
-    } else if (session.client !== client) {
-      throw new error_1.MongoInvalidArgumentError("ClientSession must be from the same MongoClient");
-    }
-    const readPreference = operation.readPreference ?? read_preference_1.ReadPreference.primary;
-    const inTransaction = !!session?.inTransaction();
-    const hasReadAspect = operation.hasAspect(operation_1.Aspect.READ_OPERATION);
-    if (inTransaction && !readPreference.equals(read_preference_1.ReadPreference.primary) && (hasReadAspect || operation.commandName === "runCommand")) {
-      throw new error_1.MongoTransactionError(`Read preference in a transaction must be primary, not: ${readPreference.mode}`);
-    }
-    if (session?.isPinned && session.transaction.isCommitted && !operation.bypassPinningCheck) {
-      session.unpin();
-    }
-    timeoutContext ??= timeout_1.TimeoutContext.create({
-      session,
-      serverSelectionTimeoutMS: client.s.options.serverSelectionTimeoutMS,
-      waitQueueTimeoutMS: client.s.options.waitQueueTimeoutMS,
-      timeoutMS: operation.options.timeoutMS
-    });
-    try {
-      return await tryOperation(operation, {
-        topology,
-        timeoutContext,
-        session,
-        readPreference
-      });
-    } finally {
-      if (session?.owner != null && session.owner === owner) {
-        await session.endSession();
-      }
-    }
-  }
-  async function autoConnect(client) {
-    if (client.topology == null) {
-      if (client.s.hasBeenClosed) {
-        throw new error_1.MongoNotConnectedError("Client must be connected before running operations");
-      }
-      client.s.options.__skipPingOnConnect = true;
-      try {
-        await client.connect();
-        if (client.topology == null) {
-          throw new error_1.MongoRuntimeError("client.connect did not create a topology but also did not throw");
-        }
-        return client.topology;
-      } finally {
-        delete client.s.options.__skipPingOnConnect;
-      }
-    }
-    return client.topology;
-  }
-  async function tryOperation(operation, { topology, timeoutContext, session, readPreference }) {
-    let selector;
-    if (operation.hasAspect(operation_1.Aspect.MUST_SELECT_SAME_SERVER)) {
-      selector = (0, server_selection_1.sameServerSelector)(operation.server?.description);
-    } else if (operation.trySecondaryWrite) {
-      selector = (0, server_selection_1.secondaryWritableServerSelector)(topology.commonWireVersion, readPreference);
-    } else {
-      selector = readPreference;
-    }
-    let server = await topology.selectServer(selector, {
-      session,
-      operationName: operation.commandName,
-      timeoutContext,
-      signal: operation.options.signal
-    });
-    const hasReadAspect = operation.hasAspect(operation_1.Aspect.READ_OPERATION);
-    const hasWriteAspect = operation.hasAspect(operation_1.Aspect.WRITE_OPERATION);
-    const inTransaction = session?.inTransaction() ?? false;
-    const willRetryRead = topology.s.options.retryReads && !inTransaction && operation.canRetryRead;
-    const willRetryWrite = topology.s.options.retryWrites && !inTransaction && (0, utils_1.supportsRetryableWrites)(server) && operation.canRetryWrite;
-    const willRetry = operation.hasAspect(operation_1.Aspect.RETRYABLE) && session != null && (hasReadAspect && willRetryRead || hasWriteAspect && willRetryWrite);
-    if (hasWriteAspect && willRetryWrite && session != null) {
-      operation.options.willRetryWrite = true;
-      session.incrementTransactionNumber();
-    }
-    const maxTries = willRetry ? timeoutContext.csotEnabled() ? Infinity : 2 : 1;
-    let previousOperationError;
-    let previousServer;
-    for (let tries = 0;tries < maxTries; tries++) {
-      if (previousOperationError) {
-        if (hasWriteAspect && previousOperationError.code === MMAPv1_RETRY_WRITES_ERROR_CODE) {
-          throw new error_1.MongoServerError({
-            message: MMAPv1_RETRY_WRITES_ERROR_MESSAGE,
-            errmsg: MMAPv1_RETRY_WRITES_ERROR_MESSAGE,
-            originalError: previousOperationError
-          });
-        }
-        if (operation.hasAspect(operation_1.Aspect.COMMAND_BATCHING) && !operation.canRetryWrite) {
-          throw previousOperationError;
-        }
-        if (hasWriteAspect && !(0, error_1.isRetryableWriteError)(previousOperationError))
-          throw previousOperationError;
-        if (hasReadAspect && !(0, error_1.isRetryableReadError)(previousOperationError))
-          throw previousOperationError;
-        if (previousOperationError instanceof error_1.MongoNetworkError && operation.hasAspect(operation_1.Aspect.CURSOR_CREATING) && session != null && session.isPinned && !session.inTransaction()) {
-          session.unpin({ force: true, forceClear: true });
-        }
-        server = await topology.selectServer(selector, {
-          session,
-          operationName: operation.commandName,
-          previousServer,
-          signal: operation.options.signal
-        });
-        if (hasWriteAspect && !(0, utils_1.supportsRetryableWrites)(server)) {
-          throw new error_1.MongoUnexpectedServerResponseError("Selected server does not support retryable writes");
-        }
-      }
-      try {
-        if (tries > 0 && operation.hasAspect(operation_1.Aspect.COMMAND_BATCHING)) {
-          operation.resetBatch();
-        }
-        return await operation.execute(server, session, timeoutContext);
-      } catch (operationError) {
-        if (!(operationError instanceof error_1.MongoError))
-          throw operationError;
-        if (previousOperationError != null && operationError.hasErrorLabel(error_1.MongoErrorLabel.NoWritesPerformed)) {
-          throw previousOperationError;
-        }
-        previousServer = server.description;
-        previousOperationError = operationError;
-        timeoutContext.clear();
-      }
-    }
-    throw previousOperationError ?? new error_1.MongoRuntimeError("Tried to propagate retryability error, but no error was found.");
-  }
-});
-
 // node_modules/mongodb/lib/operations/get_more.js
 var require_get_more = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -8067,6 +9911,7 @@ var require_get_more = __commonJS((exports) => {
   class GetMoreOperation extends operation_1.AbstractOperation {
     constructor(ns, cursorId, server, options) {
       super(options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
       this.options = options;
       this.ns = ns;
       this.cursorId = cursorId;
@@ -8075,10 +9920,7 @@ var require_get_more = __commonJS((exports) => {
     get commandName() {
       return "getMore";
     }
-    async execute(server, _session, timeoutContext) {
-      if (server !== this.server) {
-        throw new error_1.MongoRuntimeError("Getmore must run on the same server operation began on");
-      }
+    buildCommand(connection) {
       if (this.cursorId == null || this.cursorId.isZero()) {
         throw new error_1.MongoRuntimeError("Unable to iterate cursor with no id");
       }
@@ -8096,16 +9938,21 @@ var require_get_more = __commonJS((exports) => {
       if (typeof this.options.maxAwaitTimeMS === "number") {
         getMoreCmd.maxTimeMS = this.options.maxAwaitTimeMS;
       }
-      if (this.options.comment !== undefined && (0, utils_1.maxWireVersion)(server) >= 9) {
+      if (this.options.comment !== undefined && (0, utils_1.maxWireVersion)(connection) >= 9) {
         getMoreCmd.comment = this.options.comment;
       }
-      const commandOptions = {
+      return getMoreCmd;
+    }
+    buildOptions(timeoutContext) {
+      return {
         returnFieldSelector: null,
         documentsReturnedIn: "nextBatch",
         timeoutContext,
         ...this.options
       };
-      return await server.command(this.ns, getMoreCmd, commandOptions, responses_1.CursorResponse);
+    }
+    handleOk(response) {
+      return response;
     }
   }
   exports.GetMoreOperation = GetMoreOperation;
@@ -8116,13 +9963,14 @@ var require_get_more = __commonJS((exports) => {
 var require_kill_cursors = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.KillCursorsOperation = undefined;
+  var responses_1 = require_responses();
   var error_1 = require_error();
-  var utils_1 = require_utils();
   var operation_1 = require_operation();
 
   class KillCursorsOperation extends operation_1.AbstractOperation {
     constructor(cursorId, ns, server, options) {
       super(options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
       this.ns = ns;
       this.cursorId = cursorId;
       this.server = server;
@@ -8130,10 +9978,7 @@ var require_kill_cursors = __commonJS((exports) => {
     get commandName() {
       return "killCursors";
     }
-    async execute(server, session, timeoutContext) {
-      if (server !== this.server) {
-        throw new error_1.MongoRuntimeError("Killcursor must run on the same server operation began on");
-      }
+    buildCommand(_connection, _session) {
       const killCursors = this.ns.collection;
       if (killCursors == null) {
         throw new error_1.MongoRuntimeError("A collection name must be determined before killCursors");
@@ -8142,3352 +9987,18 @@ var require_kill_cursors = __commonJS((exports) => {
         killCursors,
         cursors: [this.cursorId]
       };
-      try {
-        await server.command(this.ns, killCursorsCommand, {
-          session,
-          timeoutContext
-        });
-      } catch (error) {
-        (0, utils_1.squashError)(error);
-      }
+      return killCursorsCommand;
     }
+    buildOptions(timeoutContext) {
+      return {
+        session: this.session,
+        timeoutContext
+      };
+    }
+    handleError(_error) {}
   }
   exports.KillCursorsOperation = KillCursorsOperation;
   (0, operation_1.defineAspects)(KillCursorsOperation, [operation_1.Aspect.MUST_SELECT_SAME_SERVER]);
-});
-
-// node_modules/mongodb/lib/bulk/ordered.js
-var require_ordered = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.OrderedBulkOperation = undefined;
-  var BSON = require_bson2();
-  var error_1 = require_error();
-  var common_1 = require_common2();
-
-  class OrderedBulkOperation extends common_1.BulkOperationBase {
-    constructor(collection, options) {
-      super(collection, options, true);
-    }
-    addToOperationsList(batchType, document2) {
-      const bsonSize = BSON.calculateObjectSize(document2, {
-        checkKeys: false,
-        ignoreUndefined: false
-      });
-      if (bsonSize >= this.s.maxBsonObjectSize)
-        throw new error_1.MongoInvalidArgumentError(`Document is larger than the maximum size ${this.s.maxBsonObjectSize}`);
-      if (this.s.currentBatch == null) {
-        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
-      }
-      const maxKeySize = this.s.maxKeySize;
-      if (this.s.currentBatchSize + 1 >= this.s.maxWriteBatchSize || this.s.currentBatchSize > 0 && this.s.currentBatchSizeBytes + maxKeySize + bsonSize >= this.s.maxBatchSizeBytes || this.s.currentBatch.batchType !== batchType) {
-        this.s.batches.push(this.s.currentBatch);
-        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
-        this.s.currentBatchSize = 0;
-        this.s.currentBatchSizeBytes = 0;
-      }
-      if (batchType === common_1.BatchType.INSERT) {
-        this.s.bulkResult.insertedIds.push({
-          index: this.s.currentIndex,
-          _id: document2._id
-        });
-      }
-      if (Array.isArray(document2)) {
-        throw new error_1.MongoInvalidArgumentError("Operation passed in cannot be an Array");
-      }
-      this.s.currentBatch.originalIndexes.push(this.s.currentIndex);
-      this.s.currentBatch.operations.push(document2);
-      this.s.currentBatchSize += 1;
-      this.s.currentBatchSizeBytes += maxKeySize + bsonSize;
-      this.s.currentIndex += 1;
-      return this;
-    }
-  }
-  exports.OrderedBulkOperation = OrderedBulkOperation;
-});
-
-// node_modules/mongodb/lib/bulk/unordered.js
-var require_unordered = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.UnorderedBulkOperation = undefined;
-  var BSON = require_bson2();
-  var error_1 = require_error();
-  var common_1 = require_common2();
-
-  class UnorderedBulkOperation extends common_1.BulkOperationBase {
-    constructor(collection, options) {
-      super(collection, options, false);
-    }
-    handleWriteError(writeResult) {
-      if (this.s.batches.length) {
-        return;
-      }
-      return super.handleWriteError(writeResult);
-    }
-    addToOperationsList(batchType, document2) {
-      const bsonSize = BSON.calculateObjectSize(document2, {
-        checkKeys: false,
-        ignoreUndefined: false
-      });
-      if (bsonSize >= this.s.maxBsonObjectSize) {
-        throw new error_1.MongoInvalidArgumentError(`Document is larger than the maximum size ${this.s.maxBsonObjectSize}`);
-      }
-      this.s.currentBatch = undefined;
-      if (batchType === common_1.BatchType.INSERT) {
-        this.s.currentBatch = this.s.currentInsertBatch;
-      } else if (batchType === common_1.BatchType.UPDATE) {
-        this.s.currentBatch = this.s.currentUpdateBatch;
-      } else if (batchType === common_1.BatchType.DELETE) {
-        this.s.currentBatch = this.s.currentRemoveBatch;
-      }
-      const maxKeySize = this.s.maxKeySize;
-      if (this.s.currentBatch == null) {
-        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
-      }
-      if (this.s.currentBatch.size + 1 >= this.s.maxWriteBatchSize || this.s.currentBatch.size > 0 && this.s.currentBatch.sizeBytes + maxKeySize + bsonSize >= this.s.maxBatchSizeBytes || this.s.currentBatch.batchType !== batchType) {
-        this.s.batches.push(this.s.currentBatch);
-        this.s.currentBatch = new common_1.Batch(batchType, this.s.currentIndex);
-      }
-      if (Array.isArray(document2)) {
-        throw new error_1.MongoInvalidArgumentError("Operation passed in cannot be an Array");
-      }
-      this.s.currentBatch.operations.push(document2);
-      this.s.currentBatch.originalIndexes.push(this.s.currentIndex);
-      this.s.currentIndex = this.s.currentIndex + 1;
-      if (batchType === common_1.BatchType.INSERT) {
-        this.s.currentInsertBatch = this.s.currentBatch;
-        this.s.bulkResult.insertedIds.push({
-          index: this.s.bulkResult.insertedIds.length,
-          _id: document2._id
-        });
-      } else if (batchType === common_1.BatchType.UPDATE) {
-        this.s.currentUpdateBatch = this.s.currentBatch;
-      } else if (batchType === common_1.BatchType.DELETE) {
-        this.s.currentRemoveBatch = this.s.currentBatch;
-      }
-      this.s.currentBatch.size += 1;
-      this.s.currentBatch.sizeBytes += maxKeySize + bsonSize;
-      return this;
-    }
-  }
-  exports.UnorderedBulkOperation = UnorderedBulkOperation;
-});
-
-// node_modules/mongodb/lib/operations/aggregate.js
-var require_aggregate = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.AggregateOperation = exports.DB_AGGREGATE_COLLECTION = undefined;
-  var responses_1 = require_responses();
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-  exports.DB_AGGREGATE_COLLECTION = 1;
-  var MIN_WIRE_VERSION_$OUT_READ_CONCERN_SUPPORT = 8;
-
-  class AggregateOperation extends command_1.CommandOperation {
-    constructor(ns, pipeline, options) {
-      super(undefined, { ...options, dbName: ns.db });
-      this.options = { ...options };
-      this.target = ns.collection || exports.DB_AGGREGATE_COLLECTION;
-      this.pipeline = pipeline;
-      this.hasWriteStage = false;
-      if (typeof options?.out === "string") {
-        this.pipeline = this.pipeline.concat({ $out: options.out });
-        this.hasWriteStage = true;
-      } else if (pipeline.length > 0) {
-        const finalStage = pipeline[pipeline.length - 1];
-        if (finalStage.$out || finalStage.$merge) {
-          this.hasWriteStage = true;
-        }
-      }
-      if (this.hasWriteStage) {
-        this.trySecondaryWrite = true;
-      } else {
-        delete this.options.writeConcern;
-      }
-      if (this.explain && this.writeConcern) {
-        throw new error_1.MongoInvalidArgumentError('Option "explain" cannot be used on an aggregate call with writeConcern');
-      }
-      if (options?.cursor != null && typeof options.cursor !== "object") {
-        throw new error_1.MongoInvalidArgumentError("Cursor options must be an object");
-      }
-    }
-    get commandName() {
-      return "aggregate";
-    }
-    get canRetryRead() {
-      return !this.hasWriteStage;
-    }
-    addToPipeline(stage) {
-      this.pipeline.push(stage);
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options;
-      const serverWireVersion = (0, utils_1.maxWireVersion)(server);
-      const command = { aggregate: this.target, pipeline: this.pipeline };
-      if (this.hasWriteStage && serverWireVersion < MIN_WIRE_VERSION_$OUT_READ_CONCERN_SUPPORT) {
-        this.readConcern = undefined;
-      }
-      if (this.hasWriteStage && this.writeConcern) {
-        write_concern_1.WriteConcern.apply(command, this.writeConcern);
-      }
-      if (options.bypassDocumentValidation === true) {
-        command.bypassDocumentValidation = options.bypassDocumentValidation;
-      }
-      if (typeof options.allowDiskUse === "boolean") {
-        command.allowDiskUse = options.allowDiskUse;
-      }
-      if (options.hint) {
-        command.hint = options.hint;
-      }
-      if (options.let) {
-        command.let = options.let;
-      }
-      if (options.comment !== undefined) {
-        command.comment = options.comment;
-      }
-      command.cursor = options.cursor || {};
-      if (options.batchSize && !this.hasWriteStage) {
-        command.cursor.batchSize = options.batchSize;
-      }
-      return await super.executeCommand(server, session, command, timeoutContext, this.explain ? responses_1.ExplainedCursorResponse : responses_1.CursorResponse);
-    }
-  }
-  exports.AggregateOperation = AggregateOperation;
-  (0, operation_1.defineAspects)(AggregateOperation, [
-    operation_1.Aspect.READ_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.CURSOR_CREATING
-  ]);
-});
-
-// node_modules/mongodb/lib/cursor/aggregation_cursor.js
-var require_aggregation_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.AggregationCursor = undefined;
-  var error_1 = require_error();
-  var explain_1 = require_explain();
-  var aggregate_1 = require_aggregate();
-  var execute_operation_1 = require_execute_operation();
-  var utils_1 = require_utils();
-  var abstract_cursor_1 = require_abstract_cursor();
-
-  class AggregationCursor extends explain_1.ExplainableCursor {
-    constructor(client, namespace, pipeline = [], options = {}) {
-      super(client, namespace, options);
-      this.pipeline = pipeline;
-      this.aggregateOptions = options;
-      const lastStage = this.pipeline[this.pipeline.length - 1];
-      if (this.cursorOptions.timeoutMS != null && this.cursorOptions.timeoutMode === abstract_cursor_1.CursorTimeoutMode.ITERATION && (lastStage?.$merge != null || lastStage?.$out != null))
-        throw new error_1.MongoAPIError("Cannot use $out or $merge stage with ITERATION timeoutMode");
-    }
-    clone() {
-      const clonedOptions = (0, utils_1.mergeOptions)({}, this.aggregateOptions);
-      delete clonedOptions.session;
-      return new AggregationCursor(this.client, this.namespace, this.pipeline, {
-        ...clonedOptions
-      });
-    }
-    map(transform) {
-      return super.map(transform);
-    }
-    async _initialize(session) {
-      const options = {
-        ...this.aggregateOptions,
-        ...this.cursorOptions,
-        session,
-        signal: this.signal
-      };
-      if (options.explain) {
-        try {
-          (0, explain_1.validateExplainTimeoutOptions)(options, explain_1.Explain.fromOptions(options));
-        } catch {
-          throw new error_1.MongoAPIError("timeoutMS cannot be used with explain when explain is specified in aggregateOptions");
-        }
-      }
-      const aggregateOperation = new aggregate_1.AggregateOperation(this.namespace, this.pipeline, options);
-      const response = await (0, execute_operation_1.executeOperation)(this.client, aggregateOperation, this.timeoutContext);
-      return { server: aggregateOperation.server, session, response };
-    }
-    async explain(verbosity, options) {
-      const { explain, timeout } = this.resolveExplainTimeoutOptions(verbosity, options);
-      return (await (0, execute_operation_1.executeOperation)(this.client, new aggregate_1.AggregateOperation(this.namespace, this.pipeline, {
-        ...this.aggregateOptions,
-        ...this.cursorOptions,
-        ...timeout,
-        explain: explain ?? true
-      }))).shift(this.deserializationOptions);
-    }
-    addStage(stage) {
-      this.throwIfInitialized();
-      if (this.cursorOptions.timeoutMS != null && this.cursorOptions.timeoutMode === abstract_cursor_1.CursorTimeoutMode.ITERATION && (stage.$out != null || stage.$merge != null)) {
-        throw new error_1.MongoAPIError("Cannot use $out or $merge stage with ITERATION timeoutMode");
-      }
-      this.pipeline.push(stage);
-      return this;
-    }
-    group($group) {
-      return this.addStage({ $group });
-    }
-    limit($limit) {
-      return this.addStage({ $limit });
-    }
-    match($match) {
-      return this.addStage({ $match });
-    }
-    out($out) {
-      return this.addStage({ $out });
-    }
-    project($project) {
-      return this.addStage({ $project });
-    }
-    lookup($lookup) {
-      return this.addStage({ $lookup });
-    }
-    redact($redact) {
-      return this.addStage({ $redact });
-    }
-    skip($skip) {
-      return this.addStage({ $skip });
-    }
-    sort($sort) {
-      return this.addStage({ $sort });
-    }
-    unwind($unwind) {
-      return this.addStage({ $unwind });
-    }
-    geoNear($geoNear) {
-      return this.addStage({ $geoNear });
-    }
-  }
-  exports.AggregationCursor = AggregationCursor;
-});
-
-// node_modules/mongodb/lib/operations/count.js
-var require_count = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.CountOperation = undefined;
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class CountOperation extends command_1.CommandOperation {
-    constructor(namespace, filter, options) {
-      super({ s: { namespace } }, options);
-      this.options = options;
-      this.collectionName = namespace.collection;
-      this.query = filter;
-    }
-    get commandName() {
-      return "count";
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options;
-      const cmd = {
-        count: this.collectionName,
-        query: this.query
-      };
-      if (typeof options.limit === "number") {
-        cmd.limit = options.limit;
-      }
-      if (typeof options.skip === "number") {
-        cmd.skip = options.skip;
-      }
-      if (options.hint != null) {
-        cmd.hint = options.hint;
-      }
-      if (typeof options.maxTimeMS === "number") {
-        cmd.maxTimeMS = options.maxTimeMS;
-      }
-      const result = await super.executeCommand(server, session, cmd, timeoutContext);
-      return result ? result.n : 0;
-    }
-  }
-  exports.CountOperation = CountOperation;
-  (0, operation_1.defineAspects)(CountOperation, [operation_1.Aspect.READ_OPERATION, operation_1.Aspect.RETRYABLE]);
-});
-
-// node_modules/mongodb/lib/sort.js
-var require_sort = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.formatSort = formatSort;
-  var error_1 = require_error();
-  function prepareDirection(direction = 1) {
-    const value = `${direction}`.toLowerCase();
-    if (isMeta(direction))
-      return direction;
-    switch (value) {
-      case "ascending":
-      case "asc":
-      case "1":
-        return 1;
-      case "descending":
-      case "desc":
-      case "-1":
-        return -1;
-      default:
-        throw new error_1.MongoInvalidArgumentError(`Invalid sort direction: ${JSON.stringify(direction)}`);
-    }
-  }
-  function isMeta(t) {
-    return typeof t === "object" && t != null && "$meta" in t && typeof t.$meta === "string";
-  }
-  function isPair(t) {
-    if (Array.isArray(t) && t.length === 2) {
-      try {
-        prepareDirection(t[1]);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  }
-  function isDeep(t) {
-    return Array.isArray(t) && Array.isArray(t[0]);
-  }
-  function isMap(t) {
-    return t instanceof Map && t.size > 0;
-  }
-  function isReadonlyArray(value) {
-    return Array.isArray(value);
-  }
-  function pairToMap(v) {
-    return new Map([[`${v[0]}`, prepareDirection([v[1]])]]);
-  }
-  function deepToMap(t) {
-    const sortEntries = t.map(([k, v]) => [`${k}`, prepareDirection(v)]);
-    return new Map(sortEntries);
-  }
-  function stringsToMap(t) {
-    const sortEntries = t.map((key) => [`${key}`, 1]);
-    return new Map(sortEntries);
-  }
-  function objectToMap(t) {
-    const sortEntries = Object.entries(t).map(([k, v]) => [
-      `${k}`,
-      prepareDirection(v)
-    ]);
-    return new Map(sortEntries);
-  }
-  function mapToMap(t) {
-    const sortEntries = Array.from(t).map(([k, v]) => [
-      `${k}`,
-      prepareDirection(v)
-    ]);
-    return new Map(sortEntries);
-  }
-  function formatSort(sort, direction) {
-    if (sort == null)
-      return;
-    if (typeof sort === "string")
-      return new Map([[sort, prepareDirection(direction)]]);
-    if (typeof sort !== "object") {
-      throw new error_1.MongoInvalidArgumentError(`Invalid sort format: ${JSON.stringify(sort)} Sort must be a valid object`);
-    }
-    if (!isReadonlyArray(sort)) {
-      if (isMap(sort))
-        return mapToMap(sort);
-      if (Object.keys(sort).length)
-        return objectToMap(sort);
-      return;
-    }
-    if (!sort.length)
-      return;
-    if (isDeep(sort))
-      return deepToMap(sort);
-    if (isPair(sort))
-      return pairToMap(sort);
-    return stringsToMap(sort);
-  }
-});
-
-// node_modules/mongodb/lib/operations/find.js
-var require_find = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.FindOperation = undefined;
-  var responses_1 = require_responses();
-  var error_1 = require_error();
-  var explain_1 = require_explain();
-  var read_concern_1 = require_read_concern();
-  var sort_1 = require_sort();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class FindOperation extends command_1.CommandOperation {
-    constructor(ns, filter = {}, options = {}) {
-      super(undefined, options);
-      this.options = { ...options };
-      delete this.options.writeConcern;
-      this.ns = ns;
-      if (typeof filter !== "object" || Array.isArray(filter)) {
-        throw new error_1.MongoInvalidArgumentError("Query filter must be a plain object or ObjectId");
-      }
-      this.filter = filter != null && filter._bsontype === "ObjectId" ? { _id: filter } : filter;
-    }
-    get commandName() {
-      return "find";
-    }
-    async execute(server, session, timeoutContext) {
-      this.server = server;
-      const options = this.options;
-      let findCommand = makeFindCommand(this.ns, this.filter, options);
-      if (this.explain) {
-        (0, explain_1.validateExplainTimeoutOptions)(this.options, this.explain);
-        findCommand = (0, explain_1.decorateWithExplain)(findCommand, this.explain);
-      }
-      return await server.command(this.ns, findCommand, {
-        ...this.options,
-        ...this.bsonOptions,
-        documentsReturnedIn: "firstBatch",
-        session,
-        timeoutContext
-      }, this.explain ? responses_1.ExplainedCursorResponse : responses_1.CursorResponse);
-    }
-  }
-  exports.FindOperation = FindOperation;
-  function makeFindCommand(ns, filter, options) {
-    const findCommand = {
-      find: ns.collection,
-      filter
-    };
-    if (options.sort) {
-      findCommand.sort = (0, sort_1.formatSort)(options.sort);
-    }
-    if (options.projection) {
-      let projection = options.projection;
-      if (projection && Array.isArray(projection)) {
-        projection = projection.length ? projection.reduce((result, field) => {
-          result[field] = 1;
-          return result;
-        }, {}) : { _id: 1 };
-      }
-      findCommand.projection = projection;
-    }
-    if (options.hint) {
-      findCommand.hint = (0, utils_1.normalizeHintField)(options.hint);
-    }
-    if (typeof options.skip === "number") {
-      findCommand.skip = options.skip;
-    }
-    if (typeof options.limit === "number") {
-      if (options.limit < 0) {
-        findCommand.limit = -options.limit;
-        findCommand.singleBatch = true;
-      } else {
-        findCommand.limit = options.limit;
-      }
-    }
-    if (typeof options.batchSize === "number") {
-      if (options.batchSize < 0) {
-        if (options.limit && options.limit !== 0 && Math.abs(options.batchSize) < Math.abs(options.limit)) {
-          findCommand.limit = -options.batchSize;
-        }
-        findCommand.singleBatch = true;
-      } else {
-        findCommand.batchSize = options.batchSize;
-      }
-    }
-    if (typeof options.singleBatch === "boolean") {
-      findCommand.singleBatch = options.singleBatch;
-    }
-    if (options.comment !== undefined) {
-      findCommand.comment = options.comment;
-    }
-    if (typeof options.maxTimeMS === "number") {
-      findCommand.maxTimeMS = options.maxTimeMS;
-    }
-    const readConcern = read_concern_1.ReadConcern.fromOptions(options);
-    if (readConcern) {
-      findCommand.readConcern = readConcern.toJSON();
-    }
-    if (options.max) {
-      findCommand.max = options.max;
-    }
-    if (options.min) {
-      findCommand.min = options.min;
-    }
-    if (typeof options.returnKey === "boolean") {
-      findCommand.returnKey = options.returnKey;
-    }
-    if (typeof options.showRecordId === "boolean") {
-      findCommand.showRecordId = options.showRecordId;
-    }
-    if (typeof options.tailable === "boolean") {
-      findCommand.tailable = options.tailable;
-    }
-    if (typeof options.oplogReplay === "boolean") {
-      findCommand.oplogReplay = options.oplogReplay;
-    }
-    if (typeof options.timeout === "boolean") {
-      findCommand.noCursorTimeout = !options.timeout;
-    } else if (typeof options.noCursorTimeout === "boolean") {
-      findCommand.noCursorTimeout = options.noCursorTimeout;
-    }
-    if (typeof options.awaitData === "boolean") {
-      findCommand.awaitData = options.awaitData;
-    }
-    if (typeof options.allowPartialResults === "boolean") {
-      findCommand.allowPartialResults = options.allowPartialResults;
-    }
-    if (options.collation) {
-      findCommand.collation = options.collation;
-    }
-    if (typeof options.allowDiskUse === "boolean") {
-      findCommand.allowDiskUse = options.allowDiskUse;
-    }
-    if (options.let) {
-      findCommand.let = options.let;
-    }
-    return findCommand;
-  }
-  (0, operation_1.defineAspects)(FindOperation, [
-    operation_1.Aspect.READ_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.CURSOR_CREATING
-  ]);
-});
-
-// node_modules/mongodb/lib/cursor/find_cursor.js
-var require_find_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.FindCursor = exports.FLAGS = undefined;
-  var responses_1 = require_responses();
-  var error_1 = require_error();
-  var explain_1 = require_explain();
-  var count_1 = require_count();
-  var execute_operation_1 = require_execute_operation();
-  var find_1 = require_find();
-  var sort_1 = require_sort();
-  var utils_1 = require_utils();
-  exports.FLAGS = [
-    "tailable",
-    "oplogReplay",
-    "noCursorTimeout",
-    "awaitData",
-    "exhaust",
-    "partial"
-  ];
-
-  class FindCursor extends explain_1.ExplainableCursor {
-    constructor(client, namespace, filter = {}, options = {}) {
-      super(client, namespace, options);
-      this.numReturned = 0;
-      this.cursorFilter = filter;
-      this.findOptions = options;
-      if (options.sort != null) {
-        this.findOptions.sort = (0, sort_1.formatSort)(options.sort);
-      }
-    }
-    clone() {
-      const clonedOptions = (0, utils_1.mergeOptions)({}, this.findOptions);
-      delete clonedOptions.session;
-      return new FindCursor(this.client, this.namespace, this.cursorFilter, {
-        ...clonedOptions
-      });
-    }
-    map(transform) {
-      return super.map(transform);
-    }
-    async _initialize(session) {
-      const options = {
-        ...this.findOptions,
-        ...this.cursorOptions,
-        session,
-        signal: this.signal
-      };
-      if (options.explain) {
-        try {
-          (0, explain_1.validateExplainTimeoutOptions)(options, explain_1.Explain.fromOptions(options));
-        } catch {
-          throw new error_1.MongoAPIError("timeoutMS cannot be used with explain when explain is specified in findOptions");
-        }
-      }
-      const findOperation = new find_1.FindOperation(this.namespace, this.cursorFilter, options);
-      const response = await (0, execute_operation_1.executeOperation)(this.client, findOperation, this.timeoutContext);
-      this.numReturned = response.batchSize;
-      return { server: findOperation.server, session, response };
-    }
-    async getMore(batchSize) {
-      const numReturned = this.numReturned;
-      if (numReturned) {
-        const limit = this.findOptions.limit;
-        batchSize = limit && limit > 0 && numReturned + batchSize > limit ? limit - numReturned : batchSize;
-        if (batchSize <= 0) {
-          try {
-            await this.close();
-          } catch (error) {
-            (0, utils_1.squashError)(error);
-          }
-          return responses_1.CursorResponse.emptyGetMore;
-        }
-      }
-      const response = await super.getMore(batchSize);
-      this.numReturned = this.numReturned + response.batchSize;
-      return response;
-    }
-    async count(options) {
-      (0, utils_1.emitWarningOnce)("cursor.count is deprecated and will be removed in the next major version, please use `collection.estimatedDocumentCount` or `collection.countDocuments` instead ");
-      if (typeof options === "boolean") {
-        throw new error_1.MongoInvalidArgumentError("Invalid first parameter to count");
-      }
-      return await (0, execute_operation_1.executeOperation)(this.client, new count_1.CountOperation(this.namespace, this.cursorFilter, {
-        ...this.findOptions,
-        ...this.cursorOptions,
-        ...options
-      }));
-    }
-    async explain(verbosity, options) {
-      const { explain, timeout } = this.resolveExplainTimeoutOptions(verbosity, options);
-      return (await (0, execute_operation_1.executeOperation)(this.client, new find_1.FindOperation(this.namespace, this.cursorFilter, {
-        ...this.findOptions,
-        ...this.cursorOptions,
-        ...timeout,
-        explain: explain ?? true
-      }))).shift(this.deserializationOptions);
-    }
-    filter(filter) {
-      this.throwIfInitialized();
-      this.cursorFilter = filter;
-      return this;
-    }
-    hint(hint) {
-      this.throwIfInitialized();
-      this.findOptions.hint = hint;
-      return this;
-    }
-    min(min) {
-      this.throwIfInitialized();
-      this.findOptions.min = min;
-      return this;
-    }
-    max(max) {
-      this.throwIfInitialized();
-      this.findOptions.max = max;
-      return this;
-    }
-    returnKey(value) {
-      this.throwIfInitialized();
-      this.findOptions.returnKey = value;
-      return this;
-    }
-    showRecordId(value) {
-      this.throwIfInitialized();
-      this.findOptions.showRecordId = value;
-      return this;
-    }
-    addQueryModifier(name, value) {
-      this.throwIfInitialized();
-      if (name[0] !== "$") {
-        throw new error_1.MongoInvalidArgumentError(`${name} is not a valid query modifier`);
-      }
-      const field = name.substr(1);
-      switch (field) {
-        case "comment":
-          this.findOptions.comment = value;
-          break;
-        case "explain":
-          this.findOptions.explain = value;
-          break;
-        case "hint":
-          this.findOptions.hint = value;
-          break;
-        case "max":
-          this.findOptions.max = value;
-          break;
-        case "maxTimeMS":
-          this.findOptions.maxTimeMS = value;
-          break;
-        case "min":
-          this.findOptions.min = value;
-          break;
-        case "orderby":
-          this.findOptions.sort = (0, sort_1.formatSort)(value);
-          break;
-        case "query":
-          this.cursorFilter = value;
-          break;
-        case "returnKey":
-          this.findOptions.returnKey = value;
-          break;
-        case "showDiskLoc":
-          this.findOptions.showRecordId = value;
-          break;
-        default:
-          throw new error_1.MongoInvalidArgumentError(`Invalid query modifier: ${name}`);
-      }
-      return this;
-    }
-    comment(value) {
-      this.throwIfInitialized();
-      this.findOptions.comment = value;
-      return this;
-    }
-    maxAwaitTimeMS(value) {
-      this.throwIfInitialized();
-      if (typeof value !== "number") {
-        throw new error_1.MongoInvalidArgumentError("Argument for maxAwaitTimeMS must be a number");
-      }
-      this.findOptions.maxAwaitTimeMS = value;
-      return this;
-    }
-    maxTimeMS(value) {
-      this.throwIfInitialized();
-      if (typeof value !== "number") {
-        throw new error_1.MongoInvalidArgumentError("Argument for maxTimeMS must be a number");
-      }
-      this.findOptions.maxTimeMS = value;
-      return this;
-    }
-    project(value) {
-      this.throwIfInitialized();
-      this.findOptions.projection = value;
-      return this;
-    }
-    sort(sort, direction) {
-      this.throwIfInitialized();
-      if (this.findOptions.tailable) {
-        throw new error_1.MongoTailableCursorError("Tailable cursor does not support sorting");
-      }
-      this.findOptions.sort = (0, sort_1.formatSort)(sort, direction);
-      return this;
-    }
-    allowDiskUse(allow = true) {
-      this.throwIfInitialized();
-      if (!this.findOptions.sort) {
-        throw new error_1.MongoInvalidArgumentError('Option "allowDiskUse" requires a sort specification');
-      }
-      if (!allow) {
-        this.findOptions.allowDiskUse = false;
-        return this;
-      }
-      this.findOptions.allowDiskUse = true;
-      return this;
-    }
-    collation(value) {
-      this.throwIfInitialized();
-      this.findOptions.collation = value;
-      return this;
-    }
-    limit(value) {
-      this.throwIfInitialized();
-      if (this.findOptions.tailable) {
-        throw new error_1.MongoTailableCursorError("Tailable cursor does not support limit");
-      }
-      if (typeof value !== "number") {
-        throw new error_1.MongoInvalidArgumentError('Operation "limit" requires an integer');
-      }
-      this.findOptions.limit = value;
-      return this;
-    }
-    skip(value) {
-      this.throwIfInitialized();
-      if (this.findOptions.tailable) {
-        throw new error_1.MongoTailableCursorError("Tailable cursor does not support skip");
-      }
-      if (typeof value !== "number") {
-        throw new error_1.MongoInvalidArgumentError('Operation "skip" requires an integer');
-      }
-      this.findOptions.skip = value;
-      return this;
-    }
-  }
-  exports.FindCursor = FindCursor;
-});
-
-// node_modules/mongodb/lib/operations/indexes.js
-var require_indexes = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListIndexesOperation = exports.DropIndexOperation = exports.CreateIndexesOperation = undefined;
-  var responses_1 = require_responses();
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-  var VALID_INDEX_OPTIONS = new Set([
-    "background",
-    "unique",
-    "name",
-    "partialFilterExpression",
-    "sparse",
-    "hidden",
-    "expireAfterSeconds",
-    "storageEngine",
-    "collation",
-    "version",
-    "weights",
-    "default_language",
-    "language_override",
-    "textIndexVersion",
-    "2dsphereIndexVersion",
-    "bits",
-    "min",
-    "max",
-    "bucketSize",
-    "wildcardProjection"
-  ]);
-  function isIndexDirection(x) {
-    return typeof x === "number" || x === "2d" || x === "2dsphere" || x === "text" || x === "geoHaystack";
-  }
-  function isSingleIndexTuple(t) {
-    return Array.isArray(t) && t.length === 2 && isIndexDirection(t[1]);
-  }
-  function constructIndexDescriptionMap(indexSpec) {
-    const key = new Map;
-    const indexSpecs = !Array.isArray(indexSpec) || isSingleIndexTuple(indexSpec) ? [indexSpec] : indexSpec;
-    for (const spec of indexSpecs) {
-      if (typeof spec === "string") {
-        key.set(spec, 1);
-      } else if (Array.isArray(spec)) {
-        key.set(spec[0], spec[1] ?? 1);
-      } else if (spec instanceof Map) {
-        for (const [property, value] of spec) {
-          key.set(property, value);
-        }
-      } else if ((0, utils_1.isObject)(spec)) {
-        for (const [property, value] of Object.entries(spec)) {
-          key.set(property, value);
-        }
-      }
-    }
-    return key;
-  }
-  function resolveIndexDescription(description) {
-    const validProvidedOptions = Object.entries(description).filter(([optionName]) => VALID_INDEX_OPTIONS.has(optionName));
-    return Object.fromEntries(validProvidedOptions.map(([name, value]) => name === "version" ? ["v", value] : [name, value]));
-  }
-
-  class CreateIndexesOperation extends command_1.CommandOperation {
-    constructor(parent, collectionName, indexes, options) {
-      super(parent, options);
-      this.options = options ?? {};
-      this.collectionName = collectionName;
-      this.indexes = indexes.map((userIndex) => {
-        const key = userIndex.key instanceof Map ? userIndex.key : new Map(Object.entries(userIndex.key));
-        const name = userIndex.name ?? Array.from(key).flat().join("_");
-        const validIndexOptions = resolveIndexDescription(userIndex);
-        return {
-          ...validIndexOptions,
-          name,
-          key
-        };
-      });
-    }
-    static fromIndexDescriptionArray(parent, collectionName, indexes, options) {
-      return new CreateIndexesOperation(parent, collectionName, indexes, options);
-    }
-    static fromIndexSpecification(parent, collectionName, indexSpec, options = {}) {
-      const key = constructIndexDescriptionMap(indexSpec);
-      const description = { ...options, key };
-      return new CreateIndexesOperation(parent, collectionName, [description], options);
-    }
-    get commandName() {
-      return "createIndexes";
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options;
-      const indexes = this.indexes;
-      const serverWireVersion = (0, utils_1.maxWireVersion)(server);
-      const cmd = { createIndexes: this.collectionName, indexes };
-      if (options.commitQuorum != null) {
-        if (serverWireVersion < 9) {
-          throw new error_1.MongoCompatibilityError("Option `commitQuorum` for `createIndexes` not supported on servers < 4.4");
-        }
-        cmd.commitQuorum = options.commitQuorum;
-      }
-      this.options.collation = undefined;
-      await super.executeCommand(server, session, cmd, timeoutContext);
-      const indexNames = indexes.map((index) => index.name || "");
-      return indexNames;
-    }
-  }
-  exports.CreateIndexesOperation = CreateIndexesOperation;
-
-  class DropIndexOperation extends command_1.CommandOperation {
-    constructor(collection, indexName, options) {
-      super(collection, options);
-      this.options = options ?? {};
-      this.collection = collection;
-      this.indexName = indexName;
-    }
-    get commandName() {
-      return "dropIndexes";
-    }
-    async execute(server, session, timeoutContext) {
-      const cmd = { dropIndexes: this.collection.collectionName, index: this.indexName };
-      return await super.executeCommand(server, session, cmd, timeoutContext);
-    }
-  }
-  exports.DropIndexOperation = DropIndexOperation;
-
-  class ListIndexesOperation extends command_1.CommandOperation {
-    constructor(collection, options) {
-      super(collection, options);
-      this.options = { ...options };
-      delete this.options.writeConcern;
-      this.collectionNamespace = collection.s.namespace;
-    }
-    get commandName() {
-      return "listIndexes";
-    }
-    async execute(server, session, timeoutContext) {
-      const serverWireVersion = (0, utils_1.maxWireVersion)(server);
-      const cursor = this.options.batchSize ? { batchSize: this.options.batchSize } : {};
-      const command = { listIndexes: this.collectionNamespace.collection, cursor };
-      if (serverWireVersion >= 9 && this.options.comment !== undefined) {
-        command.comment = this.options.comment;
-      }
-      return await super.executeCommand(server, session, command, timeoutContext, responses_1.CursorResponse);
-    }
-  }
-  exports.ListIndexesOperation = ListIndexesOperation;
-  (0, operation_1.defineAspects)(ListIndexesOperation, [
-    operation_1.Aspect.READ_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.CURSOR_CREATING
-  ]);
-  (0, operation_1.defineAspects)(CreateIndexesOperation, [operation_1.Aspect.WRITE_OPERATION]);
-  (0, operation_1.defineAspects)(DropIndexOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/cursor/list_indexes_cursor.js
-var require_list_indexes_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListIndexesCursor = undefined;
-  var execute_operation_1 = require_execute_operation();
-  var indexes_1 = require_indexes();
-  var abstract_cursor_1 = require_abstract_cursor();
-
-  class ListIndexesCursor extends abstract_cursor_1.AbstractCursor {
-    constructor(collection, options) {
-      super(collection.client, collection.s.namespace, options);
-      this.parent = collection;
-      this.options = options;
-    }
-    clone() {
-      return new ListIndexesCursor(this.parent, {
-        ...this.options,
-        ...this.cursorOptions
-      });
-    }
-    async _initialize(session) {
-      const operation = new indexes_1.ListIndexesOperation(this.parent, {
-        ...this.cursorOptions,
-        ...this.options,
-        session
-      });
-      const response = await (0, execute_operation_1.executeOperation)(this.parent.client, operation, this.timeoutContext);
-      return { server: operation.server, session, response };
-    }
-  }
-  exports.ListIndexesCursor = ListIndexesCursor;
-});
-
-// node_modules/mongodb/lib/cursor/list_search_indexes_cursor.js
-var require_list_search_indexes_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListSearchIndexesCursor = undefined;
-  var aggregation_cursor_1 = require_aggregation_cursor();
-
-  class ListSearchIndexesCursor extends aggregation_cursor_1.AggregationCursor {
-    constructor({ fullNamespace: ns, client }, name, options = {}) {
-      const pipeline = name == null ? [{ $listSearchIndexes: {} }] : [{ $listSearchIndexes: { name } }];
-      super(client, ns, pipeline, options);
-    }
-  }
-  exports.ListSearchIndexesCursor = ListSearchIndexesCursor;
-});
-
-// node_modules/mongodb/lib/operations/bulk_write.js
-var require_bulk_write = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.BulkWriteOperation = undefined;
-  var operation_1 = require_operation();
-
-  class BulkWriteOperation extends operation_1.AbstractOperation {
-    constructor(collection, operations, options) {
-      super(options);
-      this.options = options;
-      this.collection = collection;
-      this.operations = operations;
-    }
-    get commandName() {
-      return "bulkWrite";
-    }
-    async execute(server, session, timeoutContext) {
-      const coll = this.collection;
-      const operations = this.operations;
-      const options = {
-        ...this.options,
-        ...this.bsonOptions,
-        readPreference: this.readPreference,
-        timeoutContext
-      };
-      const bulk = options.ordered === false ? coll.initializeUnorderedBulkOp(options) : coll.initializeOrderedBulkOp(options);
-      for (let i = 0;i < operations.length; i++) {
-        bulk.raw(operations[i]);
-      }
-      return await bulk.execute({ ...options, session });
-    }
-  }
-  exports.BulkWriteOperation = BulkWriteOperation;
-  (0, operation_1.defineAspects)(BulkWriteOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/distinct.js
-var require_distinct = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.DistinctOperation = undefined;
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class DistinctOperation extends command_1.CommandOperation {
-    constructor(collection, key, query, options) {
-      super(collection, options);
-      this.options = options ?? {};
-      this.collection = collection;
-      this.key = key;
-      this.query = query;
-    }
-    get commandName() {
-      return "distinct";
-    }
-    async execute(server, session, timeoutContext) {
-      const coll = this.collection;
-      const key = this.key;
-      const query = this.query;
-      const options = this.options;
-      const cmd = {
-        distinct: coll.collectionName,
-        key,
-        query
-      };
-      if (typeof options.maxTimeMS === "number") {
-        cmd.maxTimeMS = options.maxTimeMS;
-      }
-      if (typeof options.comment !== "undefined") {
-        cmd.comment = options.comment;
-      }
-      if (options.hint != null) {
-        cmd.hint = options.hint;
-      }
-      (0, utils_1.decorateWithReadConcern)(cmd, coll, options);
-      (0, utils_1.decorateWithCollation)(cmd, coll, options);
-      const result = await super.executeCommand(server, session, cmd, timeoutContext);
-      return this.explain ? result : result.values;
-    }
-  }
-  exports.DistinctOperation = DistinctOperation;
-  (0, operation_1.defineAspects)(DistinctOperation, [operation_1.Aspect.READ_OPERATION, operation_1.Aspect.RETRYABLE, operation_1.Aspect.EXPLAINABLE]);
-});
-
-// node_modules/mongodb/lib/operations/drop.js
-var require_drop = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.DropDatabaseOperation = exports.DropCollectionOperation = undefined;
-  var error_1 = require_error();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class DropCollectionOperation extends command_1.CommandOperation {
-    constructor(db, name, options = {}) {
-      super(db, options);
-      this.db = db;
-      this.options = options;
-      this.name = name;
-    }
-    get commandName() {
-      return "drop";
-    }
-    async execute(server, session, timeoutContext) {
-      const db = this.db;
-      const options = this.options;
-      const name = this.name;
-      const encryptedFieldsMap = db.client.s.options.autoEncryption?.encryptedFieldsMap;
-      let encryptedFields = options.encryptedFields ?? encryptedFieldsMap?.[`${db.databaseName}.${name}`];
-      if (!encryptedFields && encryptedFieldsMap) {
-        const listCollectionsResult = await db.listCollections({ name }, { nameOnly: false }).toArray();
-        encryptedFields = listCollectionsResult?.[0]?.options?.encryptedFields;
-      }
-      if (encryptedFields) {
-        const escCollection = encryptedFields.escCollection || `enxcol_.${name}.esc`;
-        const ecocCollection = encryptedFields.ecocCollection || `enxcol_.${name}.ecoc`;
-        for (const collectionName of [escCollection, ecocCollection]) {
-          const dropOp = new DropCollectionOperation(db, collectionName);
-          try {
-            await dropOp.executeWithoutEncryptedFieldsCheck(server, session, timeoutContext);
-          } catch (err) {
-            if (!(err instanceof error_1.MongoServerError) || err.code !== error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
-              throw err;
-            }
-          }
-        }
-      }
-      return await this.executeWithoutEncryptedFieldsCheck(server, session, timeoutContext);
-    }
-    async executeWithoutEncryptedFieldsCheck(server, session, timeoutContext) {
-      await super.executeCommand(server, session, { drop: this.name }, timeoutContext);
-      return true;
-    }
-  }
-  exports.DropCollectionOperation = DropCollectionOperation;
-
-  class DropDatabaseOperation extends command_1.CommandOperation {
-    constructor(db, options) {
-      super(db, options);
-      this.options = options;
-    }
-    get commandName() {
-      return "dropDatabase";
-    }
-    async execute(server, session, timeoutContext) {
-      await super.executeCommand(server, session, { dropDatabase: 1 }, timeoutContext);
-      return true;
-    }
-  }
-  exports.DropDatabaseOperation = DropDatabaseOperation;
-  (0, operation_1.defineAspects)(DropCollectionOperation, [operation_1.Aspect.WRITE_OPERATION]);
-  (0, operation_1.defineAspects)(DropDatabaseOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/estimated_document_count.js
-var require_estimated_document_count = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.EstimatedDocumentCountOperation = undefined;
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class EstimatedDocumentCountOperation extends command_1.CommandOperation {
-    constructor(collection, options = {}) {
-      super(collection, options);
-      this.options = options;
-      this.collectionName = collection.collectionName;
-    }
-    get commandName() {
-      return "count";
-    }
-    async execute(server, session, timeoutContext) {
-      const cmd = { count: this.collectionName };
-      if (typeof this.options.maxTimeMS === "number") {
-        cmd.maxTimeMS = this.options.maxTimeMS;
-      }
-      if (this.options.comment !== undefined) {
-        cmd.comment = this.options.comment;
-      }
-      const response = await super.executeCommand(server, session, cmd, timeoutContext);
-      return response?.n || 0;
-    }
-  }
-  exports.EstimatedDocumentCountOperation = EstimatedDocumentCountOperation;
-  (0, operation_1.defineAspects)(EstimatedDocumentCountOperation, [
-    operation_1.Aspect.READ_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.CURSOR_CREATING
-  ]);
-});
-
-// node_modules/mongodb/lib/operations/find_and_modify.js
-var require_find_and_modify = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.FindOneAndUpdateOperation = exports.FindOneAndReplaceOperation = exports.FindOneAndDeleteOperation = exports.FindAndModifyOperation = exports.ReturnDocument = undefined;
-  var error_1 = require_error();
-  var read_preference_1 = require_read_preference();
-  var sort_1 = require_sort();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-  exports.ReturnDocument = Object.freeze({
-    BEFORE: "before",
-    AFTER: "after"
-  });
-  function configureFindAndModifyCmdBaseUpdateOpts(cmdBase, options) {
-    cmdBase.new = options.returnDocument === exports.ReturnDocument.AFTER;
-    cmdBase.upsert = options.upsert === true;
-    if (options.bypassDocumentValidation === true) {
-      cmdBase.bypassDocumentValidation = options.bypassDocumentValidation;
-    }
-    return cmdBase;
-  }
-
-  class FindAndModifyOperation extends command_1.CommandOperation {
-    constructor(collection, query, options) {
-      super(collection, options);
-      this.options = options ?? {};
-      this.cmdBase = {
-        remove: false,
-        new: false,
-        upsert: false
-      };
-      options.includeResultMetadata ??= false;
-      const sort = (0, sort_1.formatSort)(options.sort);
-      if (sort) {
-        this.cmdBase.sort = sort;
-      }
-      if (options.projection) {
-        this.cmdBase.fields = options.projection;
-      }
-      if (options.maxTimeMS) {
-        this.cmdBase.maxTimeMS = options.maxTimeMS;
-      }
-      if (options.writeConcern) {
-        this.cmdBase.writeConcern = options.writeConcern;
-      }
-      if (options.let) {
-        this.cmdBase.let = options.let;
-      }
-      if (options.comment !== undefined) {
-        this.cmdBase.comment = options.comment;
-      }
-      this.readPreference = read_preference_1.ReadPreference.primary;
-      this.collection = collection;
-      this.query = query;
-    }
-    get commandName() {
-      return "findAndModify";
-    }
-    async execute(server, session, timeoutContext) {
-      const coll = this.collection;
-      const query = this.query;
-      const options = { ...this.options, ...this.bsonOptions };
-      const cmd = {
-        findAndModify: coll.collectionName,
-        query,
-        ...this.cmdBase
-      };
-      (0, utils_1.decorateWithCollation)(cmd, coll, options);
-      if (options.hint) {
-        const unacknowledgedWrite = this.writeConcern?.w === 0;
-        if (unacknowledgedWrite || (0, utils_1.maxWireVersion)(server) < 8) {
-          throw new error_1.MongoCompatibilityError("The current topology does not support a hint on findAndModify commands");
-        }
-        cmd.hint = options.hint;
-      }
-      const result = await super.executeCommand(server, session, cmd, timeoutContext);
-      return options.includeResultMetadata ? result : result.value ?? null;
-    }
-  }
-  exports.FindAndModifyOperation = FindAndModifyOperation;
-
-  class FindOneAndDeleteOperation extends FindAndModifyOperation {
-    constructor(collection, filter, options) {
-      if (filter == null || typeof filter !== "object") {
-        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
-      }
-      super(collection, filter, options);
-      this.cmdBase.remove = true;
-    }
-  }
-  exports.FindOneAndDeleteOperation = FindOneAndDeleteOperation;
-
-  class FindOneAndReplaceOperation extends FindAndModifyOperation {
-    constructor(collection, filter, replacement, options) {
-      if (filter == null || typeof filter !== "object") {
-        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
-      }
-      if (replacement == null || typeof replacement !== "object") {
-        throw new error_1.MongoInvalidArgumentError('Argument "replacement" must be an object');
-      }
-      if ((0, utils_1.hasAtomicOperators)(replacement)) {
-        throw new error_1.MongoInvalidArgumentError("Replacement document must not contain atomic operators");
-      }
-      super(collection, filter, options);
-      this.cmdBase.update = replacement;
-      configureFindAndModifyCmdBaseUpdateOpts(this.cmdBase, options);
-    }
-  }
-  exports.FindOneAndReplaceOperation = FindOneAndReplaceOperation;
-
-  class FindOneAndUpdateOperation extends FindAndModifyOperation {
-    constructor(collection, filter, update, options) {
-      if (filter == null || typeof filter !== "object") {
-        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
-      }
-      if (update == null || typeof update !== "object") {
-        throw new error_1.MongoInvalidArgumentError('Argument "update" must be an object');
-      }
-      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
-        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-      }
-      super(collection, filter, options);
-      this.cmdBase.update = update;
-      configureFindAndModifyCmdBaseUpdateOpts(this.cmdBase, options);
-      if (options.arrayFilters) {
-        this.cmdBase.arrayFilters = options.arrayFilters;
-      }
-    }
-  }
-  exports.FindOneAndUpdateOperation = FindOneAndUpdateOperation;
-  (0, operation_1.defineAspects)(FindAndModifyOperation, [
-    operation_1.Aspect.WRITE_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.EXPLAINABLE
-  ]);
-});
-
-// node_modules/mongodb/lib/operations/insert.js
-var require_insert = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.InsertManyOperation = exports.InsertOneOperation = exports.InsertOperation = undefined;
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  var bulk_write_1 = require_bulk_write();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class InsertOperation extends command_1.CommandOperation {
-    constructor(ns, documents, options) {
-      super(undefined, options);
-      this.options = { ...options, checkKeys: options.checkKeys ?? false };
-      this.ns = ns;
-      this.documents = documents;
-    }
-    get commandName() {
-      return "insert";
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options ?? {};
-      const ordered = typeof options.ordered === "boolean" ? options.ordered : true;
-      const command = {
-        insert: this.ns.collection,
-        documents: this.documents,
-        ordered
-      };
-      if (typeof options.bypassDocumentValidation === "boolean") {
-        command.bypassDocumentValidation = options.bypassDocumentValidation;
-      }
-      if (options.comment !== undefined) {
-        command.comment = options.comment;
-      }
-      return await super.executeCommand(server, session, command, timeoutContext);
-    }
-  }
-  exports.InsertOperation = InsertOperation;
-
-  class InsertOneOperation extends InsertOperation {
-    constructor(collection, doc, options) {
-      super(collection.s.namespace, (0, utils_1.maybeAddIdToDocuments)(collection, [doc], options), options);
-    }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors) {
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      }
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        insertedId: this.documents[0]._id
-      };
-    }
-  }
-  exports.InsertOneOperation = InsertOneOperation;
-
-  class InsertManyOperation extends operation_1.AbstractOperation {
-    constructor(collection, docs, options) {
-      super(options);
-      if (!Array.isArray(docs)) {
-        throw new error_1.MongoInvalidArgumentError('Argument "docs" must be an array of documents');
-      }
-      this.options = options;
-      this.collection = collection;
-      this.docs = docs;
-    }
-    get commandName() {
-      return "insert";
-    }
-    async execute(server, session, timeoutContext) {
-      const coll = this.collection;
-      const options = { ...this.options, ...this.bsonOptions, readPreference: this.readPreference };
-      const writeConcern = write_concern_1.WriteConcern.fromOptions(options);
-      const bulkWriteOperation = new bulk_write_1.BulkWriteOperation(coll, this.docs.map((document2) => ({
-        insertOne: { document: document2 }
-      })), options);
-      try {
-        const res = await bulkWriteOperation.execute(server, session, timeoutContext);
-        return {
-          acknowledged: writeConcern?.w !== 0,
-          insertedCount: res.insertedCount,
-          insertedIds: res.insertedIds
-        };
-      } catch (err) {
-        if (err && err.message === "Operation must be an object with an operation key") {
-          throw new error_1.MongoInvalidArgumentError("Collection.insertMany() cannot be called with an array that has null/undefined values");
-        }
-        throw err;
-      }
-    }
-  }
-  exports.InsertManyOperation = InsertManyOperation;
-  (0, operation_1.defineAspects)(InsertOperation, [operation_1.Aspect.RETRYABLE, operation_1.Aspect.WRITE_OPERATION]);
-  (0, operation_1.defineAspects)(InsertOneOperation, [operation_1.Aspect.RETRYABLE, operation_1.Aspect.WRITE_OPERATION]);
-  (0, operation_1.defineAspects)(InsertManyOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/is_capped.js
-var require_is_capped = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.IsCappedOperation = undefined;
-  var error_1 = require_error();
-  var operation_1 = require_operation();
-
-  class IsCappedOperation extends operation_1.AbstractOperation {
-    constructor(collection, options) {
-      super(options);
-      this.options = options;
-      this.collection = collection;
-    }
-    get commandName() {
-      return "listCollections";
-    }
-    async execute(server, session) {
-      const coll = this.collection;
-      const [collection] = await coll.s.db.listCollections({ name: coll.collectionName }, { ...this.options, nameOnly: false, readPreference: this.readPreference, session }).toArray();
-      if (collection == null || collection.options == null) {
-        throw new error_1.MongoAPIError(`collection ${coll.namespace} not found`);
-      }
-      return !!collection.options?.capped;
-    }
-  }
-  exports.IsCappedOperation = IsCappedOperation;
-});
-
-// node_modules/mongodb/lib/operations/options_operation.js
-var require_options_operation = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.OptionsOperation = undefined;
-  var error_1 = require_error();
-  var operation_1 = require_operation();
-
-  class OptionsOperation extends operation_1.AbstractOperation {
-    constructor(collection, options) {
-      super(options);
-      this.options = options;
-      this.collection = collection;
-    }
-    get commandName() {
-      return "listCollections";
-    }
-    async execute(server, session) {
-      const coll = this.collection;
-      const [collection] = await coll.s.db.listCollections({ name: coll.collectionName }, { ...this.options, nameOnly: false, readPreference: this.readPreference, session }).toArray();
-      if (collection == null || collection.options == null) {
-        throw new error_1.MongoAPIError(`collection ${coll.namespace} not found`);
-      }
-      return collection.options;
-    }
-  }
-  exports.OptionsOperation = OptionsOperation;
-});
-
-// node_modules/mongodb/lib/operations/rename.js
-var require_rename = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.RenameOperation = undefined;
-  var collection_1 = require_collection();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class RenameOperation extends command_1.CommandOperation {
-    constructor(collection, newName, options) {
-      super(collection, options);
-      this.collection = collection;
-      this.newName = newName;
-      this.options = options;
-      this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
-    }
-    get commandName() {
-      return "renameCollection";
-    }
-    async execute(server, session, timeoutContext) {
-      const renameCollection = this.collection.namespace;
-      const toCollection = this.collection.s.namespace.withCollection(this.newName).toString();
-      const dropTarget = typeof this.options.dropTarget === "boolean" ? this.options.dropTarget : false;
-      const command = {
-        renameCollection,
-        to: toCollection,
-        dropTarget
-      };
-      await super.executeCommand(server, session, command, timeoutContext);
-      return new collection_1.Collection(this.collection.s.db, this.newName, this.collection.s.options);
-    }
-  }
-  exports.RenameOperation = RenameOperation;
-  (0, operation_1.defineAspects)(RenameOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/search_indexes/create.js
-var require_create = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.CreateSearchIndexesOperation = undefined;
-  var operation_1 = require_operation();
-
-  class CreateSearchIndexesOperation extends operation_1.AbstractOperation {
-    constructor(collection, descriptions) {
-      super();
-      this.collection = collection;
-      this.descriptions = descriptions;
-    }
-    get commandName() {
-      return "createSearchIndexes";
-    }
-    async execute(server, session, timeoutContext) {
-      const namespace = this.collection.fullNamespace;
-      const command = {
-        createSearchIndexes: namespace.collection,
-        indexes: this.descriptions
-      };
-      const res = await server.command(namespace, command, {
-        session,
-        timeoutContext
-      });
-      const indexesCreated = res?.indexesCreated ?? [];
-      return indexesCreated.map(({ name }) => name);
-    }
-  }
-  exports.CreateSearchIndexesOperation = CreateSearchIndexesOperation;
-});
-
-// node_modules/mongodb/lib/operations/search_indexes/drop.js
-var require_drop2 = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.DropSearchIndexOperation = undefined;
-  var error_1 = require_error();
-  var operation_1 = require_operation();
-
-  class DropSearchIndexOperation extends operation_1.AbstractOperation {
-    constructor(collection, name) {
-      super();
-      this.collection = collection;
-      this.name = name;
-    }
-    get commandName() {
-      return "dropSearchIndex";
-    }
-    async execute(server, session, timeoutContext) {
-      const namespace = this.collection.fullNamespace;
-      const command = {
-        dropSearchIndex: namespace.collection
-      };
-      if (typeof this.name === "string") {
-        command.name = this.name;
-      }
-      try {
-        await server.command(namespace, command, { session, timeoutContext });
-      } catch (error) {
-        const isNamespaceNotFoundError = error instanceof error_1.MongoServerError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound;
-        if (!isNamespaceNotFoundError) {
-          throw error;
-        }
-      }
-    }
-  }
-  exports.DropSearchIndexOperation = DropSearchIndexOperation;
-});
-
-// node_modules/mongodb/lib/operations/search_indexes/update.js
-var require_update = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.UpdateSearchIndexOperation = undefined;
-  var operation_1 = require_operation();
-
-  class UpdateSearchIndexOperation extends operation_1.AbstractOperation {
-    constructor(collection, name, definition) {
-      super();
-      this.collection = collection;
-      this.name = name;
-      this.definition = definition;
-    }
-    get commandName() {
-      return "updateSearchIndex";
-    }
-    async execute(server, session, timeoutContext) {
-      const namespace = this.collection.fullNamespace;
-      const command = {
-        updateSearchIndex: namespace.collection,
-        name: this.name,
-        definition: this.definition
-      };
-      await server.command(namespace, command, { session, timeoutContext });
-      return;
-    }
-  }
-  exports.UpdateSearchIndexOperation = UpdateSearchIndexOperation;
-});
-
-// node_modules/mongodb/lib/operations/update.js
-var require_update2 = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ReplaceOneOperation = exports.UpdateManyOperation = exports.UpdateOneOperation = exports.UpdateOperation = undefined;
-  exports.makeUpdateStatement = makeUpdateStatement;
-  var error_1 = require_error();
-  var sort_1 = require_sort();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class UpdateOperation extends command_1.CommandOperation {
-    constructor(ns, statements, options) {
-      super(undefined, options);
-      this.options = options;
-      this.ns = ns;
-      this.statements = statements;
-    }
-    get commandName() {
-      return "update";
-    }
-    get canRetryWrite() {
-      if (super.canRetryWrite === false) {
-        return false;
-      }
-      return this.statements.every((op) => op.multi == null || op.multi === false);
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options ?? {};
-      const ordered = typeof options.ordered === "boolean" ? options.ordered : true;
-      const command = {
-        update: this.ns.collection,
-        updates: this.statements,
-        ordered
-      };
-      if (typeof options.bypassDocumentValidation === "boolean") {
-        command.bypassDocumentValidation = options.bypassDocumentValidation;
-      }
-      if (options.let) {
-        command.let = options.let;
-      }
-      if (options.comment !== undefined) {
-        command.comment = options.comment;
-      }
-      const unacknowledgedWrite = this.writeConcern && this.writeConcern.w === 0;
-      if (unacknowledgedWrite) {
-        if (this.statements.find((o) => o.hint)) {
-          throw new error_1.MongoCompatibilityError(`hint is not supported with unacknowledged writes`);
-        }
-      }
-      const res = await super.executeCommand(server, session, command, timeoutContext);
-      return res;
-    }
-  }
-  exports.UpdateOperation = UpdateOperation;
-
-  class UpdateOneOperation extends UpdateOperation {
-    constructor(collection, filter, update, options) {
-      super(collection.s.namespace, [makeUpdateStatement(filter, update, { ...options, multi: false })], options);
-      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
-        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-      }
-    }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (this.explain != null)
-        return res;
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors)
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        modifiedCount: res.nModified ?? res.n,
-        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
-        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
-        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
-      };
-    }
-  }
-  exports.UpdateOneOperation = UpdateOneOperation;
-
-  class UpdateManyOperation extends UpdateOperation {
-    constructor(collection, filter, update, options) {
-      super(collection.s.namespace, [makeUpdateStatement(filter, update, { ...options, multi: true })], options);
-      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
-        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-      }
-    }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (this.explain != null)
-        return res;
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors)
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        modifiedCount: res.nModified ?? res.n,
-        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
-        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
-        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
-      };
-    }
-  }
-  exports.UpdateManyOperation = UpdateManyOperation;
-
-  class ReplaceOneOperation extends UpdateOperation {
-    constructor(collection, filter, replacement, options) {
-      super(collection.s.namespace, [makeUpdateStatement(filter, replacement, { ...options, multi: false })], options);
-      if ((0, utils_1.hasAtomicOperators)(replacement)) {
-        throw new error_1.MongoInvalidArgumentError("Replacement document must not contain atomic operators");
-      }
-    }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (this.explain != null)
-        return res;
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors)
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        modifiedCount: res.nModified ?? res.n,
-        upsertedId: Array.isArray(res.upserted) && res.upserted.length > 0 ? res.upserted[0]._id : null,
-        upsertedCount: Array.isArray(res.upserted) && res.upserted.length ? res.upserted.length : 0,
-        matchedCount: Array.isArray(res.upserted) && res.upserted.length > 0 ? 0 : res.n
-      };
-    }
-  }
-  exports.ReplaceOneOperation = ReplaceOneOperation;
-  function makeUpdateStatement(filter, update, options) {
-    if (filter == null || typeof filter !== "object") {
-      throw new error_1.MongoInvalidArgumentError("Selector must be a valid JavaScript object");
-    }
-    if (update == null || typeof update !== "object") {
-      throw new error_1.MongoInvalidArgumentError("Document must be a valid JavaScript object");
-    }
-    const op = { q: filter, u: update };
-    if (typeof options.upsert === "boolean") {
-      op.upsert = options.upsert;
-    }
-    if (options.multi) {
-      op.multi = options.multi;
-    }
-    if (options.hint) {
-      op.hint = options.hint;
-    }
-    if (options.arrayFilters) {
-      op.arrayFilters = options.arrayFilters;
-    }
-    if (options.collation) {
-      op.collation = options.collation;
-    }
-    if (!options.multi && options.sort != null) {
-      op.sort = (0, sort_1.formatSort)(options.sort);
-    }
-    return op;
-  }
-  (0, operation_1.defineAspects)(UpdateOperation, [operation_1.Aspect.RETRYABLE, operation_1.Aspect.WRITE_OPERATION, operation_1.Aspect.SKIP_COLLATION]);
-  (0, operation_1.defineAspects)(UpdateOneOperation, [
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.WRITE_OPERATION,
-    operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.SKIP_COLLATION
-  ]);
-  (0, operation_1.defineAspects)(UpdateManyOperation, [
-    operation_1.Aspect.WRITE_OPERATION,
-    operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.SKIP_COLLATION
-  ]);
-  (0, operation_1.defineAspects)(ReplaceOneOperation, [
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.WRITE_OPERATION,
-    operation_1.Aspect.SKIP_COLLATION
-  ]);
-});
-
-// node_modules/mongodb/lib/collection.js
-var require_collection = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.Collection = undefined;
-  var bson_1 = require_bson2();
-  var ordered_1 = require_ordered();
-  var unordered_1 = require_unordered();
-  var change_stream_1 = require_change_stream();
-  var aggregation_cursor_1 = require_aggregation_cursor();
-  var find_cursor_1 = require_find_cursor();
-  var list_indexes_cursor_1 = require_list_indexes_cursor();
-  var list_search_indexes_cursor_1 = require_list_search_indexes_cursor();
-  var error_1 = require_error();
-  var bulk_write_1 = require_bulk_write();
-  var count_1 = require_count();
-  var delete_1 = require_delete();
-  var distinct_1 = require_distinct();
-  var drop_1 = require_drop();
-  var estimated_document_count_1 = require_estimated_document_count();
-  var execute_operation_1 = require_execute_operation();
-  var find_and_modify_1 = require_find_and_modify();
-  var indexes_1 = require_indexes();
-  var insert_1 = require_insert();
-  var is_capped_1 = require_is_capped();
-  var options_operation_1 = require_options_operation();
-  var rename_1 = require_rename();
-  var create_1 = require_create();
-  var drop_2 = require_drop2();
-  var update_1 = require_update();
-  var update_2 = require_update2();
-  var read_concern_1 = require_read_concern();
-  var read_preference_1 = require_read_preference();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-
-  class Collection {
-    constructor(db, name, options) {
-      this.s = {
-        db,
-        options,
-        namespace: new utils_1.MongoDBCollectionNamespace(db.databaseName, name),
-        pkFactory: db.options?.pkFactory ?? utils_1.DEFAULT_PK_FACTORY,
-        readPreference: read_preference_1.ReadPreference.fromOptions(options),
-        bsonOptions: (0, bson_1.resolveBSONOptions)(options, db),
-        readConcern: read_concern_1.ReadConcern.fromOptions(options),
-        writeConcern: write_concern_1.WriteConcern.fromOptions(options)
-      };
-      this.client = db.client;
-    }
-    get dbName() {
-      return this.s.namespace.db;
-    }
-    get collectionName() {
-      return this.s.namespace.collection;
-    }
-    get namespace() {
-      return this.fullNamespace.toString();
-    }
-    get fullNamespace() {
-      return this.s.namespace;
-    }
-    get readConcern() {
-      if (this.s.readConcern == null) {
-        return this.s.db.readConcern;
-      }
-      return this.s.readConcern;
-    }
-    get readPreference() {
-      if (this.s.readPreference == null) {
-        return this.s.db.readPreference;
-      }
-      return this.s.readPreference;
-    }
-    get bsonOptions() {
-      return this.s.bsonOptions;
-    }
-    get writeConcern() {
-      if (this.s.writeConcern == null) {
-        return this.s.db.writeConcern;
-      }
-      return this.s.writeConcern;
-    }
-    get hint() {
-      return this.s.collectionHint;
-    }
-    set hint(v) {
-      this.s.collectionHint = (0, utils_1.normalizeHintField)(v);
-    }
-    get timeoutMS() {
-      return this.s.options.timeoutMS;
-    }
-    async insertOne(doc, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new insert_1.InsertOneOperation(this, doc, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async insertMany(docs, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new insert_1.InsertManyOperation(this, docs, (0, utils_1.resolveOptions)(this, options ?? { ordered: true })));
-    }
-    async bulkWrite(operations, options) {
-      if (!Array.isArray(operations)) {
-        throw new error_1.MongoInvalidArgumentError('Argument "operations" must be an array of documents');
-      }
-      return await (0, execute_operation_1.executeOperation)(this.client, new bulk_write_1.BulkWriteOperation(this, operations, (0, utils_1.resolveOptions)(this, options ?? { ordered: true })));
-    }
-    async updateOne(filter, update, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.UpdateOneOperation(this, filter, update, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async replaceOne(filter, replacement, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.ReplaceOneOperation(this, filter, replacement, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async updateMany(filter, update, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.UpdateManyOperation(this, filter, update, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async deleteOne(filter = {}, options = {}) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new delete_1.DeleteOneOperation(this, filter, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async deleteMany(filter = {}, options = {}) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new delete_1.DeleteManyOperation(this, filter, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async rename(newName, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new rename_1.RenameOperation(this, newName, (0, utils_1.resolveOptions)(undefined, {
-        ...options,
-        readPreference: read_preference_1.ReadPreference.PRIMARY
-      })));
-    }
-    async drop(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new drop_1.DropCollectionOperation(this.s.db, this.collectionName, options));
-    }
-    async findOne(filter = {}, options = {}) {
-      const cursor = this.find(filter, options).limit(-1).batchSize(1);
-      const res = await cursor.next();
-      await cursor.close();
-      return res;
-    }
-    find(filter = {}, options = {}) {
-      return new find_cursor_1.FindCursor(this.client, this.s.namespace, filter, (0, utils_1.resolveOptions)(this, options));
-    }
-    async options(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new options_operation_1.OptionsOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async isCapped(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new is_capped_1.IsCappedOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async createIndex(indexSpec, options) {
-      const indexes = await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexSpecification(this, this.collectionName, indexSpec, (0, utils_1.resolveOptions)(this, options)));
-      return indexes[0];
-    }
-    async createIndexes(indexSpecs, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexDescriptionArray(this, this.collectionName, indexSpecs, (0, utils_1.resolveOptions)(this, { ...options, maxTimeMS: undefined })));
-    }
-    async dropIndex(indexName, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new indexes_1.DropIndexOperation(this, indexName, {
-        ...(0, utils_1.resolveOptions)(this, options),
-        readPreference: read_preference_1.ReadPreference.primary
-      }));
-    }
-    async dropIndexes(options) {
-      try {
-        await (0, execute_operation_1.executeOperation)(this.client, new indexes_1.DropIndexOperation(this, "*", (0, utils_1.resolveOptions)(this, options)));
-        return true;
-      } catch (error) {
-        if (error instanceof error_1.MongoOperationTimeoutError)
-          throw error;
-        return false;
-      }
-    }
-    listIndexes(options) {
-      return new list_indexes_cursor_1.ListIndexesCursor(this, (0, utils_1.resolveOptions)(this, options));
-    }
-    async indexExists(indexes, options) {
-      const indexNames = Array.isArray(indexes) ? indexes : [indexes];
-      const allIndexes = new Set(await this.listIndexes(options).map(({ name }) => name).toArray());
-      return indexNames.every((name) => allIndexes.has(name));
-    }
-    async indexInformation(options) {
-      return await this.indexes({
-        ...options,
-        full: options?.full ?? false
-      });
-    }
-    async estimatedDocumentCount(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new estimated_document_count_1.EstimatedDocumentCountOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async countDocuments(filter = {}, options = {}) {
-      const pipeline = [];
-      pipeline.push({ $match: filter });
-      if (typeof options.skip === "number") {
-        pipeline.push({ $skip: options.skip });
-      }
-      if (typeof options.limit === "number") {
-        pipeline.push({ $limit: options.limit });
-      }
-      pipeline.push({ $group: { _id: 1, n: { $sum: 1 } } });
-      const cursor = this.aggregate(pipeline, options);
-      const doc = await cursor.next();
-      await cursor.close();
-      return doc?.n ?? 0;
-    }
-    async distinct(key, filter = {}, options = {}) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new distinct_1.DistinctOperation(this, key, filter, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async indexes(options) {
-      const indexes = await this.listIndexes(options).toArray();
-      const full = options?.full ?? true;
-      if (full) {
-        return indexes;
-      }
-      const object = Object.fromEntries(indexes.map(({ name, key }) => [name, Object.entries(key)]));
-      return object;
-    }
-    async findOneAndDelete(filter, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndDeleteOperation(this, filter, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async findOneAndReplace(filter, replacement, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndReplaceOperation(this, filter, replacement, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async findOneAndUpdate(filter, update, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndUpdateOperation(this, filter, update, (0, utils_1.resolveOptions)(this, options)));
-    }
-    aggregate(pipeline = [], options) {
-      if (!Array.isArray(pipeline)) {
-        throw new error_1.MongoInvalidArgumentError('Argument "pipeline" must be an array of aggregation stages');
-      }
-      return new aggregation_cursor_1.AggregationCursor(this.client, this.s.namespace, pipeline, (0, utils_1.resolveOptions)(this, options));
-    }
-    watch(pipeline = [], options = {}) {
-      if (!Array.isArray(pipeline)) {
-        options = pipeline;
-        pipeline = [];
-      }
-      return new change_stream_1.ChangeStream(this, pipeline, (0, utils_1.resolveOptions)(this, options));
-    }
-    initializeUnorderedBulkOp(options) {
-      return new unordered_1.UnorderedBulkOperation(this, (0, utils_1.resolveOptions)(this, options));
-    }
-    initializeOrderedBulkOp(options) {
-      return new ordered_1.OrderedBulkOperation(this, (0, utils_1.resolveOptions)(this, options));
-    }
-    async count(filter = {}, options = {}) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new count_1.CountOperation(this.fullNamespace, filter, (0, utils_1.resolveOptions)(this, options)));
-    }
-    listSearchIndexes(indexNameOrOptions, options) {
-      options = typeof indexNameOrOptions === "object" ? indexNameOrOptions : options == null ? {} : options;
-      const indexName = indexNameOrOptions == null ? null : typeof indexNameOrOptions === "object" ? null : indexNameOrOptions;
-      return new list_search_indexes_cursor_1.ListSearchIndexesCursor(this, indexName, options);
-    }
-    async createSearchIndex(description) {
-      const [index] = await this.createSearchIndexes([description]);
-      return index;
-    }
-    async createSearchIndexes(descriptions) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new create_1.CreateSearchIndexesOperation(this, descriptions));
-    }
-    async dropSearchIndex(name) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new drop_2.DropSearchIndexOperation(this, name));
-    }
-    async updateSearchIndex(name, definition) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new update_1.UpdateSearchIndexOperation(this, name, definition));
-    }
-  }
-  exports.Collection = Collection;
-});
-
-// node_modules/mongodb/lib/cursor/change_stream_cursor.js
-var require_change_stream_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ChangeStreamCursor = undefined;
-  var change_stream_1 = require_change_stream();
-  var constants_1 = require_constants();
-  var aggregate_1 = require_aggregate();
-  var execute_operation_1 = require_execute_operation();
-  var utils_1 = require_utils();
-  var abstract_cursor_1 = require_abstract_cursor();
-
-  class ChangeStreamCursor extends abstract_cursor_1.AbstractCursor {
-    constructor(client, namespace, pipeline = [], options = {}) {
-      super(client, namespace, { ...options, tailable: true, awaitData: true });
-      this.pipeline = pipeline;
-      this.changeStreamCursorOptions = options;
-      this._resumeToken = null;
-      this.startAtOperationTime = options.startAtOperationTime ?? null;
-      if (options.startAfter) {
-        this.resumeToken = options.startAfter;
-      } else if (options.resumeAfter) {
-        this.resumeToken = options.resumeAfter;
-      }
-    }
-    set resumeToken(token) {
-      this._resumeToken = token;
-      this.emit(change_stream_1.ChangeStream.RESUME_TOKEN_CHANGED, token);
-    }
-    get resumeToken() {
-      return this._resumeToken;
-    }
-    get resumeOptions() {
-      const options = {
-        ...this.changeStreamCursorOptions
-      };
-      for (const key of ["resumeAfter", "startAfter", "startAtOperationTime"]) {
-        delete options[key];
-      }
-      if (this.resumeToken != null) {
-        if (this.changeStreamCursorOptions.startAfter && !this.hasReceived) {
-          options.startAfter = this.resumeToken;
-        } else {
-          options.resumeAfter = this.resumeToken;
-        }
-      } else if (this.startAtOperationTime != null && (0, utils_1.maxWireVersion)(this.server) >= 7) {
-        options.startAtOperationTime = this.startAtOperationTime;
-      }
-      return options;
-    }
-    cacheResumeToken(resumeToken) {
-      if (this.bufferedCount() === 0 && this.postBatchResumeToken) {
-        this.resumeToken = this.postBatchResumeToken;
-      } else {
-        this.resumeToken = resumeToken;
-      }
-      this.hasReceived = true;
-    }
-    _processBatch(response) {
-      const { postBatchResumeToken } = response;
-      if (postBatchResumeToken) {
-        this.postBatchResumeToken = postBatchResumeToken;
-        if (response.batchSize === 0) {
-          this.resumeToken = postBatchResumeToken;
-        }
-      }
-    }
-    clone() {
-      return new ChangeStreamCursor(this.client, this.namespace, this.pipeline, {
-        ...this.cursorOptions
-      });
-    }
-    async _initialize(session) {
-      const aggregateOperation = new aggregate_1.AggregateOperation(this.namespace, this.pipeline, {
-        ...this.cursorOptions,
-        ...this.changeStreamCursorOptions,
-        session
-      });
-      const response = await (0, execute_operation_1.executeOperation)(session.client, aggregateOperation, this.timeoutContext);
-      const server = aggregateOperation.server;
-      this.maxWireVersion = (0, utils_1.maxWireVersion)(server);
-      if (this.startAtOperationTime == null && this.changeStreamCursorOptions.resumeAfter == null && this.changeStreamCursorOptions.startAfter == null && this.maxWireVersion >= 7) {
-        this.startAtOperationTime = response.operationTime;
-      }
-      this._processBatch(response);
-      this.emit(constants_1.INIT, response);
-      this.emit(constants_1.RESPONSE);
-      return { server, session, response };
-    }
-    async getMore(batchSize) {
-      const response = await super.getMore(batchSize);
-      this.maxWireVersion = (0, utils_1.maxWireVersion)(this.server);
-      this._processBatch(response);
-      this.emit(change_stream_1.ChangeStream.MORE, response);
-      this.emit(change_stream_1.ChangeStream.RESPONSE);
-      return response;
-    }
-  }
-  exports.ChangeStreamCursor = ChangeStreamCursor;
-});
-
-// node_modules/mongodb/lib/operations/list_databases.js
-var require_list_databases = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListDatabasesOperation = undefined;
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class ListDatabasesOperation extends command_1.CommandOperation {
-    constructor(db, options) {
-      super(db, options);
-      this.options = options ?? {};
-      this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
-    }
-    get commandName() {
-      return "listDatabases";
-    }
-    async execute(server, session, timeoutContext) {
-      const cmd = { listDatabases: 1 };
-      if (typeof this.options.nameOnly === "boolean") {
-        cmd.nameOnly = this.options.nameOnly;
-      }
-      if (this.options.filter) {
-        cmd.filter = this.options.filter;
-      }
-      if (typeof this.options.authorizedDatabases === "boolean") {
-        cmd.authorizedDatabases = this.options.authorizedDatabases;
-      }
-      if ((0, utils_1.maxWireVersion)(server) >= 9 && this.options.comment !== undefined) {
-        cmd.comment = this.options.comment;
-      }
-      return await super.executeCommand(server, session, cmd, timeoutContext);
-    }
-  }
-  exports.ListDatabasesOperation = ListDatabasesOperation;
-  (0, operation_1.defineAspects)(ListDatabasesOperation, [operation_1.Aspect.READ_OPERATION, operation_1.Aspect.RETRYABLE]);
-});
-
-// node_modules/mongodb/lib/operations/remove_user.js
-var require_remove_user = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.RemoveUserOperation = undefined;
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class RemoveUserOperation extends command_1.CommandOperation {
-    constructor(db, username, options) {
-      super(db, options);
-      this.options = options;
-      this.username = username;
-    }
-    get commandName() {
-      return "dropUser";
-    }
-    async execute(server, session, timeoutContext) {
-      await super.executeCommand(server, session, { dropUser: this.username }, timeoutContext);
-      return true;
-    }
-  }
-  exports.RemoveUserOperation = RemoveUserOperation;
-  (0, operation_1.defineAspects)(RemoveUserOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/run_command.js
-var require_run_command = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.RunAdminCommandOperation = exports.RunCommandOperation = undefined;
-  var utils_1 = require_utils();
-  var operation_1 = require_operation();
-
-  class RunCommandOperation extends operation_1.AbstractOperation {
-    constructor(parent, command, options) {
-      super(options);
-      this.command = command;
-      this.options = options;
-      this.ns = parent.s.namespace.withCollection("$cmd");
-    }
-    get commandName() {
-      return "runCommand";
-    }
-    async execute(server, session, timeoutContext) {
-      this.server = server;
-      const res = await server.command(this.ns, this.command, {
-        ...this.options,
-        readPreference: this.readPreference,
-        session,
-        timeoutContext
-      }, this.options.responseType);
-      return res;
-    }
-  }
-  exports.RunCommandOperation = RunCommandOperation;
-
-  class RunAdminCommandOperation extends operation_1.AbstractOperation {
-    constructor(command, options) {
-      super(options);
-      this.command = command;
-      this.options = options;
-      this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
-    }
-    get commandName() {
-      return "runCommand";
-    }
-    async execute(server, session, timeoutContext) {
-      this.server = server;
-      const res = await server.command(this.ns, this.command, {
-        ...this.options,
-        readPreference: this.readPreference,
-        session,
-        timeoutContext
-      });
-      return res;
-    }
-  }
-  exports.RunAdminCommandOperation = RunAdminCommandOperation;
-});
-
-// node_modules/mongodb/lib/operations/validate_collection.js
-var require_validate_collection = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ValidateCollectionOperation = undefined;
-  var error_1 = require_error();
-  var command_1 = require_command();
-
-  class ValidateCollectionOperation extends command_1.CommandOperation {
-    constructor(admin, collectionName, options) {
-      const command = { validate: collectionName };
-      const keys = Object.keys(options);
-      for (let i = 0;i < keys.length; i++) {
-        if (Object.prototype.hasOwnProperty.call(options, keys[i]) && keys[i] !== "session") {
-          command[keys[i]] = options[keys[i]];
-        }
-      }
-      super(admin.s.db, options);
-      this.options = options;
-      this.command = command;
-      this.collectionName = collectionName;
-    }
-    get commandName() {
-      return "validate";
-    }
-    async execute(server, session, timeoutContext) {
-      const collectionName = this.collectionName;
-      const doc = await super.executeCommand(server, session, this.command, timeoutContext);
-      if (doc.result != null && typeof doc.result !== "string")
-        throw new error_1.MongoUnexpectedServerResponseError("Error with validation data");
-      if (doc.result != null && doc.result.match(/exception|corrupt/) != null)
-        throw new error_1.MongoUnexpectedServerResponseError(`Invalid collection ${collectionName}`);
-      if (doc.valid != null && !doc.valid)
-        throw new error_1.MongoUnexpectedServerResponseError(`Invalid collection ${collectionName}`);
-      return doc;
-    }
-  }
-  exports.ValidateCollectionOperation = ValidateCollectionOperation;
-});
-
-// node_modules/mongodb/lib/admin.js
-var require_admin = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.Admin = undefined;
-  var bson_1 = require_bson2();
-  var execute_operation_1 = require_execute_operation();
-  var list_databases_1 = require_list_databases();
-  var remove_user_1 = require_remove_user();
-  var run_command_1 = require_run_command();
-  var validate_collection_1 = require_validate_collection();
-
-  class Admin {
-    constructor(db) {
-      this.s = { db };
-    }
-    async command(command, options) {
-      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new run_command_1.RunAdminCommandOperation(command, {
-        ...(0, bson_1.resolveBSONOptions)(options),
-        session: options?.session,
-        readPreference: options?.readPreference,
-        timeoutMS: options?.timeoutMS ?? this.s.db.timeoutMS
-      }));
-    }
-    async buildInfo(options) {
-      return await this.command({ buildinfo: 1 }, options);
-    }
-    async serverInfo(options) {
-      return await this.command({ buildinfo: 1 }, options);
-    }
-    async serverStatus(options) {
-      return await this.command({ serverStatus: 1 }, options);
-    }
-    async ping(options) {
-      return await this.command({ ping: 1 }, options);
-    }
-    async removeUser(username, options) {
-      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new remove_user_1.RemoveUserOperation(this.s.db, username, { dbName: "admin", ...options }));
-    }
-    async validateCollection(collectionName, options = {}) {
-      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new validate_collection_1.ValidateCollectionOperation(this, collectionName, options));
-    }
-    async listDatabases(options) {
-      return await (0, execute_operation_1.executeOperation)(this.s.db.client, new list_databases_1.ListDatabasesOperation(this.s.db, { timeoutMS: this.s.db.timeoutMS, ...options }));
-    }
-    async replSetGetStatus(options) {
-      return await this.command({ replSetGetStatus: 1 }, options);
-    }
-  }
-  exports.Admin = Admin;
-});
-
-// node_modules/mongodb/lib/operations/list_collections.js
-var require_list_collections = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListCollectionsOperation = undefined;
-  var responses_1 = require_responses();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class ListCollectionsOperation extends command_1.CommandOperation {
-    constructor(db, filter, options) {
-      super(db, options);
-      this.options = { ...options };
-      delete this.options.writeConcern;
-      this.db = db;
-      this.filter = filter;
-      this.nameOnly = !!this.options.nameOnly;
-      this.authorizedCollections = !!this.options.authorizedCollections;
-      if (typeof this.options.batchSize === "number") {
-        this.batchSize = this.options.batchSize;
-      }
-    }
-    get commandName() {
-      return "listCollections";
-    }
-    async execute(server, session, timeoutContext) {
-      return await super.executeCommand(server, session, this.generateCommand((0, utils_1.maxWireVersion)(server)), timeoutContext, responses_1.CursorResponse);
-    }
-    generateCommand(wireVersion) {
-      const command = {
-        listCollections: 1,
-        filter: this.filter,
-        cursor: this.batchSize ? { batchSize: this.batchSize } : {},
-        nameOnly: this.nameOnly,
-        authorizedCollections: this.authorizedCollections
-      };
-      if (wireVersion >= 9 && this.options.comment !== undefined) {
-        command.comment = this.options.comment;
-      }
-      return command;
-    }
-  }
-  exports.ListCollectionsOperation = ListCollectionsOperation;
-  (0, operation_1.defineAspects)(ListCollectionsOperation, [
-    operation_1.Aspect.READ_OPERATION,
-    operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.CURSOR_CREATING
-  ]);
-});
-
-// node_modules/mongodb/lib/cursor/list_collections_cursor.js
-var require_list_collections_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ListCollectionsCursor = undefined;
-  var execute_operation_1 = require_execute_operation();
-  var list_collections_1 = require_list_collections();
-  var abstract_cursor_1 = require_abstract_cursor();
-
-  class ListCollectionsCursor extends abstract_cursor_1.AbstractCursor {
-    constructor(db, filter, options) {
-      super(db.client, db.s.namespace, options);
-      this.parent = db;
-      this.filter = filter;
-      this.options = options;
-    }
-    clone() {
-      return new ListCollectionsCursor(this.parent, this.filter, {
-        ...this.options,
-        ...this.cursorOptions
-      });
-    }
-    async _initialize(session) {
-      const operation = new list_collections_1.ListCollectionsOperation(this.parent, this.filter, {
-        ...this.cursorOptions,
-        ...this.options,
-        session,
-        signal: this.signal
-      });
-      const response = await (0, execute_operation_1.executeOperation)(this.parent.client, operation, this.timeoutContext);
-      return { server: operation.server, session, response };
-    }
-  }
-  exports.ListCollectionsCursor = ListCollectionsCursor;
-});
-
-// node_modules/mongodb/lib/cursor/run_command_cursor.js
-var require_run_command_cursor = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.RunCommandCursor = undefined;
-  var responses_1 = require_responses();
-  var error_1 = require_error();
-  var execute_operation_1 = require_execute_operation();
-  var get_more_1 = require_get_more();
-  var run_command_1 = require_run_command();
-  var utils_1 = require_utils();
-  var abstract_cursor_1 = require_abstract_cursor();
-
-  class RunCommandCursor extends abstract_cursor_1.AbstractCursor {
-    setComment(comment) {
-      this.getMoreOptions.comment = comment;
-      return this;
-    }
-    setMaxTimeMS(maxTimeMS) {
-      this.getMoreOptions.maxAwaitTimeMS = maxTimeMS;
-      return this;
-    }
-    setBatchSize(batchSize) {
-      this.getMoreOptions.batchSize = batchSize;
-      return this;
-    }
-    clone() {
-      throw new error_1.MongoAPIError("Clone not supported, create a new cursor with db.runCursorCommand");
-    }
-    withReadConcern(_) {
-      throw new error_1.MongoAPIError("RunCommandCursor does not support readConcern it must be attached to the command being run");
-    }
-    addCursorFlag(_, __) {
-      throw new error_1.MongoAPIError("RunCommandCursor does not support cursor flags, they must be attached to the command being run");
-    }
-    maxTimeMS(_) {
-      throw new error_1.MongoAPIError("maxTimeMS must be configured on the command document directly, to configure getMore.maxTimeMS use cursor.setMaxTimeMS()");
-    }
-    batchSize(_) {
-      throw new error_1.MongoAPIError("batchSize must be configured on the command document directly, to configure getMore.batchSize use cursor.setBatchSize()");
-    }
-    constructor(db, command, options = {}) {
-      super(db.client, (0, utils_1.ns)(db.namespace), options);
-      this.getMoreOptions = {};
-      this.db = db;
-      this.command = Object.freeze({ ...command });
-    }
-    async _initialize(session) {
-      const operation = new run_command_1.RunCommandOperation(this.db, this.command, {
-        ...this.cursorOptions,
-        session,
-        readPreference: this.cursorOptions.readPreference,
-        responseType: responses_1.CursorResponse
-      });
-      const response = await (0, execute_operation_1.executeOperation)(this.client, operation, this.timeoutContext);
-      return {
-        server: operation.server,
-        session,
-        response
-      };
-    }
-    async getMore(_batchSize) {
-      if (!this.session) {
-        throw new error_1.MongoRuntimeError("Unexpected null session. A cursor creating command should have set this");
-      }
-      const getMoreOperation = new get_more_1.GetMoreOperation(this.namespace, this.id, this.server, {
-        ...this.cursorOptions,
-        session: this.session,
-        ...this.getMoreOptions
-      });
-      return await (0, execute_operation_1.executeOperation)(this.client, getMoreOperation, this.timeoutContext);
-    }
-  }
-  exports.RunCommandCursor = RunCommandCursor;
-});
-
-// node_modules/mongodb/lib/operations/collections.js
-var require_collections = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.CollectionsOperation = undefined;
-  var collection_1 = require_collection();
-  var operation_1 = require_operation();
-
-  class CollectionsOperation extends operation_1.AbstractOperation {
-    constructor(db, options) {
-      super(options);
-      this.options = options;
-      this.db = db;
-    }
-    get commandName() {
-      return "listCollections";
-    }
-    async execute(server, session) {
-      const documents = await this.db.listCollections({}, { ...this.options, nameOnly: true, readPreference: this.readPreference, session }).toArray();
-      const collections = [];
-      for (const { name } of documents) {
-        if (!name.includes("$")) {
-          collections.push(new collection_1.Collection(this.db, name, this.db.s.options));
-        }
-      }
-      return collections;
-    }
-  }
-  exports.CollectionsOperation = CollectionsOperation;
-});
-
-// node_modules/mongodb/lib/operations/create_collection.js
-var require_create_collection = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.CreateCollectionOperation = undefined;
-  var constants_1 = require_constants2();
-  var collection_1 = require_collection();
-  var error_1 = require_error();
-  var command_1 = require_command();
-  var indexes_1 = require_indexes();
-  var operation_1 = require_operation();
-  var ILLEGAL_COMMAND_FIELDS = new Set([
-    "w",
-    "wtimeout",
-    "timeoutMS",
-    "j",
-    "fsync",
-    "autoIndexId",
-    "pkFactory",
-    "raw",
-    "readPreference",
-    "session",
-    "readConcern",
-    "writeConcern",
-    "raw",
-    "fieldsAsRaw",
-    "useBigInt64",
-    "promoteLongs",
-    "promoteValues",
-    "promoteBuffers",
-    "bsonRegExp",
-    "serializeFunctions",
-    "ignoreUndefined",
-    "enableUtf8Validation"
-  ]);
-  var INVALID_QE_VERSION = "Driver support of Queryable Encryption is incompatible with server. Upgrade server to use Queryable Encryption.";
-
-  class CreateCollectionOperation extends command_1.CommandOperation {
-    constructor(db, name, options = {}) {
-      super(db, options);
-      this.options = options;
-      this.db = db;
-      this.name = name;
-    }
-    get commandName() {
-      return "create";
-    }
-    async execute(server, session, timeoutContext) {
-      const db = this.db;
-      const name = this.name;
-      const options = this.options;
-      const encryptedFields = options.encryptedFields ?? db.client.s.options.autoEncryption?.encryptedFieldsMap?.[`${db.databaseName}.${name}`];
-      if (encryptedFields) {
-        if (!server.loadBalanced && server.description.maxWireVersion < constants_1.MIN_SUPPORTED_QE_WIRE_VERSION) {
-          throw new error_1.MongoCompatibilityError(`${INVALID_QE_VERSION} The minimum server version required is ${constants_1.MIN_SUPPORTED_QE_SERVER_VERSION}`);
-        }
-        const escCollection = encryptedFields.escCollection ?? `enxcol_.${name}.esc`;
-        const ecocCollection = encryptedFields.ecocCollection ?? `enxcol_.${name}.ecoc`;
-        for (const collectionName of [escCollection, ecocCollection]) {
-          const createOp = new CreateCollectionOperation(db, collectionName, {
-            clusteredIndex: {
-              key: { _id: 1 },
-              unique: true
-            }
-          });
-          await createOp.executeWithoutEncryptedFieldsCheck(server, session, timeoutContext);
-        }
-        if (!options.encryptedFields) {
-          this.options = { ...this.options, encryptedFields };
-        }
-      }
-      const coll = await this.executeWithoutEncryptedFieldsCheck(server, session, timeoutContext);
-      if (encryptedFields) {
-        const createIndexOp = indexes_1.CreateIndexesOperation.fromIndexSpecification(db, name, { __safeContent__: 1 }, {});
-        await createIndexOp.execute(server, session, timeoutContext);
-      }
-      return coll;
-    }
-    async executeWithoutEncryptedFieldsCheck(server, session, timeoutContext) {
-      const db = this.db;
-      const name = this.name;
-      const options = this.options;
-      const cmd = { create: name };
-      for (const n in options) {
-        if (options[n] != null && typeof options[n] !== "function" && !ILLEGAL_COMMAND_FIELDS.has(n)) {
-          cmd[n] = options[n];
-        }
-      }
-      await super.executeCommand(server, session, cmd, timeoutContext);
-      return new collection_1.Collection(db, name, options);
-    }
-  }
-  exports.CreateCollectionOperation = CreateCollectionOperation;
-  (0, operation_1.defineAspects)(CreateCollectionOperation, [operation_1.Aspect.WRITE_OPERATION]);
-});
-
-// node_modules/mongodb/lib/operations/profiling_level.js
-var require_profiling_level = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ProfilingLevelOperation = undefined;
-  var error_1 = require_error();
-  var command_1 = require_command();
-
-  class ProfilingLevelOperation extends command_1.CommandOperation {
-    constructor(db, options) {
-      super(db, options);
-      this.options = options;
-    }
-    get commandName() {
-      return "profile";
-    }
-    async execute(server, session, timeoutContext) {
-      const doc = await super.executeCommand(server, session, { profile: -1 }, timeoutContext);
-      if (doc.ok === 1) {
-        const was = doc.was;
-        if (was === 0)
-          return "off";
-        if (was === 1)
-          return "slow_only";
-        if (was === 2)
-          return "all";
-        throw new error_1.MongoUnexpectedServerResponseError(`Illegal profiling level value ${was}`);
-      } else {
-        throw new error_1.MongoUnexpectedServerResponseError("Error with profile command");
-      }
-    }
-  }
-  exports.ProfilingLevelOperation = ProfilingLevelOperation;
-});
-
-// node_modules/mongodb/lib/operations/set_profiling_level.js
-var require_set_profiling_level = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.SetProfilingLevelOperation = exports.ProfilingLevel = undefined;
-  var error_1 = require_error();
-  var utils_1 = require_utils();
-  var command_1 = require_command();
-  var levelValues = new Set(["off", "slow_only", "all"]);
-  exports.ProfilingLevel = Object.freeze({
-    off: "off",
-    slowOnly: "slow_only",
-    all: "all"
-  });
-
-  class SetProfilingLevelOperation extends command_1.CommandOperation {
-    constructor(db, level, options) {
-      super(db, options);
-      this.options = options;
-      switch (level) {
-        case exports.ProfilingLevel.off:
-          this.profile = 0;
-          break;
-        case exports.ProfilingLevel.slowOnly:
-          this.profile = 1;
-          break;
-        case exports.ProfilingLevel.all:
-          this.profile = 2;
-          break;
-        default:
-          this.profile = 0;
-          break;
-      }
-      this.level = level;
-    }
-    get commandName() {
-      return "profile";
-    }
-    async execute(server, session, timeoutContext) {
-      const level = this.level;
-      if (!levelValues.has(level)) {
-        throw new error_1.MongoInvalidArgumentError(`Profiling level must be one of "${(0, utils_1.enumToString)(exports.ProfilingLevel)}"`);
-      }
-      await super.executeCommand(server, session, { profile: this.profile }, timeoutContext);
-      return level;
-    }
-  }
-  exports.SetProfilingLevelOperation = SetProfilingLevelOperation;
-});
-
-// node_modules/mongodb/lib/operations/stats.js
-var require_stats = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.DbStatsOperation = undefined;
-  var command_1 = require_command();
-  var operation_1 = require_operation();
-
-  class DbStatsOperation extends command_1.CommandOperation {
-    constructor(db, options) {
-      super(db, options);
-      this.options = options;
-    }
-    get commandName() {
-      return "dbStats";
-    }
-    async execute(server, session, timeoutContext) {
-      const command = { dbStats: true };
-      if (this.options.scale != null) {
-        command.scale = this.options.scale;
-      }
-      return await super.executeCommand(server, session, command, timeoutContext);
-    }
-  }
-  exports.DbStatsOperation = DbStatsOperation;
-  (0, operation_1.defineAspects)(DbStatsOperation, [operation_1.Aspect.READ_OPERATION]);
-});
-
-// node_modules/mongodb/lib/db.js
-var require_db = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.Db = undefined;
-  var admin_1 = require_admin();
-  var bson_1 = require_bson2();
-  var change_stream_1 = require_change_stream();
-  var collection_1 = require_collection();
-  var CONSTANTS = require_constants();
-  var aggregation_cursor_1 = require_aggregation_cursor();
-  var list_collections_cursor_1 = require_list_collections_cursor();
-  var run_command_cursor_1 = require_run_command_cursor();
-  var error_1 = require_error();
-  var collections_1 = require_collections();
-  var create_collection_1 = require_create_collection();
-  var drop_1 = require_drop();
-  var execute_operation_1 = require_execute_operation();
-  var indexes_1 = require_indexes();
-  var profiling_level_1 = require_profiling_level();
-  var remove_user_1 = require_remove_user();
-  var rename_1 = require_rename();
-  var run_command_1 = require_run_command();
-  var set_profiling_level_1 = require_set_profiling_level();
-  var stats_1 = require_stats();
-  var read_concern_1 = require_read_concern();
-  var read_preference_1 = require_read_preference();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  var DB_OPTIONS_ALLOW_LIST = [
-    "writeConcern",
-    "readPreference",
-    "readPreferenceTags",
-    "native_parser",
-    "forceServerObjectId",
-    "pkFactory",
-    "serializeFunctions",
-    "raw",
-    "authSource",
-    "ignoreUndefined",
-    "readConcern",
-    "retryMiliSeconds",
-    "numberOfRetries",
-    "useBigInt64",
-    "promoteBuffers",
-    "promoteLongs",
-    "bsonRegExp",
-    "enableUtf8Validation",
-    "promoteValues",
-    "compression",
-    "retryWrites",
-    "timeoutMS"
-  ];
-
-  class Db {
-    constructor(client, databaseName, options) {
-      options = options ?? {};
-      options = (0, utils_1.filterOptions)(options, DB_OPTIONS_ALLOW_LIST);
-      if (typeof databaseName === "string" && databaseName.includes(".")) {
-        throw new error_1.MongoInvalidArgumentError(`Database names cannot contain the character '.'`);
-      }
-      this.s = {
-        options,
-        readPreference: read_preference_1.ReadPreference.fromOptions(options),
-        bsonOptions: (0, bson_1.resolveBSONOptions)(options, client),
-        pkFactory: options?.pkFactory ?? utils_1.DEFAULT_PK_FACTORY,
-        readConcern: read_concern_1.ReadConcern.fromOptions(options),
-        writeConcern: write_concern_1.WriteConcern.fromOptions(options),
-        namespace: new utils_1.MongoDBNamespace(databaseName)
-      };
-      this.client = client;
-    }
-    get databaseName() {
-      return this.s.namespace.db;
-    }
-    get options() {
-      return this.s.options;
-    }
-    get secondaryOk() {
-      return this.s.readPreference?.preference !== "primary" || false;
-    }
-    get readConcern() {
-      return this.s.readConcern;
-    }
-    get readPreference() {
-      if (this.s.readPreference == null) {
-        return this.client.readPreference;
-      }
-      return this.s.readPreference;
-    }
-    get bsonOptions() {
-      return this.s.bsonOptions;
-    }
-    get writeConcern() {
-      return this.s.writeConcern;
-    }
-    get namespace() {
-      return this.s.namespace.toString();
-    }
-    get timeoutMS() {
-      return this.s.options?.timeoutMS;
-    }
-    async createCollection(name, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new create_collection_1.CreateCollectionOperation(this, name, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async command(command, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new run_command_1.RunCommandOperation(this, command, (0, utils_1.resolveOptions)(undefined, {
-        ...(0, bson_1.resolveBSONOptions)(options),
-        timeoutMS: options?.timeoutMS ?? this.timeoutMS,
-        session: options?.session,
-        readPreference: options?.readPreference,
-        signal: options?.signal
-      })));
-    }
-    aggregate(pipeline = [], options) {
-      return new aggregation_cursor_1.AggregationCursor(this.client, this.s.namespace, pipeline, (0, utils_1.resolveOptions)(this, options));
-    }
-    admin() {
-      return new admin_1.Admin(this);
-    }
-    collection(name, options = {}) {
-      if (typeof options === "function") {
-        throw new error_1.MongoInvalidArgumentError("The callback form of this helper has been removed.");
-      }
-      return new collection_1.Collection(this, name, (0, utils_1.resolveOptions)(this, options));
-    }
-    async stats(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new stats_1.DbStatsOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    listCollections(filter = {}, options = {}) {
-      return new list_collections_cursor_1.ListCollectionsCursor(this, filter, (0, utils_1.resolveOptions)(this, options));
-    }
-    async renameCollection(fromCollection, toCollection, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new rename_1.RenameOperation(this.collection(fromCollection), toCollection, (0, utils_1.resolveOptions)(undefined, {
-        ...options,
-        new_collection: true,
-        readPreference: read_preference_1.ReadPreference.primary
-      })));
-    }
-    async dropCollection(name, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new drop_1.DropCollectionOperation(this, name, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async dropDatabase(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new drop_1.DropDatabaseOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async collections(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new collections_1.CollectionsOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async createIndex(name, indexSpec, options) {
-      const indexes = await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexSpecification(this, name, indexSpec, options));
-      return indexes[0];
-    }
-    async removeUser(username, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new remove_user_1.RemoveUserOperation(this, username, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async setProfilingLevel(level, options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new set_profiling_level_1.SetProfilingLevelOperation(this, level, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async profilingLevel(options) {
-      return await (0, execute_operation_1.executeOperation)(this.client, new profiling_level_1.ProfilingLevelOperation(this, (0, utils_1.resolveOptions)(this, options)));
-    }
-    async indexInformation(name, options) {
-      return await this.collection(name).indexInformation((0, utils_1.resolveOptions)(this, options));
-    }
-    watch(pipeline = [], options = {}) {
-      if (!Array.isArray(pipeline)) {
-        options = pipeline;
-        pipeline = [];
-      }
-      return new change_stream_1.ChangeStream(this, pipeline, (0, utils_1.resolveOptions)(this, options));
-    }
-    runCursorCommand(command, options) {
-      return new run_command_cursor_1.RunCommandCursor(this, command, options);
-    }
-  }
-  exports.Db = Db;
-  Db.SYSTEM_NAMESPACE_COLLECTION = CONSTANTS.SYSTEM_NAMESPACE_COLLECTION;
-  Db.SYSTEM_INDEX_COLLECTION = CONSTANTS.SYSTEM_INDEX_COLLECTION;
-  Db.SYSTEM_PROFILE_COLLECTION = CONSTANTS.SYSTEM_PROFILE_COLLECTION;
-  Db.SYSTEM_USER_COLLECTION = CONSTANTS.SYSTEM_USER_COLLECTION;
-  Db.SYSTEM_COMMAND_COLLECTION = CONSTANTS.SYSTEM_COMMAND_COLLECTION;
-  Db.SYSTEM_JS_COLLECTION = CONSTANTS.SYSTEM_JS_COLLECTION;
-});
-
-// node_modules/mongodb/lib/change_stream.js
-var require_change_stream = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ChangeStream = undefined;
-  var collection_1 = require_collection();
-  var constants_1 = require_constants();
-  var abstract_cursor_1 = require_abstract_cursor();
-  var change_stream_cursor_1 = require_change_stream_cursor();
-  var db_1 = require_db();
-  var error_1 = require_error();
-  var mongo_client_1 = require_mongo_client();
-  var mongo_types_1 = require_mongo_types();
-  var resource_management_1 = require_resource_management();
-  var timeout_1 = require_timeout();
-  var utils_1 = require_utils();
-  var CHANGE_STREAM_OPTIONS = [
-    "resumeAfter",
-    "startAfter",
-    "startAtOperationTime",
-    "fullDocument",
-    "fullDocumentBeforeChange",
-    "showExpandedEvents"
-  ];
-  var CHANGE_DOMAIN_TYPES = {
-    COLLECTION: Symbol("Collection"),
-    DATABASE: Symbol("Database"),
-    CLUSTER: Symbol("Cluster")
-  };
-  var CHANGE_STREAM_EVENTS = [constants_1.RESUME_TOKEN_CHANGED, constants_1.END, constants_1.CLOSE];
-  var NO_RESUME_TOKEN_ERROR = "A change stream document has been received that lacks a resume token (_id).";
-  var CHANGESTREAM_CLOSED_ERROR = "ChangeStream is closed";
-
-  class ChangeStream extends mongo_types_1.TypedEventEmitter {
-    async asyncDispose() {
-      await this.close();
-    }
-    constructor(parent, pipeline = [], options = {}) {
-      super();
-      this.pipeline = pipeline;
-      this.options = { ...options };
-      let serverSelectionTimeoutMS;
-      delete this.options.writeConcern;
-      if (parent instanceof collection_1.Collection) {
-        this.type = CHANGE_DOMAIN_TYPES.COLLECTION;
-        serverSelectionTimeoutMS = parent.s.db.client.options.serverSelectionTimeoutMS;
-      } else if (parent instanceof db_1.Db) {
-        this.type = CHANGE_DOMAIN_TYPES.DATABASE;
-        serverSelectionTimeoutMS = parent.client.options.serverSelectionTimeoutMS;
-      } else if (parent instanceof mongo_client_1.MongoClient) {
-        this.type = CHANGE_DOMAIN_TYPES.CLUSTER;
-        serverSelectionTimeoutMS = parent.options.serverSelectionTimeoutMS;
-      } else {
-        throw new error_1.MongoChangeStreamError("Parent provided to ChangeStream constructor must be an instance of Collection, Db, or MongoClient");
-      }
-      this.contextOwner = Symbol();
-      this.parent = parent;
-      this.namespace = parent.s.namespace;
-      if (!this.options.readPreference && parent.readPreference) {
-        this.options.readPreference = parent.readPreference;
-      }
-      this.cursor = this._createChangeStreamCursor(options);
-      this.isClosed = false;
-      this.mode = false;
-      this.on("newListener", (eventName) => {
-        if (eventName === "change" && this.cursor && this.listenerCount("change") === 0) {
-          this._streamEvents(this.cursor);
-        }
-      });
-      this.on("removeListener", (eventName) => {
-        if (eventName === "change" && this.listenerCount("change") === 0 && this.cursor) {
-          this.cursorStream?.removeAllListeners("data");
-        }
-      });
-      if (this.options.timeoutMS != null) {
-        this.timeoutContext = new timeout_1.CSOTTimeoutContext({
-          timeoutMS: this.options.timeoutMS,
-          serverSelectionTimeoutMS
-        });
-      }
-    }
-    get resumeToken() {
-      return this.cursor?.resumeToken;
-    }
-    async hasNext() {
-      this._setIsIterator();
-      this.timeoutContext?.refresh();
-      try {
-        while (true) {
-          try {
-            const hasNext = await this.cursor.hasNext();
-            return hasNext;
-          } catch (error) {
-            try {
-              await this._processErrorIteratorMode(error, this.cursor.id != null);
-            } catch (error2) {
-              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null) {
-                throw error2;
-              }
-              try {
-                await this.close();
-              } catch (error3) {
-                (0, utils_1.squashError)(error3);
-              }
-              throw error2;
-            }
-          }
-        }
-      } finally {
-        this.timeoutContext?.clear();
-      }
-    }
-    async next() {
-      this._setIsIterator();
-      this.timeoutContext?.refresh();
-      try {
-        while (true) {
-          try {
-            const change = await this.cursor.next();
-            const processedChange = this._processChange(change ?? null);
-            return processedChange;
-          } catch (error) {
-            try {
-              await this._processErrorIteratorMode(error, this.cursor.id != null);
-            } catch (error2) {
-              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null) {
-                throw error2;
-              }
-              try {
-                await this.close();
-              } catch (error3) {
-                (0, utils_1.squashError)(error3);
-              }
-              throw error2;
-            }
-          }
-        }
-      } finally {
-        this.timeoutContext?.clear();
-      }
-    }
-    async tryNext() {
-      this._setIsIterator();
-      this.timeoutContext?.refresh();
-      try {
-        while (true) {
-          try {
-            const change = await this.cursor.tryNext();
-            return change ?? null;
-          } catch (error) {
-            try {
-              await this._processErrorIteratorMode(error, this.cursor.id != null);
-            } catch (error2) {
-              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null)
-                throw error2;
-              try {
-                await this.close();
-              } catch (error3) {
-                (0, utils_1.squashError)(error3);
-              }
-              throw error2;
-            }
-          }
-        }
-      } finally {
-        this.timeoutContext?.clear();
-      }
-    }
-    async* [Symbol.asyncIterator]() {
-      if (this.closed) {
-        return;
-      }
-      try {
-        while (true) {
-          yield await this.next();
-        }
-      } finally {
-        try {
-          await this.close();
-        } catch (error) {
-          (0, utils_1.squashError)(error);
-        }
-      }
-    }
-    get closed() {
-      return this.isClosed || this.cursor.closed;
-    }
-    async close() {
-      this.timeoutContext?.clear();
-      this.timeoutContext = undefined;
-      this.isClosed = true;
-      const cursor = this.cursor;
-      try {
-        await cursor.close();
-      } finally {
-        this._endStream();
-      }
-    }
-    stream(options) {
-      if (this.closed) {
-        throw new error_1.MongoChangeStreamError(CHANGESTREAM_CLOSED_ERROR);
-      }
-      this.streamOptions = options;
-      return this.cursor.stream(options);
-    }
-    _setIsEmitter() {
-      if (this.mode === "iterator") {
-        throw new error_1.MongoAPIError("ChangeStream cannot be used as an EventEmitter after being used as an iterator");
-      }
-      this.mode = "emitter";
-    }
-    _setIsIterator() {
-      if (this.mode === "emitter") {
-        throw new error_1.MongoAPIError("ChangeStream cannot be used as an iterator after being used as an EventEmitter");
-      }
-      this.mode = "iterator";
-    }
-    _createChangeStreamCursor(options) {
-      const changeStreamStageOptions = (0, utils_1.filterOptions)(options, CHANGE_STREAM_OPTIONS);
-      if (this.type === CHANGE_DOMAIN_TYPES.CLUSTER) {
-        changeStreamStageOptions.allChangesForCluster = true;
-      }
-      const pipeline = [{ $changeStream: changeStreamStageOptions }, ...this.pipeline];
-      const client = this.type === CHANGE_DOMAIN_TYPES.CLUSTER ? this.parent : this.type === CHANGE_DOMAIN_TYPES.DATABASE ? this.parent.client : this.type === CHANGE_DOMAIN_TYPES.COLLECTION ? this.parent.client : null;
-      if (client == null) {
-        throw new error_1.MongoRuntimeError(`Changestream type should only be one of cluster, database, collection. Found ${this.type.toString()}`);
-      }
-      const changeStreamCursor = new change_stream_cursor_1.ChangeStreamCursor(client, this.namespace, pipeline, {
-        ...options,
-        timeoutContext: this.timeoutContext ? new abstract_cursor_1.CursorTimeoutContext(this.timeoutContext, this.contextOwner) : undefined
-      });
-      for (const event of CHANGE_STREAM_EVENTS) {
-        changeStreamCursor.on(event, (e) => this.emit(event, e));
-      }
-      if (this.listenerCount(ChangeStream.CHANGE) > 0) {
-        this._streamEvents(changeStreamCursor);
-      }
-      return changeStreamCursor;
-    }
-    _closeEmitterModeWithError(error) {
-      this.emit(ChangeStream.ERROR, error);
-      this.close().then(undefined, utils_1.squashError);
-    }
-    _streamEvents(cursor) {
-      this._setIsEmitter();
-      const stream = this.cursorStream ?? cursor.stream();
-      this.cursorStream = stream;
-      stream.on("data", (change) => {
-        try {
-          const processedChange = this._processChange(change);
-          this.emit(ChangeStream.CHANGE, processedChange);
-        } catch (error) {
-          this.emit(ChangeStream.ERROR, error);
-        }
-        this.timeoutContext?.refresh();
-      });
-      stream.on("error", (error) => this._processErrorStreamMode(error, this.cursor.id != null));
-    }
-    _endStream() {
-      this.cursorStream?.removeAllListeners("data");
-      this.cursorStream?.removeAllListeners("close");
-      this.cursorStream?.removeAllListeners("end");
-      this.cursorStream?.destroy();
-      this.cursorStream = undefined;
-    }
-    _processChange(change) {
-      if (this.isClosed) {
-        throw new error_1.MongoAPIError(CHANGESTREAM_CLOSED_ERROR);
-      }
-      if (change == null) {
-        throw new error_1.MongoRuntimeError(CHANGESTREAM_CLOSED_ERROR);
-      }
-      if (change && !change._id) {
-        throw new error_1.MongoChangeStreamError(NO_RESUME_TOKEN_ERROR);
-      }
-      this.cursor.cacheResumeToken(change._id);
-      this.options.startAtOperationTime = undefined;
-      return change;
-    }
-    _processErrorStreamMode(changeStreamError, cursorInitialized) {
-      if (this.isClosed)
-        return;
-      if (cursorInitialized && ((0, error_1.isResumableError)(changeStreamError, this.cursor.maxWireVersion) || changeStreamError instanceof error_1.MongoOperationTimeoutError)) {
-        this._endStream();
-        this.cursor.close().then(() => this._resume(changeStreamError), (e) => {
-          (0, utils_1.squashError)(e);
-          return this._resume(changeStreamError);
-        }).then(() => {
-          if (changeStreamError instanceof error_1.MongoOperationTimeoutError)
-            this.emit(ChangeStream.ERROR, changeStreamError);
-        }, () => this._closeEmitterModeWithError(changeStreamError));
-      } else {
-        this._closeEmitterModeWithError(changeStreamError);
-      }
-    }
-    async _processErrorIteratorMode(changeStreamError, cursorInitialized) {
-      if (this.isClosed) {
-        throw new error_1.MongoAPIError(CHANGESTREAM_CLOSED_ERROR);
-      }
-      if (cursorInitialized && ((0, error_1.isResumableError)(changeStreamError, this.cursor.maxWireVersion) || changeStreamError instanceof error_1.MongoOperationTimeoutError)) {
-        try {
-          await this.cursor.close();
-        } catch (error) {
-          (0, utils_1.squashError)(error);
-        }
-        await this._resume(changeStreamError);
-        if (changeStreamError instanceof error_1.MongoOperationTimeoutError)
-          throw changeStreamError;
-      } else {
-        try {
-          await this.close();
-        } catch (error) {
-          (0, utils_1.squashError)(error);
-        }
-        throw changeStreamError;
-      }
-    }
-    async _resume(changeStreamError) {
-      this.timeoutContext?.refresh();
-      const topology = (0, utils_1.getTopology)(this.parent);
-      try {
-        await topology.selectServer(this.cursor.readPreference, {
-          operationName: "reconnect topology in change stream",
-          timeoutContext: this.timeoutContext
-        });
-        this.cursor = this._createChangeStreamCursor(this.cursor.resumeOptions);
-      } catch {
-        await this.close();
-        throw changeStreamError;
-      }
-    }
-  }
-  exports.ChangeStream = ChangeStream;
-  ChangeStream.RESPONSE = constants_1.RESPONSE;
-  ChangeStream.MORE = constants_1.MORE;
-  ChangeStream.INIT = constants_1.INIT;
-  ChangeStream.CLOSE = constants_1.CLOSE;
-  ChangeStream.CHANGE = constants_1.CHANGE;
-  ChangeStream.END = constants_1.END;
-  ChangeStream.ERROR = constants_1.ERROR;
-  ChangeStream.RESUME_TOKEN_CHANGED = constants_1.RESUME_TOKEN_CHANGED;
-  (0, resource_management_1.configureResourceManagement)(ChangeStream.prototype);
 });
 
 // node_modules/mongodb/lib/deps.js
@@ -11931,7 +10442,7 @@ var require_mongo_credentials = __commonJS((exports) => {
 var require_package = __commonJS((exports, module) => {
   module.exports = {
     name: "mongodb",
-    version: "6.18.0",
+    version: "6.20.0",
     description: "The official MongoDB driver for Node.js",
     main: "lib/index.js",
     files: [
@@ -11956,9 +10467,9 @@ var require_package = __commonJS((exports, module) => {
       email: "dbx-node@mongodb.com"
     },
     dependencies: {
-      "@mongodb-js/saslprep": "^1.1.9",
+      "@mongodb-js/saslprep": "^1.3.0",
       bson: "^6.10.4",
-      "mongodb-connection-string-url": "^3.0.0"
+      "mongodb-connection-string-url": "^3.0.2"
     },
     peerDependencies: {
       "@aws-sdk/credential-providers": "^3.188.0",
@@ -11966,7 +10477,7 @@ var require_package = __commonJS((exports, module) => {
       "gcp-metadata": "^5.2.0",
       kerberos: "^2.0.1",
       "mongodb-client-encryption": ">=6.0.0 <7",
-      snappy: "^7.2.2",
+      snappy: "^7.3.2",
       socks: "^2.7.1"
     },
     peerDependenciesMeta: {
@@ -11993,15 +10504,15 @@ var require_package = __commonJS((exports, module) => {
       }
     },
     devDependencies: {
-      "@aws-sdk/credential-providers": "^3.632.0",
+      "@aws-sdk/credential-providers": "^3.876.0",
       "@iarna/toml": "^2.2.5",
       "@istanbuljs/nyc-config-typescript": "^1.0.2",
-      "@microsoft/api-extractor": "^7.52.5",
+      "@microsoft/api-extractor": "^7.52.11",
       "@microsoft/tsdoc-config": "^0.17.1",
       "@mongodb-js/zstd": "^2.0.1",
       "@types/chai": "^4.3.17",
       "@types/chai-subset": "^1.3.5",
-      "@types/express": "^5.0.1",
+      "@types/express": "^5.0.3",
       "@types/kerberos": "^1.1.5",
       "@types/mocha": "^10.0.9",
       "@types/node": "^22.15.3",
@@ -12010,39 +10521,39 @@ var require_package = __commonJS((exports, module) => {
       "@types/sinon": "^17.0.4",
       "@types/sinon-chai": "^4.0.0",
       "@types/whatwg-url": "^13.0.0",
-      "@typescript-eslint/eslint-plugin": "^8.31.1",
+      "@typescript-eslint/eslint-plugin": "^8.41.0",
       "@typescript-eslint/parser": "^8.31.1",
       chai: "^4.4.1",
       "chai-subset": "^1.6.0",
       chalk: "^4.1.2",
-      eslint: "^9.25.1",
-      "eslint-config-prettier": "^10.1.2",
+      eslint: "^9.34.0",
+      "eslint-config-prettier": "^10.1.8",
       "eslint-plugin-mocha": "^10.4.1",
-      "eslint-plugin-prettier": "^5.2.3",
+      "eslint-plugin-prettier": "^5.5.4",
       "eslint-plugin-simple-import-sort": "^12.1.1",
       "eslint-plugin-tsdoc": "^0.4.0",
-      "eslint-plugin-unused-imports": "^4.1.4",
+      "eslint-plugin-unused-imports": "^4.2.0",
       express: "^5.1.0",
       "gcp-metadata": "^5.3.0",
       "js-yaml": "^4.1.0",
-      mocha: "^10.8.2",
+      mocha: "^11.7.1",
       "mocha-sinon": "^2.1.2",
-      "mongodb-client-encryption": "^6.4.0",
+      "mongodb-client-encryption": "^6.5.0",
       "mongodb-legacy": "^6.1.3",
       nyc: "^15.1.0",
-      prettier: "^3.5.3",
-      semver: "^7.7.0",
+      prettier: "^3.6.2",
+      semver: "^7.7.2",
       sinon: "^18.0.1",
       "sinon-chai": "^3.7.0",
-      snappy: "^7.2.2",
-      socks: "^2.8.1",
+      snappy: "^7.3.2",
+      socks: "^2.8.7",
       "source-map-support": "^0.5.21",
       "ts-node": "^10.9.2",
-      tsd: "^0.32.0",
+      tsd: "^0.33.0",
       typescript: "5.8.3",
       "typescript-cached-transpile": "^0.0.6",
       "v8-heapsnapshot": "^1.3.1",
-      yargs: "^17.7.2"
+      yargs: "^18.0.0"
     },
     license: "Apache-2.0",
     engines: {
@@ -12113,6 +10624,7 @@ var require_package = __commonJS((exports, module) => {
 var require_client_metadata = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.LimitedSizeDocument = undefined;
+  exports.isDriverInfoEqual = isDriverInfoEqual;
   exports.makeClientMetadata = makeClientMetadata;
   exports.addContainerMetadata = addContainerMetadata;
   exports.getFAASEnv = getFAASEnv;
@@ -12122,6 +10634,14 @@ var require_client_metadata = __commonJS((exports) => {
   var error_1 = require_error();
   var utils_1 = require_utils();
   var NODE_DRIVER_VERSION = require_package().version;
+  function isDriverInfoEqual(info1, info2) {
+    const nonEmptyCmp = (s1, s2) => {
+      s1 ||= undefined;
+      s2 ||= undefined;
+      return s1 === s2;
+    };
+    return nonEmptyCmp(info1.name, info2.name) && nonEmptyCmp(info1.platform, info2.platform) && nonEmptyCmp(info1.version, info2.version);
+  }
 
   class LimitedSizeDocument {
     constructor(maxSize) {
@@ -12148,22 +10668,17 @@ var require_client_metadata = __commonJS((exports) => {
     }
   }
   exports.LimitedSizeDocument = LimitedSizeDocument;
-  function makeClientMetadata(options) {
+  function makeClientMetadata(driverInfoList, { appName = "" }) {
     const metadataDocument = new LimitedSizeDocument(512);
-    const { appName = "" } = options;
     if (appName.length > 0) {
-      const name2 = Buffer.byteLength(appName, "utf8") <= 128 ? options.appName : Buffer.from(appName, "utf8").subarray(0, 128).toString("utf8");
-      metadataDocument.ifItFitsItSits("application", { name: name2 });
+      const name = Buffer.byteLength(appName, "utf8") <= 128 ? appName : Buffer.from(appName, "utf8").subarray(0, 128).toString("utf8");
+      metadataDocument.ifItFitsItSits("application", { name });
     }
-    const { name = "", version = "", platform = "" } = options.driverInfo;
     const driverInfo = {
-      name: name.length > 0 ? `nodejs|${name}` : "nodejs",
-      version: version.length > 0 ? `${NODE_DRIVER_VERSION}|${version}` : NODE_DRIVER_VERSION
+      name: "nodejs",
+      version: NODE_DRIVER_VERSION
     };
-    if (options.additionalDriverInfo == null) {
-      throw new error_1.MongoRuntimeError("Client options `additionalDriverInfo` must always default to an empty array");
-    }
-    for (const { name: n = "", version: v = "" } of options.additionalDriverInfo) {
+    for (const { name: n = "", version: v = "" } of driverInfoList) {
       if (n.length > 0) {
         driverInfo.name = `${driverInfo.name}|${n}`;
       }
@@ -12175,12 +10690,9 @@ var require_client_metadata = __commonJS((exports) => {
       throw new error_1.MongoInvalidArgumentError("Unable to include driverInfo name and version, metadata cannot exceed 512 bytes");
     }
     let runtimeInfo = getRuntimeInfo();
-    if (platform.length > 0) {
-      runtimeInfo = `${runtimeInfo}|${platform}`;
-    }
-    for (const { platform: p = "" } of options.additionalDriverInfo) {
-      if (p.length > 0) {
-        runtimeInfo = `${runtimeInfo}|${p}`;
+    for (const { platform = "" } of driverInfoList) {
+      if (platform.length > 0) {
+        runtimeInfo = `${runtimeInfo}|${platform}`;
       }
     }
     if (!metadataDocument.ifItFitsItSits("platform", runtimeInfo)) {
@@ -16101,7 +14613,7 @@ var require_commands = __commonJS((exports) => {
   var BSON = require_bson2();
   var error_1 = require_error();
   var compression_1 = require_compression();
-  var constants_1 = require_constants2();
+  var constants_1 = require_constants();
   var _requestId = 0;
   var OPTS_TAILABLE_CURSOR = 2;
   var OPTS_SECONDARY = 4;
@@ -16509,11 +15021,11 @@ var require_compression = __commonJS((exports) => {
   exports.decompressResponse = decompressResponse;
   var util_1 = __require("util");
   var zlib = __require("zlib");
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var deps_1 = require_deps();
   var error_1 = require_error();
   var commands_1 = require_commands();
-  var constants_2 = require_constants2();
+  var constants_2 = require_constants();
   exports.Compressor = Object.freeze({
     none: 0,
     snappy: 1,
@@ -17315,6 +15827,9 @@ var require_state_machine = __commonJS((exports) => {
       }
     }
     async setTlsOptions(tlsOptions, options) {
+      if (tlsOptions.secureContext) {
+        options.secureContext = tlsOptions.secureContext;
+      }
       if (tlsOptions.tlsCertificateKeyFile) {
         const cert = await fs.readFile(tlsOptions.tlsCertificateKeyFile);
         options.cert = options.key = cert;
@@ -17605,7 +16120,7 @@ var require_client_encryption = __commonJS((exports) => {
       return ClientEncryption.getMongoCrypt().libmongocryptVersion;
     }
     async _encrypt(value, expressionMode, options) {
-      const { algorithm, keyId, keyAltName, contentionFactor, queryType, rangeOptions } = options;
+      const { algorithm, keyId, keyAltName, contentionFactor, queryType, rangeOptions, textOptions } = options;
       const contextOptions = {
         expressionMode,
         algorithm
@@ -17630,6 +16145,9 @@ var require_client_encryption = __commonJS((exports) => {
       }
       if (typeof rangeOptions === "object") {
         contextOptions.rangeOptions = (0, bson_1.serialize)(rangeOptions);
+      }
+      if (typeof textOptions === "object") {
+        contextOptions.textOptions = (0, bson_1.serialize)(textOptions);
       }
       const valueBuffer = (0, bson_1.serialize)({ v: value });
       const stateMachine = new state_machine_1.StateMachine({
@@ -17714,7 +16232,7 @@ var require_auto_encrypter = __commonJS((exports) => {
   exports.AutoEncrypter = exports.AutoEncryptionLoggerLevel = undefined;
   var net = __require("net");
   var bson_1 = require_bson2();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var deps_1 = require_deps();
   var error_1 = require_error();
   var mongo_client_1 = require_mongo_client();
@@ -17880,7 +16398,7 @@ var require_encrypter = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.Encrypter = undefined;
   var auto_encrypter_1 = require_auto_encrypter();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var deps_1 = require_deps();
   var error_1 = require_error();
   var mongo_client_1 = require_mongo_client();
@@ -18021,6 +16539,866 @@ var require_metrics = __commonJS((exports) => {
   ConnectionPoolMetrics.OTHER = "other";
 });
 
+// node_modules/mongodb/lib/transactions.js
+var require_transactions = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Transaction = exports.TxnState = undefined;
+  exports.isTransactionCommand = isTransactionCommand;
+  var error_1 = require_error();
+  var read_concern_1 = require_read_concern();
+  var read_preference_1 = require_read_preference();
+  var write_concern_1 = require_write_concern();
+  exports.TxnState = Object.freeze({
+    NO_TRANSACTION: "NO_TRANSACTION",
+    STARTING_TRANSACTION: "STARTING_TRANSACTION",
+    TRANSACTION_IN_PROGRESS: "TRANSACTION_IN_PROGRESS",
+    TRANSACTION_COMMITTED: "TRANSACTION_COMMITTED",
+    TRANSACTION_COMMITTED_EMPTY: "TRANSACTION_COMMITTED_EMPTY",
+    TRANSACTION_ABORTED: "TRANSACTION_ABORTED"
+  });
+  var stateMachine = {
+    [exports.TxnState.NO_TRANSACTION]: [exports.TxnState.NO_TRANSACTION, exports.TxnState.STARTING_TRANSACTION],
+    [exports.TxnState.STARTING_TRANSACTION]: [
+      exports.TxnState.TRANSACTION_IN_PROGRESS,
+      exports.TxnState.TRANSACTION_COMMITTED,
+      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
+      exports.TxnState.TRANSACTION_ABORTED
+    ],
+    [exports.TxnState.TRANSACTION_IN_PROGRESS]: [
+      exports.TxnState.TRANSACTION_IN_PROGRESS,
+      exports.TxnState.TRANSACTION_COMMITTED,
+      exports.TxnState.TRANSACTION_ABORTED
+    ],
+    [exports.TxnState.TRANSACTION_COMMITTED]: [
+      exports.TxnState.TRANSACTION_COMMITTED,
+      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
+      exports.TxnState.STARTING_TRANSACTION,
+      exports.TxnState.NO_TRANSACTION
+    ],
+    [exports.TxnState.TRANSACTION_ABORTED]: [exports.TxnState.STARTING_TRANSACTION, exports.TxnState.NO_TRANSACTION],
+    [exports.TxnState.TRANSACTION_COMMITTED_EMPTY]: [
+      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
+      exports.TxnState.NO_TRANSACTION
+    ]
+  };
+  var ACTIVE_STATES = new Set([
+    exports.TxnState.STARTING_TRANSACTION,
+    exports.TxnState.TRANSACTION_IN_PROGRESS
+  ]);
+  var COMMITTED_STATES = new Set([
+    exports.TxnState.TRANSACTION_COMMITTED,
+    exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
+    exports.TxnState.TRANSACTION_ABORTED
+  ]);
+
+  class Transaction {
+    constructor(options) {
+      options = options ?? {};
+      this.state = exports.TxnState.NO_TRANSACTION;
+      this.options = {};
+      const writeConcern = write_concern_1.WriteConcern.fromOptions(options);
+      if (writeConcern) {
+        if (writeConcern.w === 0) {
+          throw new error_1.MongoTransactionError("Transactions do not support unacknowledged write concern");
+        }
+        this.options.writeConcern = writeConcern;
+      }
+      if (options.readConcern) {
+        this.options.readConcern = read_concern_1.ReadConcern.fromOptions(options);
+      }
+      if (options.readPreference) {
+        this.options.readPreference = read_preference_1.ReadPreference.fromOptions(options);
+      }
+      if (options.maxCommitTimeMS) {
+        this.options.maxTimeMS = options.maxCommitTimeMS;
+      }
+      this._pinnedServer = undefined;
+      this._recoveryToken = undefined;
+    }
+    get server() {
+      return this._pinnedServer;
+    }
+    get recoveryToken() {
+      return this._recoveryToken;
+    }
+    get isPinned() {
+      return !!this.server;
+    }
+    get isStarting() {
+      return this.state === exports.TxnState.STARTING_TRANSACTION;
+    }
+    get isActive() {
+      return ACTIVE_STATES.has(this.state);
+    }
+    get isCommitted() {
+      return COMMITTED_STATES.has(this.state);
+    }
+    transition(nextState) {
+      const nextStates = stateMachine[this.state];
+      if (nextStates && nextStates.includes(nextState)) {
+        this.state = nextState;
+        if (this.state === exports.TxnState.NO_TRANSACTION || this.state === exports.TxnState.STARTING_TRANSACTION || this.state === exports.TxnState.TRANSACTION_ABORTED) {
+          this.unpinServer();
+        }
+        return;
+      }
+      throw new error_1.MongoRuntimeError(`Attempted illegal state transition from [${this.state}] to [${nextState}]`);
+    }
+    pinServer(server) {
+      if (this.isActive) {
+        this._pinnedServer = server;
+      }
+    }
+    unpinServer() {
+      this._pinnedServer = undefined;
+    }
+  }
+  exports.Transaction = Transaction;
+  function isTransactionCommand(command) {
+    return !!(command.commitTransaction || command.abortTransaction);
+  }
+});
+
+// node_modules/mongodb/lib/sessions.js
+var require_sessions = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ServerSessionPool = exports.ServerSession = exports.ClientSession = undefined;
+  exports.maybeClearPinnedConnection = maybeClearPinnedConnection;
+  exports.applySession = applySession;
+  exports.updateSessionFromResponse = updateSessionFromResponse;
+  var bson_1 = require_bson2();
+  var metrics_1 = require_metrics();
+  var constants_1 = require_constants2();
+  var error_1 = require_error();
+  var mongo_types_1 = require_mongo_types();
+  var execute_operation_1 = require_execute_operation();
+  var run_command_1 = require_run_command();
+  var read_concern_1 = require_read_concern();
+  var read_preference_1 = require_read_preference();
+  var resource_management_1 = require_resource_management();
+  var common_1 = require_common();
+  var timeout_1 = require_timeout();
+  var transactions_1 = require_transactions();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+
+  class ClientSession extends mongo_types_1.TypedEventEmitter {
+    constructor(client, sessionPool, options, clientOptions) {
+      super();
+      this.timeoutContext = null;
+      this.on("error", utils_1.noop);
+      if (client == null) {
+        throw new error_1.MongoRuntimeError("ClientSession requires a MongoClient");
+      }
+      if (sessionPool == null || !(sessionPool instanceof ServerSessionPool)) {
+        throw new error_1.MongoRuntimeError("ClientSession requires a ServerSessionPool");
+      }
+      options = options ?? {};
+      this.snapshotEnabled = options.snapshot === true;
+      if (options.causalConsistency === true && this.snapshotEnabled) {
+        throw new error_1.MongoInvalidArgumentError('Properties "causalConsistency" and "snapshot" are mutually exclusive');
+      }
+      this.client = client;
+      this.sessionPool = sessionPool;
+      this.hasEnded = false;
+      this.clientOptions = clientOptions;
+      this.timeoutMS = options.defaultTimeoutMS ?? client.s.options?.timeoutMS;
+      this.explicit = !!options.explicit;
+      this._serverSession = this.explicit ? this.sessionPool.acquire() : null;
+      this.txnNumberIncrement = 0;
+      const defaultCausalConsistencyValue = this.explicit && options.snapshot !== true;
+      this.supports = {
+        causalConsistency: options.causalConsistency ?? defaultCausalConsistencyValue
+      };
+      this.clusterTime = options.initialClusterTime;
+      this.operationTime = undefined;
+      this.owner = options.owner;
+      this.defaultTransactionOptions = { ...options.defaultTransactionOptions };
+      this.transaction = new transactions_1.Transaction;
+    }
+    get id() {
+      return this.serverSession?.id;
+    }
+    get serverSession() {
+      let serverSession = this._serverSession;
+      if (serverSession == null) {
+        if (this.explicit) {
+          throw new error_1.MongoRuntimeError("Unexpected null serverSession for an explicit session");
+        }
+        if (this.hasEnded) {
+          throw new error_1.MongoRuntimeError("Unexpected null serverSession for an ended implicit session");
+        }
+        serverSession = this.sessionPool.acquire();
+        this._serverSession = serverSession;
+      }
+      return serverSession;
+    }
+    get loadBalanced() {
+      return this.client.topology?.description.type === common_1.TopologyType.LoadBalanced;
+    }
+    pin(conn) {
+      if (this.pinnedConnection) {
+        throw TypeError("Cannot pin multiple connections to the same session");
+      }
+      this.pinnedConnection = conn;
+      conn.emit(constants_1.PINNED, this.inTransaction() ? metrics_1.ConnectionPoolMetrics.TXN : metrics_1.ConnectionPoolMetrics.CURSOR);
+    }
+    unpin(options) {
+      if (this.loadBalanced) {
+        return maybeClearPinnedConnection(this, options);
+      }
+      this.transaction.unpinServer();
+    }
+    get isPinned() {
+      return this.loadBalanced ? !!this.pinnedConnection : this.transaction.isPinned;
+    }
+    async endSession(options) {
+      try {
+        if (this.inTransaction()) {
+          await this.abortTransaction({ ...options, throwTimeout: true });
+        }
+      } catch (error) {
+        if (error.name === "MongoOperationTimeoutError")
+          throw error;
+        (0, utils_1.squashError)(error);
+      } finally {
+        if (!this.hasEnded) {
+          const serverSession = this.serverSession;
+          if (serverSession != null) {
+            this.sessionPool.release(serverSession);
+            this._serverSession = new ServerSession(serverSession);
+          }
+          this.hasEnded = true;
+          this.emit("ended", this);
+        }
+        maybeClearPinnedConnection(this, { force: true, ...options });
+      }
+    }
+    async asyncDispose() {
+      await this.endSession({ force: true });
+    }
+    advanceOperationTime(operationTime) {
+      if (this.operationTime == null) {
+        this.operationTime = operationTime;
+        return;
+      }
+      if (operationTime.greaterThan(this.operationTime)) {
+        this.operationTime = operationTime;
+      }
+    }
+    advanceClusterTime(clusterTime) {
+      if (!clusterTime || typeof clusterTime !== "object") {
+        throw new error_1.MongoInvalidArgumentError("input cluster time must be an object");
+      }
+      if (!clusterTime.clusterTime || clusterTime.clusterTime._bsontype !== "Timestamp") {
+        throw new error_1.MongoInvalidArgumentError('input cluster time "clusterTime" property must be a valid BSON Timestamp');
+      }
+      if (!clusterTime.signature || clusterTime.signature.hash?._bsontype !== "Binary" || typeof clusterTime.signature.keyId !== "bigint" && typeof clusterTime.signature.keyId !== "number" && clusterTime.signature.keyId?._bsontype !== "Long") {
+        throw new error_1.MongoInvalidArgumentError('input cluster time must have a valid "signature" property with BSON Binary hash and BSON Long keyId');
+      }
+      (0, common_1._advanceClusterTime)(this, clusterTime);
+    }
+    equals(session) {
+      if (!(session instanceof ClientSession)) {
+        return false;
+      }
+      if (this.id == null || session.id == null) {
+        return false;
+      }
+      return utils_1.ByteUtils.equals(this.id.id.buffer, session.id.id.buffer);
+    }
+    incrementTransactionNumber() {
+      this.txnNumberIncrement += 1;
+    }
+    inTransaction() {
+      return this.transaction.isActive;
+    }
+    startTransaction(options) {
+      if (this.snapshotEnabled) {
+        throw new error_1.MongoCompatibilityError("Transactions are not supported in snapshot sessions");
+      }
+      if (this.inTransaction()) {
+        throw new error_1.MongoTransactionError("Transaction already in progress");
+      }
+      if (this.isPinned && this.transaction.isCommitted) {
+        this.unpin();
+      }
+      this.commitAttempted = false;
+      this.incrementTransactionNumber();
+      this.transaction = new transactions_1.Transaction({
+        readConcern: options?.readConcern ?? this.defaultTransactionOptions.readConcern ?? this.clientOptions?.readConcern,
+        writeConcern: options?.writeConcern ?? this.defaultTransactionOptions.writeConcern ?? this.clientOptions?.writeConcern,
+        readPreference: options?.readPreference ?? this.defaultTransactionOptions.readPreference ?? this.clientOptions?.readPreference,
+        maxCommitTimeMS: options?.maxCommitTimeMS ?? this.defaultTransactionOptions.maxCommitTimeMS
+      });
+      this.transaction.transition(transactions_1.TxnState.STARTING_TRANSACTION);
+    }
+    async commitTransaction(options) {
+      if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION) {
+        throw new error_1.MongoTransactionError("No transaction started");
+      }
+      if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY) {
+        this.transaction.transition(transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY);
+        return;
+      }
+      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
+        throw new error_1.MongoTransactionError("Cannot call commitTransaction after calling abortTransaction");
+      }
+      const command = { commitTransaction: 1 };
+      const timeoutMS = typeof options?.timeoutMS === "number" ? options.timeoutMS : typeof this.timeoutMS === "number" ? this.timeoutMS : null;
+      const wc = this.transaction.options.writeConcern ?? this.clientOptions?.writeConcern;
+      if (wc != null) {
+        if (timeoutMS == null && this.timeoutContext == null) {
+          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, w: "majority", ...wc });
+        } else {
+          const wcKeys = Object.keys(wc);
+          if (wcKeys.length > 2 || !wcKeys.includes("wtimeoutMS") && !wcKeys.includes("wTimeoutMS"))
+            write_concern_1.WriteConcern.apply(command, { ...wc, wtimeoutMS: undefined });
+        }
+      }
+      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.commitAttempted) {
+        if (timeoutMS == null && this.timeoutContext == null) {
+          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, ...wc, w: "majority" });
+        } else {
+          write_concern_1.WriteConcern.apply(command, { w: "majority", ...wc, wtimeoutMS: undefined });
+        }
+      }
+      if (typeof this.transaction.options.maxTimeMS === "number") {
+        command.maxTimeMS = this.transaction.options.maxTimeMS;
+      }
+      if (this.transaction.recoveryToken) {
+        command.recoveryToken = this.transaction.recoveryToken;
+      }
+      const operation = new run_command_1.RunCommandOperation(new utils_1.MongoDBNamespace("admin"), command, {
+        session: this,
+        readPreference: read_preference_1.ReadPreference.primary,
+        bypassPinningCheck: true
+      });
+      const timeoutContext = this.timeoutContext ?? (typeof timeoutMS === "number" ? timeout_1.TimeoutContext.create({
+        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
+        socketTimeoutMS: this.clientOptions.socketTimeoutMS,
+        timeoutMS
+      }) : null);
+      try {
+        await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
+        this.commitAttempted = undefined;
+        return;
+      } catch (firstCommitError) {
+        this.commitAttempted = true;
+        if (firstCommitError instanceof error_1.MongoError && (0, error_1.isRetryableWriteError)(firstCommitError)) {
+          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, ...wc, w: "majority" });
+          this.unpin({ force: true });
+          try {
+            await (0, execute_operation_1.executeOperation)(this.client, new run_command_1.RunCommandOperation(new utils_1.MongoDBNamespace("admin"), command, {
+              session: this,
+              readPreference: read_preference_1.ReadPreference.primary,
+              bypassPinningCheck: true
+            }), timeoutContext);
+            return;
+          } catch (retryCommitError) {
+            if (shouldAddUnknownTransactionCommitResultLabel(retryCommitError)) {
+              retryCommitError.addErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult);
+            }
+            if (shouldUnpinAfterCommitError(retryCommitError)) {
+              this.unpin({ error: retryCommitError });
+            }
+            throw retryCommitError;
+          }
+        }
+        if (shouldAddUnknownTransactionCommitResultLabel(firstCommitError)) {
+          firstCommitError.addErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult);
+        }
+        if (shouldUnpinAfterCommitError(firstCommitError)) {
+          this.unpin({ error: firstCommitError });
+        }
+        throw firstCommitError;
+      } finally {
+        this.transaction.transition(transactions_1.TxnState.TRANSACTION_COMMITTED);
+      }
+    }
+    async abortTransaction(options) {
+      if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION) {
+        throw new error_1.MongoTransactionError("No transaction started");
+      }
+      if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION) {
+        this.transaction.transition(transactions_1.TxnState.TRANSACTION_ABORTED);
+        return;
+      }
+      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
+        throw new error_1.MongoTransactionError("Cannot call abortTransaction twice");
+      }
+      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY) {
+        throw new error_1.MongoTransactionError("Cannot call abortTransaction after calling commitTransaction");
+      }
+      const command = { abortTransaction: 1 };
+      const timeoutMS = typeof options?.timeoutMS === "number" ? options.timeoutMS : this.timeoutContext?.csotEnabled() ? this.timeoutContext.timeoutMS : typeof this.timeoutMS === "number" ? this.timeoutMS : null;
+      const timeoutContext = timeoutMS != null ? timeout_1.TimeoutContext.create({
+        timeoutMS,
+        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
+        socketTimeoutMS: this.clientOptions.socketTimeoutMS
+      }) : null;
+      const wc = this.transaction.options.writeConcern ?? this.clientOptions?.writeConcern;
+      if (wc != null && timeoutMS == null) {
+        write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, w: "majority", ...wc });
+      }
+      if (this.transaction.recoveryToken) {
+        command.recoveryToken = this.transaction.recoveryToken;
+      }
+      const operation = new run_command_1.RunCommandOperation(new utils_1.MongoDBNamespace("admin"), command, {
+        session: this,
+        readPreference: read_preference_1.ReadPreference.primary,
+        bypassPinningCheck: true
+      });
+      try {
+        await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
+        this.unpin();
+        return;
+      } catch (firstAbortError) {
+        this.unpin();
+        if (firstAbortError.name === "MongoRuntimeError")
+          throw firstAbortError;
+        if (options?.throwTimeout && firstAbortError.name === "MongoOperationTimeoutError") {
+          throw firstAbortError;
+        }
+        if (firstAbortError instanceof error_1.MongoError && (0, error_1.isRetryableWriteError)(firstAbortError)) {
+          try {
+            await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
+            return;
+          } catch (secondAbortError) {
+            if (secondAbortError.name === "MongoRuntimeError")
+              throw secondAbortError;
+            if (options?.throwTimeout && secondAbortError.name === "MongoOperationTimeoutError") {
+              throw secondAbortError;
+            }
+          }
+        }
+      } finally {
+        this.transaction.transition(transactions_1.TxnState.TRANSACTION_ABORTED);
+        if (this.loadBalanced) {
+          maybeClearPinnedConnection(this, { force: false });
+        }
+      }
+    }
+    toBSON() {
+      throw new error_1.MongoRuntimeError("ClientSession cannot be serialized to BSON.");
+    }
+    async withTransaction(fn, options) {
+      const MAX_TIMEOUT = 120000;
+      const timeoutMS = options?.timeoutMS ?? this.timeoutMS ?? null;
+      this.timeoutContext = timeoutMS != null ? timeout_1.TimeoutContext.create({
+        timeoutMS,
+        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
+        socketTimeoutMS: this.clientOptions.socketTimeoutMS
+      }) : null;
+      const startTime = this.timeoutContext?.csotEnabled() ? this.timeoutContext.start : (0, utils_1.now)();
+      let committed = false;
+      let result;
+      try {
+        while (!committed) {
+          this.startTransaction(options);
+          try {
+            const promise = fn(this);
+            if (!(0, utils_1.isPromiseLike)(promise)) {
+              throw new error_1.MongoInvalidArgumentError("Function provided to `withTransaction` must return a Promise");
+            }
+            result = await promise;
+            if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
+              return result;
+            }
+          } catch (fnError) {
+            if (!(fnError instanceof error_1.MongoError) || fnError instanceof error_1.MongoInvalidArgumentError) {
+              await this.abortTransaction();
+              throw fnError;
+            }
+            if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_IN_PROGRESS) {
+              await this.abortTransaction();
+            }
+            if (fnError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
+              continue;
+            }
+            throw fnError;
+          }
+          while (!committed) {
+            try {
+              await this.commitTransaction();
+              committed = true;
+            } catch (commitError) {
+              if (!isMaxTimeMSExpiredError(commitError) && commitError.hasErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
+                continue;
+              }
+              if (commitError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
+                break;
+              }
+              throw commitError;
+            }
+          }
+        }
+        return result;
+      } finally {
+        this.timeoutContext = null;
+      }
+    }
+  }
+  exports.ClientSession = ClientSession;
+  (0, resource_management_1.configureResourceManagement)(ClientSession.prototype);
+  var NON_DETERMINISTIC_WRITE_CONCERN_ERRORS = new Set([
+    "CannotSatisfyWriteConcern",
+    "UnknownReplWriteConcern",
+    "UnsatisfiableWriteConcern"
+  ]);
+  function shouldUnpinAfterCommitError(commitError) {
+    if (commitError instanceof error_1.MongoError) {
+      if ((0, error_1.isRetryableWriteError)(commitError) || commitError instanceof error_1.MongoWriteConcernError || isMaxTimeMSExpiredError(commitError)) {
+        if (isUnknownTransactionCommitResult(commitError)) {
+          return true;
+        }
+      } else if (commitError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function shouldAddUnknownTransactionCommitResultLabel(commitError) {
+    let ok = (0, error_1.isRetryableWriteError)(commitError);
+    ok ||= commitError instanceof error_1.MongoWriteConcernError;
+    ok ||= isMaxTimeMSExpiredError(commitError);
+    ok &&= isUnknownTransactionCommitResult(commitError);
+    return ok;
+  }
+  function isUnknownTransactionCommitResult(err) {
+    const isNonDeterministicWriteConcernError = err instanceof error_1.MongoServerError && err.codeName && NON_DETERMINISTIC_WRITE_CONCERN_ERRORS.has(err.codeName);
+    return isMaxTimeMSExpiredError(err) || !isNonDeterministicWriteConcernError && err.code !== error_1.MONGODB_ERROR_CODES.UnsatisfiableWriteConcern && err.code !== error_1.MONGODB_ERROR_CODES.UnknownReplWriteConcern;
+  }
+  function maybeClearPinnedConnection(session, options) {
+    const conn = session.pinnedConnection;
+    const error = options?.error;
+    if (session.inTransaction() && error && error instanceof error_1.MongoError && error.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError)) {
+      return;
+    }
+    const topology = session.client.topology;
+    if (conn && topology != null) {
+      const servers = Array.from(topology.s.servers.values());
+      const loadBalancer = servers[0];
+      if (options?.error == null || options?.force) {
+        loadBalancer.pool.checkIn(conn);
+        session.pinnedConnection = undefined;
+        conn.emit(constants_1.UNPINNED, session.transaction.state !== transactions_1.TxnState.NO_TRANSACTION ? metrics_1.ConnectionPoolMetrics.TXN : metrics_1.ConnectionPoolMetrics.CURSOR);
+        if (options?.forceClear) {
+          loadBalancer.pool.clear({ serviceId: conn.serviceId });
+        }
+      }
+    }
+  }
+  function isMaxTimeMSExpiredError(err) {
+    if (err == null || !(err instanceof error_1.MongoServerError)) {
+      return false;
+    }
+    return err.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired || err.writeConcernError?.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
+  }
+
+  class ServerSession {
+    constructor(cloned) {
+      if (cloned != null) {
+        const idBytes = Buffer.allocUnsafe(16);
+        idBytes.set(cloned.id.id.buffer);
+        this.id = { id: new bson_1.Binary(idBytes, cloned.id.id.sub_type) };
+        this.lastUse = cloned.lastUse;
+        this.txnNumber = cloned.txnNumber;
+        this.isDirty = cloned.isDirty;
+        return;
+      }
+      this.id = { id: new bson_1.Binary((0, utils_1.uuidV4)(), bson_1.Binary.SUBTYPE_UUID) };
+      this.lastUse = (0, utils_1.now)();
+      this.txnNumber = 0;
+      this.isDirty = false;
+    }
+    hasTimedOut(sessionTimeoutMinutes) {
+      const idleTimeMinutes = Math.round((0, utils_1.calculateDurationInMs)(this.lastUse) % 86400000 % 3600000 / 60000);
+      return idleTimeMinutes > sessionTimeoutMinutes - 1;
+    }
+  }
+  exports.ServerSession = ServerSession;
+
+  class ServerSessionPool {
+    constructor(client) {
+      if (client == null) {
+        throw new error_1.MongoRuntimeError("ServerSessionPool requires a MongoClient");
+      }
+      this.client = client;
+      this.sessions = new utils_1.List;
+    }
+    acquire() {
+      const sessionTimeoutMinutes = this.client.topology?.logicalSessionTimeoutMinutes ?? 10;
+      let session = null;
+      while (this.sessions.length > 0) {
+        const potentialSession = this.sessions.shift();
+        if (potentialSession != null && (!!this.client.topology?.loadBalanced || !potentialSession.hasTimedOut(sessionTimeoutMinutes))) {
+          session = potentialSession;
+          break;
+        }
+      }
+      if (session == null) {
+        session = new ServerSession;
+      }
+      return session;
+    }
+    release(session) {
+      const sessionTimeoutMinutes = this.client.topology?.logicalSessionTimeoutMinutes ?? 10;
+      if (this.client.topology?.loadBalanced && !sessionTimeoutMinutes) {
+        this.sessions.unshift(session);
+      }
+      if (!sessionTimeoutMinutes) {
+        return;
+      }
+      this.sessions.prune((session2) => session2.hasTimedOut(sessionTimeoutMinutes));
+      if (!session.hasTimedOut(sessionTimeoutMinutes)) {
+        if (session.isDirty) {
+          return;
+        }
+        this.sessions.unshift(session);
+      }
+    }
+  }
+  exports.ServerSessionPool = ServerSessionPool;
+  function applySession(session, command, options) {
+    if (session.hasEnded) {
+      return new error_1.MongoExpiredSessionError;
+    }
+    const serverSession = session.serverSession;
+    if (serverSession == null) {
+      return new error_1.MongoRuntimeError("Unable to acquire server session");
+    }
+    if (options.writeConcern?.w === 0) {
+      if (session && session.explicit) {
+        return new error_1.MongoAPIError("Cannot have explicit session with unacknowledged writes");
+      }
+      return;
+    }
+    serverSession.lastUse = (0, utils_1.now)();
+    command.lsid = serverSession.id;
+    const inTxnOrTxnCommand = session.inTransaction() || (0, transactions_1.isTransactionCommand)(command);
+    const isRetryableWrite = !!options.willRetryWrite;
+    if (isRetryableWrite || inTxnOrTxnCommand) {
+      serverSession.txnNumber += session.txnNumberIncrement;
+      session.txnNumberIncrement = 0;
+      command.txnNumber = bson_1.Long.fromNumber(serverSession.txnNumber);
+    }
+    if (!inTxnOrTxnCommand) {
+      if (session.transaction.state !== transactions_1.TxnState.NO_TRANSACTION) {
+        session.transaction.transition(transactions_1.TxnState.NO_TRANSACTION);
+      }
+      if (session.supports.causalConsistency && session.operationTime && (0, utils_1.commandSupportsReadConcern)(command)) {
+        command.readConcern = command.readConcern || {};
+        Object.assign(command.readConcern, { afterClusterTime: session.operationTime });
+      } else if (session.snapshotEnabled) {
+        command.readConcern = command.readConcern || { level: read_concern_1.ReadConcernLevel.snapshot };
+        if (session.snapshotTime != null) {
+          Object.assign(command.readConcern, { atClusterTime: session.snapshotTime });
+        }
+      }
+      return;
+    }
+    command.autocommit = false;
+    if (session.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION) {
+      session.transaction.transition(transactions_1.TxnState.TRANSACTION_IN_PROGRESS);
+      command.startTransaction = true;
+      const readConcern = session.transaction.options.readConcern || session?.clientOptions?.readConcern;
+      if (readConcern) {
+        command.readConcern = readConcern;
+      }
+      if (session.supports.causalConsistency && session.operationTime) {
+        command.readConcern = command.readConcern || {};
+        Object.assign(command.readConcern, { afterClusterTime: session.operationTime });
+      }
+    }
+    return;
+  }
+  function updateSessionFromResponse(session, document2) {
+    if (document2.$clusterTime) {
+      (0, common_1._advanceClusterTime)(session, document2.$clusterTime);
+    }
+    if (document2.operationTime && session && session.supports.causalConsistency) {
+      session.advanceOperationTime(document2.operationTime);
+    }
+    if (document2.recoveryToken && session && session.inTransaction()) {
+      session.transaction._recoveryToken = document2.recoveryToken;
+    }
+    if (session?.snapshotEnabled && session.snapshotTime == null) {
+      const atClusterTime = document2.atClusterTime;
+      if (atClusterTime) {
+        session.snapshotTime = atClusterTime;
+      }
+    }
+  }
+});
+
+// node_modules/mongodb/lib/cmap/command_monitoring_events.js
+var require_command_monitoring_events = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.SENSITIVE_COMMANDS = exports.CommandFailedEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = undefined;
+  var constants_1 = require_constants2();
+  var utils_1 = require_utils();
+  var commands_1 = require_commands();
+
+  class CommandStartedEvent {
+    constructor(connection, command, serverConnectionId) {
+      this.name = constants_1.COMMAND_STARTED;
+      const cmd = extractCommand(command);
+      const commandName = extractCommandName(cmd);
+      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
+      if (exports.SENSITIVE_COMMANDS.has(commandName)) {
+        this.commandObj = {};
+        this.commandObj[commandName] = true;
+      }
+      this.address = address;
+      this.connectionId = connectionId;
+      this.serviceId = serviceId;
+      this.requestId = command.requestId;
+      this.databaseName = command.databaseName;
+      this.commandName = commandName;
+      this.command = maybeRedact(commandName, cmd, cmd);
+      this.serverConnectionId = serverConnectionId;
+    }
+    get hasServiceId() {
+      return !!this.serviceId;
+    }
+  }
+  exports.CommandStartedEvent = CommandStartedEvent;
+
+  class CommandSucceededEvent {
+    constructor(connection, command, reply, started, serverConnectionId) {
+      this.name = constants_1.COMMAND_SUCCEEDED;
+      const cmd = extractCommand(command);
+      const commandName = extractCommandName(cmd);
+      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
+      this.address = address;
+      this.connectionId = connectionId;
+      this.serviceId = serviceId;
+      this.requestId = command.requestId;
+      this.commandName = commandName;
+      this.duration = (0, utils_1.calculateDurationInMs)(started);
+      this.reply = maybeRedact(commandName, cmd, extractReply(reply));
+      this.serverConnectionId = serverConnectionId;
+      this.databaseName = command.databaseName;
+    }
+    get hasServiceId() {
+      return !!this.serviceId;
+    }
+  }
+  exports.CommandSucceededEvent = CommandSucceededEvent;
+
+  class CommandFailedEvent {
+    constructor(connection, command, error, started, serverConnectionId) {
+      this.name = constants_1.COMMAND_FAILED;
+      const cmd = extractCommand(command);
+      const commandName = extractCommandName(cmd);
+      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
+      this.address = address;
+      this.connectionId = connectionId;
+      this.serviceId = serviceId;
+      this.requestId = command.requestId;
+      this.commandName = commandName;
+      this.duration = (0, utils_1.calculateDurationInMs)(started);
+      this.failure = maybeRedact(commandName, cmd, error);
+      this.serverConnectionId = serverConnectionId;
+      this.databaseName = command.databaseName;
+    }
+    get hasServiceId() {
+      return !!this.serviceId;
+    }
+  }
+  exports.CommandFailedEvent = CommandFailedEvent;
+  exports.SENSITIVE_COMMANDS = new Set([
+    "authenticate",
+    "saslStart",
+    "saslContinue",
+    "getnonce",
+    "createUser",
+    "updateUser",
+    "copydbgetnonce",
+    "copydbsaslstart",
+    "copydb"
+  ]);
+  var HELLO_COMMANDS = new Set(["hello", constants_1.LEGACY_HELLO_COMMAND, constants_1.LEGACY_HELLO_COMMAND_CAMEL_CASE]);
+  var extractCommandName = (commandDoc) => Object.keys(commandDoc)[0];
+  var collectionName = (command) => command.ns.split(".")[1];
+  var maybeRedact = (commandName, commandDoc, result) => exports.SENSITIVE_COMMANDS.has(commandName) || HELLO_COMMANDS.has(commandName) && commandDoc.speculativeAuthenticate ? {} : result;
+  var LEGACY_FIND_QUERY_MAP = {
+    $query: "filter",
+    $orderby: "sort",
+    $hint: "hint",
+    $comment: "comment",
+    $maxScan: "maxScan",
+    $max: "max",
+    $min: "min",
+    $returnKey: "returnKey",
+    $showDiskLoc: "showRecordId",
+    $maxTimeMS: "maxTimeMS",
+    $snapshot: "snapshot"
+  };
+  var LEGACY_FIND_OPTIONS_MAP = {
+    numberToSkip: "skip",
+    numberToReturn: "batchSize",
+    returnFieldSelector: "projection"
+  };
+  function extractCommand(command) {
+    if (command instanceof commands_1.OpMsgRequest) {
+      const cmd = { ...command.command };
+      if (cmd.ops instanceof commands_1.DocumentSequence) {
+        cmd.ops = cmd.ops.documents;
+      }
+      if (cmd.nsInfo instanceof commands_1.DocumentSequence) {
+        cmd.nsInfo = cmd.nsInfo.documents;
+      }
+      return cmd;
+    }
+    if (command.query?.$query) {
+      let result;
+      if (command.ns === "admin.$cmd") {
+        result = Object.assign({}, command.query.$query);
+      } else {
+        result = { find: collectionName(command) };
+        Object.keys(LEGACY_FIND_QUERY_MAP).forEach((key) => {
+          if (command.query[key] != null) {
+            result[LEGACY_FIND_QUERY_MAP[key]] = { ...command.query[key] };
+          }
+        });
+      }
+      Object.keys(LEGACY_FIND_OPTIONS_MAP).forEach((key) => {
+        const legacyKey = key;
+        if (command[legacyKey] != null) {
+          result[LEGACY_FIND_OPTIONS_MAP[legacyKey]] = command[legacyKey];
+        }
+      });
+      return result;
+    }
+    let clonedQuery = {};
+    const clonedCommand = { ...command };
+    if (command.query) {
+      clonedQuery = { ...command.query };
+      clonedCommand.query = clonedQuery;
+    }
+    return command.query ? clonedQuery : clonedCommand;
+  }
+  function extractReply(reply) {
+    if (!reply) {
+      return reply;
+    }
+    return reply.result ? reply.result : reply;
+  }
+  function extractConnectionDetails(connection) {
+    let connectionId;
+    if ("id" in connection) {
+      connectionId = connection.id;
+    }
+    return {
+      address: connection.address,
+      serviceId: connection.serviceId,
+      connectionId
+    };
+  }
+});
+
 // node_modules/mongodb/lib/sdam/server_description.js
 var require_server_description = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -18153,12 +17531,154 @@ var require_server_description = __commonJS((exports) => {
   }
 });
 
+// node_modules/mongodb/lib/cmap/stream_description.js
+var require_stream_description = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.StreamDescription = undefined;
+  var bson_1 = require_bson2();
+  var common_1 = require_common();
+  var server_description_1 = require_server_description();
+  var RESPONSE_FIELDS = [
+    "minWireVersion",
+    "maxWireVersion",
+    "maxBsonObjectSize",
+    "maxMessageSizeBytes",
+    "maxWriteBatchSize",
+    "logicalSessionTimeoutMinutes"
+  ];
+
+  class StreamDescription {
+    constructor(address, options) {
+      this.hello = null;
+      this.address = address;
+      this.type = common_1.ServerType.Unknown;
+      this.minWireVersion = undefined;
+      this.maxWireVersion = undefined;
+      this.maxBsonObjectSize = 16777216;
+      this.maxMessageSizeBytes = 48000000;
+      this.maxWriteBatchSize = 1e5;
+      this.logicalSessionTimeoutMinutes = options?.logicalSessionTimeoutMinutes;
+      this.loadBalanced = !!options?.loadBalanced;
+      this.compressors = options && options.compressors && Array.isArray(options.compressors) ? options.compressors : [];
+      this.serverConnectionId = null;
+    }
+    receiveResponse(response) {
+      if (response == null) {
+        return;
+      }
+      this.hello = response;
+      this.type = (0, server_description_1.parseServerType)(response);
+      if ("connectionId" in response) {
+        this.serverConnectionId = this.parseServerConnectionID(response.connectionId);
+      } else {
+        this.serverConnectionId = null;
+      }
+      for (const field of RESPONSE_FIELDS) {
+        if (response[field] != null) {
+          this[field] = response[field];
+        }
+        if ("__nodejs_mock_server__" in response) {
+          this.__nodejs_mock_server__ = response["__nodejs_mock_server__"];
+        }
+      }
+      if (response.compression) {
+        this.compressor = this.compressors.filter((c) => response.compression?.includes(c))[0];
+      }
+    }
+    parseServerConnectionID(serverConnectionId) {
+      return bson_1.Long.isLong(serverConnectionId) ? serverConnectionId.toBigInt() : BigInt(serverConnectionId);
+    }
+  }
+  exports.StreamDescription = StreamDescription;
+});
+
+// node_modules/mongodb/lib/cmap/wire_protocol/on_data.js
+var require_on_data = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.onData = onData;
+  var utils_1 = require_utils();
+  function onData(emitter, { timeoutContext, signal }) {
+    signal?.throwIfAborted();
+    const unconsumedEvents = new utils_1.List;
+    const unconsumedPromises = new utils_1.List;
+    let error = null;
+    let finished = false;
+    const iterator = {
+      next() {
+        const value = unconsumedEvents.shift();
+        if (value != null) {
+          return Promise.resolve({ value, done: false });
+        }
+        if (error != null) {
+          const p = Promise.reject(error);
+          error = null;
+          return p;
+        }
+        if (finished)
+          return closeHandler();
+        const { promise, resolve, reject } = (0, utils_1.promiseWithResolvers)();
+        unconsumedPromises.push({ resolve, reject });
+        return promise;
+      },
+      return() {
+        return closeHandler();
+      },
+      throw(err) {
+        errorHandler2(err);
+        return Promise.resolve({ value: undefined, done: true });
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      async[Symbol.asyncDispose]() {
+        await closeHandler();
+      }
+    };
+    emitter.on("data", eventHandler);
+    emitter.on("error", errorHandler2);
+    const abortListener = (0, utils_1.addAbortListener)(signal, function() {
+      errorHandler2(this.reason);
+    });
+    const timeoutForSocketRead = timeoutContext?.timeoutForSocketRead;
+    timeoutForSocketRead?.throwIfExpired();
+    timeoutForSocketRead?.then(undefined, errorHandler2);
+    return iterator;
+    function eventHandler(value) {
+      const promise = unconsumedPromises.shift();
+      if (promise != null)
+        promise.resolve({ value, done: false });
+      else
+        unconsumedEvents.push(value);
+    }
+    function errorHandler2(err) {
+      const promise = unconsumedPromises.shift();
+      if (promise != null)
+        promise.reject(err);
+      else
+        error = err;
+      closeHandler();
+    }
+    function closeHandler() {
+      emitter.off("data", eventHandler);
+      emitter.off("error", errorHandler2);
+      abortListener?.[utils_1.kDispose]();
+      finished = true;
+      timeoutForSocketRead?.clear();
+      const doneResult = { value: undefined, done: finished };
+      for (const promise of unconsumedPromises) {
+        promise.resolve(doneResult);
+      }
+      return Promise.resolve(doneResult);
+    }
+  }
+});
+
 // node_modules/mongodb/lib/sdam/topology_description.js
 var require_topology_description = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.TopologyDescription = undefined;
   var bson_1 = require_bson2();
-  var WIRE_CONSTANTS = require_constants2();
+  var WIRE_CONSTANTS = require_constants();
   var error_1 = require_error();
   var utils_1 = require_utils();
   var common_1 = require_common();
@@ -18484,1014 +18004,6 @@ var require_shared = __commonJS((exports) => {
   }
 });
 
-// node_modules/mongodb/lib/transactions.js
-var require_transactions = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.Transaction = exports.TxnState = undefined;
-  exports.isTransactionCommand = isTransactionCommand;
-  var error_1 = require_error();
-  var read_concern_1 = require_read_concern();
-  var read_preference_1 = require_read_preference();
-  var write_concern_1 = require_write_concern();
-  exports.TxnState = Object.freeze({
-    NO_TRANSACTION: "NO_TRANSACTION",
-    STARTING_TRANSACTION: "STARTING_TRANSACTION",
-    TRANSACTION_IN_PROGRESS: "TRANSACTION_IN_PROGRESS",
-    TRANSACTION_COMMITTED: "TRANSACTION_COMMITTED",
-    TRANSACTION_COMMITTED_EMPTY: "TRANSACTION_COMMITTED_EMPTY",
-    TRANSACTION_ABORTED: "TRANSACTION_ABORTED"
-  });
-  var stateMachine = {
-    [exports.TxnState.NO_TRANSACTION]: [exports.TxnState.NO_TRANSACTION, exports.TxnState.STARTING_TRANSACTION],
-    [exports.TxnState.STARTING_TRANSACTION]: [
-      exports.TxnState.TRANSACTION_IN_PROGRESS,
-      exports.TxnState.TRANSACTION_COMMITTED,
-      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
-      exports.TxnState.TRANSACTION_ABORTED
-    ],
-    [exports.TxnState.TRANSACTION_IN_PROGRESS]: [
-      exports.TxnState.TRANSACTION_IN_PROGRESS,
-      exports.TxnState.TRANSACTION_COMMITTED,
-      exports.TxnState.TRANSACTION_ABORTED
-    ],
-    [exports.TxnState.TRANSACTION_COMMITTED]: [
-      exports.TxnState.TRANSACTION_COMMITTED,
-      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
-      exports.TxnState.STARTING_TRANSACTION,
-      exports.TxnState.NO_TRANSACTION
-    ],
-    [exports.TxnState.TRANSACTION_ABORTED]: [exports.TxnState.STARTING_TRANSACTION, exports.TxnState.NO_TRANSACTION],
-    [exports.TxnState.TRANSACTION_COMMITTED_EMPTY]: [
-      exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
-      exports.TxnState.NO_TRANSACTION
-    ]
-  };
-  var ACTIVE_STATES = new Set([
-    exports.TxnState.STARTING_TRANSACTION,
-    exports.TxnState.TRANSACTION_IN_PROGRESS
-  ]);
-  var COMMITTED_STATES = new Set([
-    exports.TxnState.TRANSACTION_COMMITTED,
-    exports.TxnState.TRANSACTION_COMMITTED_EMPTY,
-    exports.TxnState.TRANSACTION_ABORTED
-  ]);
-
-  class Transaction {
-    constructor(options) {
-      options = options ?? {};
-      this.state = exports.TxnState.NO_TRANSACTION;
-      this.options = {};
-      const writeConcern = write_concern_1.WriteConcern.fromOptions(options);
-      if (writeConcern) {
-        if (writeConcern.w === 0) {
-          throw new error_1.MongoTransactionError("Transactions do not support unacknowledged write concern");
-        }
-        this.options.writeConcern = writeConcern;
-      }
-      if (options.readConcern) {
-        this.options.readConcern = read_concern_1.ReadConcern.fromOptions(options);
-      }
-      if (options.readPreference) {
-        this.options.readPreference = read_preference_1.ReadPreference.fromOptions(options);
-      }
-      if (options.maxCommitTimeMS) {
-        this.options.maxTimeMS = options.maxCommitTimeMS;
-      }
-      this._pinnedServer = undefined;
-      this._recoveryToken = undefined;
-    }
-    get server() {
-      return this._pinnedServer;
-    }
-    get recoveryToken() {
-      return this._recoveryToken;
-    }
-    get isPinned() {
-      return !!this.server;
-    }
-    get isStarting() {
-      return this.state === exports.TxnState.STARTING_TRANSACTION;
-    }
-    get isActive() {
-      return ACTIVE_STATES.has(this.state);
-    }
-    get isCommitted() {
-      return COMMITTED_STATES.has(this.state);
-    }
-    transition(nextState) {
-      const nextStates = stateMachine[this.state];
-      if (nextStates && nextStates.includes(nextState)) {
-        this.state = nextState;
-        if (this.state === exports.TxnState.NO_TRANSACTION || this.state === exports.TxnState.STARTING_TRANSACTION || this.state === exports.TxnState.TRANSACTION_ABORTED) {
-          this.unpinServer();
-        }
-        return;
-      }
-      throw new error_1.MongoRuntimeError(`Attempted illegal state transition from [${this.state}] to [${nextState}]`);
-    }
-    pinServer(server) {
-      if (this.isActive) {
-        this._pinnedServer = server;
-      }
-    }
-    unpinServer() {
-      this._pinnedServer = undefined;
-    }
-  }
-  exports.Transaction = Transaction;
-  function isTransactionCommand(command) {
-    return !!(command.commitTransaction || command.abortTransaction);
-  }
-});
-
-// node_modules/mongodb/lib/sessions.js
-var require_sessions = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ServerSessionPool = exports.ServerSession = exports.ClientSession = undefined;
-  exports.maybeClearPinnedConnection = maybeClearPinnedConnection;
-  exports.applySession = applySession;
-  exports.updateSessionFromResponse = updateSessionFromResponse;
-  var bson_1 = require_bson2();
-  var metrics_1 = require_metrics();
-  var shared_1 = require_shared();
-  var constants_1 = require_constants();
-  var error_1 = require_error();
-  var mongo_types_1 = require_mongo_types();
-  var execute_operation_1 = require_execute_operation();
-  var run_command_1 = require_run_command();
-  var read_concern_1 = require_read_concern();
-  var read_preference_1 = require_read_preference();
-  var resource_management_1 = require_resource_management();
-  var common_1 = require_common();
-  var timeout_1 = require_timeout();
-  var transactions_1 = require_transactions();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  var minWireVersionForShardedTransactions = 8;
-
-  class ClientSession extends mongo_types_1.TypedEventEmitter {
-    constructor(client, sessionPool, options, clientOptions) {
-      super();
-      this.timeoutContext = null;
-      this.on("error", utils_1.noop);
-      if (client == null) {
-        throw new error_1.MongoRuntimeError("ClientSession requires a MongoClient");
-      }
-      if (sessionPool == null || !(sessionPool instanceof ServerSessionPool)) {
-        throw new error_1.MongoRuntimeError("ClientSession requires a ServerSessionPool");
-      }
-      options = options ?? {};
-      this.snapshotEnabled = options.snapshot === true;
-      if (options.causalConsistency === true && this.snapshotEnabled) {
-        throw new error_1.MongoInvalidArgumentError('Properties "causalConsistency" and "snapshot" are mutually exclusive');
-      }
-      this.client = client;
-      this.sessionPool = sessionPool;
-      this.hasEnded = false;
-      this.clientOptions = clientOptions;
-      this.timeoutMS = options.defaultTimeoutMS ?? client.s.options?.timeoutMS;
-      this.explicit = !!options.explicit;
-      this._serverSession = this.explicit ? this.sessionPool.acquire() : null;
-      this.txnNumberIncrement = 0;
-      const defaultCausalConsistencyValue = this.explicit && options.snapshot !== true;
-      this.supports = {
-        causalConsistency: options.causalConsistency ?? defaultCausalConsistencyValue
-      };
-      this.clusterTime = options.initialClusterTime;
-      this.operationTime = undefined;
-      this.owner = options.owner;
-      this.defaultTransactionOptions = { ...options.defaultTransactionOptions };
-      this.transaction = new transactions_1.Transaction;
-    }
-    get id() {
-      return this.serverSession?.id;
-    }
-    get serverSession() {
-      let serverSession = this._serverSession;
-      if (serverSession == null) {
-        if (this.explicit) {
-          throw new error_1.MongoRuntimeError("Unexpected null serverSession for an explicit session");
-        }
-        if (this.hasEnded) {
-          throw new error_1.MongoRuntimeError("Unexpected null serverSession for an ended implicit session");
-        }
-        serverSession = this.sessionPool.acquire();
-        this._serverSession = serverSession;
-      }
-      return serverSession;
-    }
-    get loadBalanced() {
-      return this.client.topology?.description.type === common_1.TopologyType.LoadBalanced;
-    }
-    pin(conn) {
-      if (this.pinnedConnection) {
-        throw TypeError("Cannot pin multiple connections to the same session");
-      }
-      this.pinnedConnection = conn;
-      conn.emit(constants_1.PINNED, this.inTransaction() ? metrics_1.ConnectionPoolMetrics.TXN : metrics_1.ConnectionPoolMetrics.CURSOR);
-    }
-    unpin(options) {
-      if (this.loadBalanced) {
-        return maybeClearPinnedConnection(this, options);
-      }
-      this.transaction.unpinServer();
-    }
-    get isPinned() {
-      return this.loadBalanced ? !!this.pinnedConnection : this.transaction.isPinned;
-    }
-    async endSession(options) {
-      try {
-        if (this.inTransaction()) {
-          await this.abortTransaction({ ...options, throwTimeout: true });
-        }
-      } catch (error) {
-        if (error.name === "MongoOperationTimeoutError")
-          throw error;
-        (0, utils_1.squashError)(error);
-      } finally {
-        if (!this.hasEnded) {
-          const serverSession = this.serverSession;
-          if (serverSession != null) {
-            this.sessionPool.release(serverSession);
-            this._serverSession = new ServerSession(serverSession);
-          }
-          this.hasEnded = true;
-          this.emit("ended", this);
-        }
-        maybeClearPinnedConnection(this, { force: true, ...options });
-      }
-    }
-    async asyncDispose() {
-      await this.endSession({ force: true });
-    }
-    advanceOperationTime(operationTime) {
-      if (this.operationTime == null) {
-        this.operationTime = operationTime;
-        return;
-      }
-      if (operationTime.greaterThan(this.operationTime)) {
-        this.operationTime = operationTime;
-      }
-    }
-    advanceClusterTime(clusterTime) {
-      if (!clusterTime || typeof clusterTime !== "object") {
-        throw new error_1.MongoInvalidArgumentError("input cluster time must be an object");
-      }
-      if (!clusterTime.clusterTime || clusterTime.clusterTime._bsontype !== "Timestamp") {
-        throw new error_1.MongoInvalidArgumentError('input cluster time "clusterTime" property must be a valid BSON Timestamp');
-      }
-      if (!clusterTime.signature || clusterTime.signature.hash?._bsontype !== "Binary" || typeof clusterTime.signature.keyId !== "bigint" && typeof clusterTime.signature.keyId !== "number" && clusterTime.signature.keyId?._bsontype !== "Long") {
-        throw new error_1.MongoInvalidArgumentError('input cluster time must have a valid "signature" property with BSON Binary hash and BSON Long keyId');
-      }
-      (0, common_1._advanceClusterTime)(this, clusterTime);
-    }
-    equals(session) {
-      if (!(session instanceof ClientSession)) {
-        return false;
-      }
-      if (this.id == null || session.id == null) {
-        return false;
-      }
-      return utils_1.ByteUtils.equals(this.id.id.buffer, session.id.id.buffer);
-    }
-    incrementTransactionNumber() {
-      this.txnNumberIncrement += 1;
-    }
-    inTransaction() {
-      return this.transaction.isActive;
-    }
-    startTransaction(options) {
-      if (this.snapshotEnabled) {
-        throw new error_1.MongoCompatibilityError("Transactions are not supported in snapshot sessions");
-      }
-      if (this.inTransaction()) {
-        throw new error_1.MongoTransactionError("Transaction already in progress");
-      }
-      if (this.isPinned && this.transaction.isCommitted) {
-        this.unpin();
-      }
-      const topologyMaxWireVersion = (0, utils_1.maxWireVersion)(this.client.topology);
-      if ((0, shared_1.isSharded)(this.client.topology) && topologyMaxWireVersion != null && topologyMaxWireVersion < minWireVersionForShardedTransactions) {
-        throw new error_1.MongoCompatibilityError("Transactions are not supported on sharded clusters in MongoDB < 4.2.");
-      }
-      this.commitAttempted = false;
-      this.incrementTransactionNumber();
-      this.transaction = new transactions_1.Transaction({
-        readConcern: options?.readConcern ?? this.defaultTransactionOptions.readConcern ?? this.clientOptions?.readConcern,
-        writeConcern: options?.writeConcern ?? this.defaultTransactionOptions.writeConcern ?? this.clientOptions?.writeConcern,
-        readPreference: options?.readPreference ?? this.defaultTransactionOptions.readPreference ?? this.clientOptions?.readPreference,
-        maxCommitTimeMS: options?.maxCommitTimeMS ?? this.defaultTransactionOptions.maxCommitTimeMS
-      });
-      this.transaction.transition(transactions_1.TxnState.STARTING_TRANSACTION);
-    }
-    async commitTransaction(options) {
-      if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION) {
-        throw new error_1.MongoTransactionError("No transaction started");
-      }
-      if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY) {
-        this.transaction.transition(transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY);
-        return;
-      }
-      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
-        throw new error_1.MongoTransactionError("Cannot call commitTransaction after calling abortTransaction");
-      }
-      const command = { commitTransaction: 1 };
-      const timeoutMS = typeof options?.timeoutMS === "number" ? options.timeoutMS : typeof this.timeoutMS === "number" ? this.timeoutMS : null;
-      const wc = this.transaction.options.writeConcern ?? this.clientOptions?.writeConcern;
-      if (wc != null) {
-        if (timeoutMS == null && this.timeoutContext == null) {
-          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, w: "majority", ...wc });
-        } else {
-          const wcKeys = Object.keys(wc);
-          if (wcKeys.length > 2 || !wcKeys.includes("wtimeoutMS") && !wcKeys.includes("wTimeoutMS"))
-            write_concern_1.WriteConcern.apply(command, { ...wc, wtimeoutMS: undefined });
-        }
-      }
-      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.commitAttempted) {
-        if (timeoutMS == null && this.timeoutContext == null) {
-          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, ...wc, w: "majority" });
-        } else {
-          write_concern_1.WriteConcern.apply(command, { w: "majority", ...wc, wtimeoutMS: undefined });
-        }
-      }
-      if (typeof this.transaction.options.maxTimeMS === "number") {
-        command.maxTimeMS = this.transaction.options.maxTimeMS;
-      }
-      if (this.transaction.recoveryToken) {
-        command.recoveryToken = this.transaction.recoveryToken;
-      }
-      const operation = new run_command_1.RunAdminCommandOperation(command, {
-        session: this,
-        readPreference: read_preference_1.ReadPreference.primary,
-        bypassPinningCheck: true
-      });
-      const timeoutContext = this.timeoutContext ?? (typeof timeoutMS === "number" ? timeout_1.TimeoutContext.create({
-        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
-        socketTimeoutMS: this.clientOptions.socketTimeoutMS,
-        timeoutMS
-      }) : null);
-      try {
-        await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
-        this.commitAttempted = undefined;
-        return;
-      } catch (firstCommitError) {
-        this.commitAttempted = true;
-        if (firstCommitError instanceof error_1.MongoError && (0, error_1.isRetryableWriteError)(firstCommitError)) {
-          write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, ...wc, w: "majority" });
-          this.unpin({ force: true });
-          try {
-            await (0, execute_operation_1.executeOperation)(this.client, new run_command_1.RunAdminCommandOperation(command, {
-              session: this,
-              readPreference: read_preference_1.ReadPreference.primary,
-              bypassPinningCheck: true
-            }), timeoutContext);
-            return;
-          } catch (retryCommitError) {
-            if (shouldAddUnknownTransactionCommitResultLabel(retryCommitError)) {
-              retryCommitError.addErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult);
-            }
-            if (shouldUnpinAfterCommitError(retryCommitError)) {
-              this.unpin({ error: retryCommitError });
-            }
-            throw retryCommitError;
-          }
-        }
-        if (shouldAddUnknownTransactionCommitResultLabel(firstCommitError)) {
-          firstCommitError.addErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult);
-        }
-        if (shouldUnpinAfterCommitError(firstCommitError)) {
-          this.unpin({ error: firstCommitError });
-        }
-        throw firstCommitError;
-      } finally {
-        this.transaction.transition(transactions_1.TxnState.TRANSACTION_COMMITTED);
-      }
-    }
-    async abortTransaction(options) {
-      if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION) {
-        throw new error_1.MongoTransactionError("No transaction started");
-      }
-      if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION) {
-        this.transaction.transition(transactions_1.TxnState.TRANSACTION_ABORTED);
-        return;
-      }
-      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
-        throw new error_1.MongoTransactionError("Cannot call abortTransaction twice");
-      }
-      if (this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED_EMPTY) {
-        throw new error_1.MongoTransactionError("Cannot call abortTransaction after calling commitTransaction");
-      }
-      const command = { abortTransaction: 1 };
-      const timeoutMS = typeof options?.timeoutMS === "number" ? options.timeoutMS : this.timeoutContext?.csotEnabled() ? this.timeoutContext.timeoutMS : typeof this.timeoutMS === "number" ? this.timeoutMS : null;
-      const timeoutContext = timeoutMS != null ? timeout_1.TimeoutContext.create({
-        timeoutMS,
-        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
-        socketTimeoutMS: this.clientOptions.socketTimeoutMS
-      }) : null;
-      const wc = this.transaction.options.writeConcern ?? this.clientOptions?.writeConcern;
-      if (wc != null && timeoutMS == null) {
-        write_concern_1.WriteConcern.apply(command, { wtimeoutMS: 1e4, w: "majority", ...wc });
-      }
-      if (this.transaction.recoveryToken) {
-        command.recoveryToken = this.transaction.recoveryToken;
-      }
-      const operation = new run_command_1.RunAdminCommandOperation(command, {
-        session: this,
-        readPreference: read_preference_1.ReadPreference.primary,
-        bypassPinningCheck: true
-      });
-      try {
-        await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
-        this.unpin();
-        return;
-      } catch (firstAbortError) {
-        this.unpin();
-        if (firstAbortError.name === "MongoRuntimeError")
-          throw firstAbortError;
-        if (options?.throwTimeout && firstAbortError.name === "MongoOperationTimeoutError") {
-          throw firstAbortError;
-        }
-        if (firstAbortError instanceof error_1.MongoError && (0, error_1.isRetryableWriteError)(firstAbortError)) {
-          try {
-            await (0, execute_operation_1.executeOperation)(this.client, operation, timeoutContext);
-            return;
-          } catch (secondAbortError) {
-            if (secondAbortError.name === "MongoRuntimeError")
-              throw secondAbortError;
-            if (options?.throwTimeout && secondAbortError.name === "MongoOperationTimeoutError") {
-              throw secondAbortError;
-            }
-          }
-        }
-      } finally {
-        this.transaction.transition(transactions_1.TxnState.TRANSACTION_ABORTED);
-        if (this.loadBalanced) {
-          maybeClearPinnedConnection(this, { force: false });
-        }
-      }
-    }
-    toBSON() {
-      throw new error_1.MongoRuntimeError("ClientSession cannot be serialized to BSON.");
-    }
-    async withTransaction(fn, options) {
-      const MAX_TIMEOUT = 120000;
-      const timeoutMS = options?.timeoutMS ?? this.timeoutMS ?? null;
-      this.timeoutContext = timeoutMS != null ? timeout_1.TimeoutContext.create({
-        timeoutMS,
-        serverSelectionTimeoutMS: this.clientOptions.serverSelectionTimeoutMS,
-        socketTimeoutMS: this.clientOptions.socketTimeoutMS
-      }) : null;
-      const startTime = this.timeoutContext?.csotEnabled() ? this.timeoutContext.start : (0, utils_1.now)();
-      let committed = false;
-      let result;
-      try {
-        while (!committed) {
-          this.startTransaction(options);
-          try {
-            const promise = fn(this);
-            if (!(0, utils_1.isPromiseLike)(promise)) {
-              throw new error_1.MongoInvalidArgumentError("Function provided to `withTransaction` must return a Promise");
-            }
-            result = await promise;
-            if (this.transaction.state === transactions_1.TxnState.NO_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_COMMITTED || this.transaction.state === transactions_1.TxnState.TRANSACTION_ABORTED) {
-              return result;
-            }
-          } catch (fnError) {
-            if (!(fnError instanceof error_1.MongoError) || fnError instanceof error_1.MongoInvalidArgumentError) {
-              await this.abortTransaction();
-              throw fnError;
-            }
-            if (this.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION || this.transaction.state === transactions_1.TxnState.TRANSACTION_IN_PROGRESS) {
-              await this.abortTransaction();
-            }
-            if (fnError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
-              continue;
-            }
-            throw fnError;
-          }
-          while (!committed) {
-            try {
-              await this.commitTransaction();
-              committed = true;
-            } catch (commitError) {
-              if (!isMaxTimeMSExpiredError(commitError) && commitError.hasErrorLabel(error_1.MongoErrorLabel.UnknownTransactionCommitResult) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
-                continue;
-              }
-              if (commitError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError) && (this.timeoutContext != null || (0, utils_1.now)() - startTime < MAX_TIMEOUT)) {
-                break;
-              }
-              throw commitError;
-            }
-          }
-        }
-        return result;
-      } finally {
-        this.timeoutContext = null;
-      }
-    }
-  }
-  exports.ClientSession = ClientSession;
-  (0, resource_management_1.configureResourceManagement)(ClientSession.prototype);
-  var NON_DETERMINISTIC_WRITE_CONCERN_ERRORS = new Set([
-    "CannotSatisfyWriteConcern",
-    "UnknownReplWriteConcern",
-    "UnsatisfiableWriteConcern"
-  ]);
-  function shouldUnpinAfterCommitError(commitError) {
-    if (commitError instanceof error_1.MongoError) {
-      if ((0, error_1.isRetryableWriteError)(commitError) || commitError instanceof error_1.MongoWriteConcernError || isMaxTimeMSExpiredError(commitError)) {
-        if (isUnknownTransactionCommitResult(commitError)) {
-          return true;
-        }
-      } else if (commitError.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  function shouldAddUnknownTransactionCommitResultLabel(commitError) {
-    let ok = (0, error_1.isRetryableWriteError)(commitError);
-    ok ||= commitError instanceof error_1.MongoWriteConcernError;
-    ok ||= isMaxTimeMSExpiredError(commitError);
-    ok &&= isUnknownTransactionCommitResult(commitError);
-    return ok;
-  }
-  function isUnknownTransactionCommitResult(err) {
-    const isNonDeterministicWriteConcernError = err instanceof error_1.MongoServerError && err.codeName && NON_DETERMINISTIC_WRITE_CONCERN_ERRORS.has(err.codeName);
-    return isMaxTimeMSExpiredError(err) || !isNonDeterministicWriteConcernError && err.code !== error_1.MONGODB_ERROR_CODES.UnsatisfiableWriteConcern && err.code !== error_1.MONGODB_ERROR_CODES.UnknownReplWriteConcern;
-  }
-  function maybeClearPinnedConnection(session, options) {
-    const conn = session.pinnedConnection;
-    const error = options?.error;
-    if (session.inTransaction() && error && error instanceof error_1.MongoError && error.hasErrorLabel(error_1.MongoErrorLabel.TransientTransactionError)) {
-      return;
-    }
-    const topology = session.client.topology;
-    if (conn && topology != null) {
-      const servers = Array.from(topology.s.servers.values());
-      const loadBalancer = servers[0];
-      if (options?.error == null || options?.force) {
-        loadBalancer.pool.checkIn(conn);
-        session.pinnedConnection = undefined;
-        conn.emit(constants_1.UNPINNED, session.transaction.state !== transactions_1.TxnState.NO_TRANSACTION ? metrics_1.ConnectionPoolMetrics.TXN : metrics_1.ConnectionPoolMetrics.CURSOR);
-        if (options?.forceClear) {
-          loadBalancer.pool.clear({ serviceId: conn.serviceId });
-        }
-      }
-    }
-  }
-  function isMaxTimeMSExpiredError(err) {
-    if (err == null || !(err instanceof error_1.MongoServerError)) {
-      return false;
-    }
-    return err.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired || err.writeConcernError?.code === error_1.MONGODB_ERROR_CODES.MaxTimeMSExpired;
-  }
-
-  class ServerSession {
-    constructor(cloned) {
-      if (cloned != null) {
-        const idBytes = Buffer.allocUnsafe(16);
-        idBytes.set(cloned.id.id.buffer);
-        this.id = { id: new bson_1.Binary(idBytes, cloned.id.id.sub_type) };
-        this.lastUse = cloned.lastUse;
-        this.txnNumber = cloned.txnNumber;
-        this.isDirty = cloned.isDirty;
-        return;
-      }
-      this.id = { id: new bson_1.Binary((0, utils_1.uuidV4)(), bson_1.Binary.SUBTYPE_UUID) };
-      this.lastUse = (0, utils_1.now)();
-      this.txnNumber = 0;
-      this.isDirty = false;
-    }
-    hasTimedOut(sessionTimeoutMinutes) {
-      const idleTimeMinutes = Math.round((0, utils_1.calculateDurationInMs)(this.lastUse) % 86400000 % 3600000 / 60000);
-      return idleTimeMinutes > sessionTimeoutMinutes - 1;
-    }
-  }
-  exports.ServerSession = ServerSession;
-
-  class ServerSessionPool {
-    constructor(client) {
-      if (client == null) {
-        throw new error_1.MongoRuntimeError("ServerSessionPool requires a MongoClient");
-      }
-      this.client = client;
-      this.sessions = new utils_1.List;
-    }
-    acquire() {
-      const sessionTimeoutMinutes = this.client.topology?.logicalSessionTimeoutMinutes ?? 10;
-      let session = null;
-      while (this.sessions.length > 0) {
-        const potentialSession = this.sessions.shift();
-        if (potentialSession != null && (!!this.client.topology?.loadBalanced || !potentialSession.hasTimedOut(sessionTimeoutMinutes))) {
-          session = potentialSession;
-          break;
-        }
-      }
-      if (session == null) {
-        session = new ServerSession;
-      }
-      return session;
-    }
-    release(session) {
-      const sessionTimeoutMinutes = this.client.topology?.logicalSessionTimeoutMinutes ?? 10;
-      if (this.client.topology?.loadBalanced && !sessionTimeoutMinutes) {
-        this.sessions.unshift(session);
-      }
-      if (!sessionTimeoutMinutes) {
-        return;
-      }
-      this.sessions.prune((session2) => session2.hasTimedOut(sessionTimeoutMinutes));
-      if (!session.hasTimedOut(sessionTimeoutMinutes)) {
-        if (session.isDirty) {
-          return;
-        }
-        this.sessions.unshift(session);
-      }
-    }
-  }
-  exports.ServerSessionPool = ServerSessionPool;
-  function applySession(session, command, options) {
-    if (session.hasEnded) {
-      return new error_1.MongoExpiredSessionError;
-    }
-    const serverSession = session.serverSession;
-    if (serverSession == null) {
-      return new error_1.MongoRuntimeError("Unable to acquire server session");
-    }
-    if (options.writeConcern?.w === 0) {
-      if (session && session.explicit) {
-        return new error_1.MongoAPIError("Cannot have explicit session with unacknowledged writes");
-      }
-      return;
-    }
-    serverSession.lastUse = (0, utils_1.now)();
-    command.lsid = serverSession.id;
-    const inTxnOrTxnCommand = session.inTransaction() || (0, transactions_1.isTransactionCommand)(command);
-    const isRetryableWrite = !!options.willRetryWrite;
-    if (isRetryableWrite || inTxnOrTxnCommand) {
-      serverSession.txnNumber += session.txnNumberIncrement;
-      session.txnNumberIncrement = 0;
-      command.txnNumber = bson_1.Long.fromNumber(serverSession.txnNumber);
-    }
-    if (!inTxnOrTxnCommand) {
-      if (session.transaction.state !== transactions_1.TxnState.NO_TRANSACTION) {
-        session.transaction.transition(transactions_1.TxnState.NO_TRANSACTION);
-      }
-      if (session.supports.causalConsistency && session.operationTime && (0, utils_1.commandSupportsReadConcern)(command)) {
-        command.readConcern = command.readConcern || {};
-        Object.assign(command.readConcern, { afterClusterTime: session.operationTime });
-      } else if (session.snapshotEnabled) {
-        command.readConcern = command.readConcern || { level: read_concern_1.ReadConcernLevel.snapshot };
-        if (session.snapshotTime != null) {
-          Object.assign(command.readConcern, { atClusterTime: session.snapshotTime });
-        }
-      }
-      return;
-    }
-    command.autocommit = false;
-    if (session.transaction.state === transactions_1.TxnState.STARTING_TRANSACTION) {
-      session.transaction.transition(transactions_1.TxnState.TRANSACTION_IN_PROGRESS);
-      command.startTransaction = true;
-      const readConcern = session.transaction.options.readConcern || session?.clientOptions?.readConcern;
-      if (readConcern) {
-        command.readConcern = readConcern;
-      }
-      if (session.supports.causalConsistency && session.operationTime) {
-        command.readConcern = command.readConcern || {};
-        Object.assign(command.readConcern, { afterClusterTime: session.operationTime });
-      }
-    }
-    return;
-  }
-  function updateSessionFromResponse(session, document2) {
-    if (document2.$clusterTime) {
-      (0, common_1._advanceClusterTime)(session, document2.$clusterTime);
-    }
-    if (document2.operationTime && session && session.supports.causalConsistency) {
-      session.advanceOperationTime(document2.operationTime);
-    }
-    if (document2.recoveryToken && session && session.inTransaction()) {
-      session.transaction._recoveryToken = document2.recoveryToken;
-    }
-    if (session?.snapshotEnabled && session.snapshotTime == null) {
-      const atClusterTime = document2.atClusterTime;
-      if (atClusterTime) {
-        session.snapshotTime = atClusterTime;
-      }
-    }
-  }
-});
-
-// node_modules/mongodb/lib/cmap/command_monitoring_events.js
-var require_command_monitoring_events = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.SENSITIVE_COMMANDS = exports.CommandFailedEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = undefined;
-  var constants_1 = require_constants();
-  var utils_1 = require_utils();
-  var commands_1 = require_commands();
-
-  class CommandStartedEvent {
-    constructor(connection, command, serverConnectionId) {
-      this.name = constants_1.COMMAND_STARTED;
-      const cmd = extractCommand(command);
-      const commandName = extractCommandName(cmd);
-      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
-      if (exports.SENSITIVE_COMMANDS.has(commandName)) {
-        this.commandObj = {};
-        this.commandObj[commandName] = true;
-      }
-      this.address = address;
-      this.connectionId = connectionId;
-      this.serviceId = serviceId;
-      this.requestId = command.requestId;
-      this.databaseName = command.databaseName;
-      this.commandName = commandName;
-      this.command = maybeRedact(commandName, cmd, cmd);
-      this.serverConnectionId = serverConnectionId;
-    }
-    get hasServiceId() {
-      return !!this.serviceId;
-    }
-  }
-  exports.CommandStartedEvent = CommandStartedEvent;
-
-  class CommandSucceededEvent {
-    constructor(connection, command, reply, started, serverConnectionId) {
-      this.name = constants_1.COMMAND_SUCCEEDED;
-      const cmd = extractCommand(command);
-      const commandName = extractCommandName(cmd);
-      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
-      this.address = address;
-      this.connectionId = connectionId;
-      this.serviceId = serviceId;
-      this.requestId = command.requestId;
-      this.commandName = commandName;
-      this.duration = (0, utils_1.calculateDurationInMs)(started);
-      this.reply = maybeRedact(commandName, cmd, extractReply(reply));
-      this.serverConnectionId = serverConnectionId;
-      this.databaseName = command.databaseName;
-    }
-    get hasServiceId() {
-      return !!this.serviceId;
-    }
-  }
-  exports.CommandSucceededEvent = CommandSucceededEvent;
-
-  class CommandFailedEvent {
-    constructor(connection, command, error, started, serverConnectionId) {
-      this.name = constants_1.COMMAND_FAILED;
-      const cmd = extractCommand(command);
-      const commandName = extractCommandName(cmd);
-      const { address, connectionId, serviceId } = extractConnectionDetails(connection);
-      this.address = address;
-      this.connectionId = connectionId;
-      this.serviceId = serviceId;
-      this.requestId = command.requestId;
-      this.commandName = commandName;
-      this.duration = (0, utils_1.calculateDurationInMs)(started);
-      this.failure = maybeRedact(commandName, cmd, error);
-      this.serverConnectionId = serverConnectionId;
-      this.databaseName = command.databaseName;
-    }
-    get hasServiceId() {
-      return !!this.serviceId;
-    }
-  }
-  exports.CommandFailedEvent = CommandFailedEvent;
-  exports.SENSITIVE_COMMANDS = new Set([
-    "authenticate",
-    "saslStart",
-    "saslContinue",
-    "getnonce",
-    "createUser",
-    "updateUser",
-    "copydbgetnonce",
-    "copydbsaslstart",
-    "copydb"
-  ]);
-  var HELLO_COMMANDS = new Set(["hello", constants_1.LEGACY_HELLO_COMMAND, constants_1.LEGACY_HELLO_COMMAND_CAMEL_CASE]);
-  var extractCommandName = (commandDoc) => Object.keys(commandDoc)[0];
-  var collectionName = (command) => command.ns.split(".")[1];
-  var maybeRedact = (commandName, commandDoc, result) => exports.SENSITIVE_COMMANDS.has(commandName) || HELLO_COMMANDS.has(commandName) && commandDoc.speculativeAuthenticate ? {} : result;
-  var LEGACY_FIND_QUERY_MAP = {
-    $query: "filter",
-    $orderby: "sort",
-    $hint: "hint",
-    $comment: "comment",
-    $maxScan: "maxScan",
-    $max: "max",
-    $min: "min",
-    $returnKey: "returnKey",
-    $showDiskLoc: "showRecordId",
-    $maxTimeMS: "maxTimeMS",
-    $snapshot: "snapshot"
-  };
-  var LEGACY_FIND_OPTIONS_MAP = {
-    numberToSkip: "skip",
-    numberToReturn: "batchSize",
-    returnFieldSelector: "projection"
-  };
-  function extractCommand(command) {
-    if (command instanceof commands_1.OpMsgRequest) {
-      const cmd = { ...command.command };
-      if (cmd.ops instanceof commands_1.DocumentSequence) {
-        cmd.ops = cmd.ops.documents;
-      }
-      if (cmd.nsInfo instanceof commands_1.DocumentSequence) {
-        cmd.nsInfo = cmd.nsInfo.documents;
-      }
-      return cmd;
-    }
-    if (command.query?.$query) {
-      let result;
-      if (command.ns === "admin.$cmd") {
-        result = Object.assign({}, command.query.$query);
-      } else {
-        result = { find: collectionName(command) };
-        Object.keys(LEGACY_FIND_QUERY_MAP).forEach((key) => {
-          if (command.query[key] != null) {
-            result[LEGACY_FIND_QUERY_MAP[key]] = { ...command.query[key] };
-          }
-        });
-      }
-      Object.keys(LEGACY_FIND_OPTIONS_MAP).forEach((key) => {
-        const legacyKey = key;
-        if (command[legacyKey] != null) {
-          result[LEGACY_FIND_OPTIONS_MAP[legacyKey]] = command[legacyKey];
-        }
-      });
-      return result;
-    }
-    let clonedQuery = {};
-    const clonedCommand = { ...command };
-    if (command.query) {
-      clonedQuery = { ...command.query };
-      clonedCommand.query = clonedQuery;
-    }
-    return command.query ? clonedQuery : clonedCommand;
-  }
-  function extractReply(reply) {
-    if (!reply) {
-      return reply;
-    }
-    return reply.result ? reply.result : reply;
-  }
-  function extractConnectionDetails(connection) {
-    let connectionId;
-    if ("id" in connection) {
-      connectionId = connection.id;
-    }
-    return {
-      address: connection.address,
-      serviceId: connection.serviceId,
-      connectionId
-    };
-  }
-});
-
-// node_modules/mongodb/lib/cmap/stream_description.js
-var require_stream_description = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.StreamDescription = undefined;
-  var bson_1 = require_bson2();
-  var common_1 = require_common();
-  var server_description_1 = require_server_description();
-  var RESPONSE_FIELDS = [
-    "minWireVersion",
-    "maxWireVersion",
-    "maxBsonObjectSize",
-    "maxMessageSizeBytes",
-    "maxWriteBatchSize",
-    "logicalSessionTimeoutMinutes"
-  ];
-
-  class StreamDescription {
-    constructor(address, options) {
-      this.hello = null;
-      this.address = address;
-      this.type = common_1.ServerType.Unknown;
-      this.minWireVersion = undefined;
-      this.maxWireVersion = undefined;
-      this.maxBsonObjectSize = 16777216;
-      this.maxMessageSizeBytes = 48000000;
-      this.maxWriteBatchSize = 1e5;
-      this.logicalSessionTimeoutMinutes = options?.logicalSessionTimeoutMinutes;
-      this.loadBalanced = !!options?.loadBalanced;
-      this.compressors = options && options.compressors && Array.isArray(options.compressors) ? options.compressors : [];
-      this.serverConnectionId = null;
-    }
-    receiveResponse(response) {
-      if (response == null) {
-        return;
-      }
-      this.hello = response;
-      this.type = (0, server_description_1.parseServerType)(response);
-      if ("connectionId" in response) {
-        this.serverConnectionId = this.parseServerConnectionID(response.connectionId);
-      } else {
-        this.serverConnectionId = null;
-      }
-      for (const field of RESPONSE_FIELDS) {
-        if (response[field] != null) {
-          this[field] = response[field];
-        }
-        if ("__nodejs_mock_server__" in response) {
-          this.__nodejs_mock_server__ = response["__nodejs_mock_server__"];
-        }
-      }
-      if (response.compression) {
-        this.compressor = this.compressors.filter((c) => response.compression?.includes(c))[0];
-      }
-    }
-    parseServerConnectionID(serverConnectionId) {
-      return bson_1.Long.isLong(serverConnectionId) ? serverConnectionId.toBigInt() : BigInt(serverConnectionId);
-    }
-  }
-  exports.StreamDescription = StreamDescription;
-});
-
-// node_modules/mongodb/lib/cmap/wire_protocol/on_data.js
-var require_on_data = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.onData = onData;
-  var utils_1 = require_utils();
-  function onData(emitter, { timeoutContext, signal }) {
-    signal?.throwIfAborted();
-    const unconsumedEvents = new utils_1.List;
-    const unconsumedPromises = new utils_1.List;
-    let error = null;
-    let finished = false;
-    const iterator = {
-      next() {
-        const value = unconsumedEvents.shift();
-        if (value != null) {
-          return Promise.resolve({ value, done: false });
-        }
-        if (error != null) {
-          const p = Promise.reject(error);
-          error = null;
-          return p;
-        }
-        if (finished)
-          return closeHandler();
-        const { promise, resolve, reject } = (0, utils_1.promiseWithResolvers)();
-        unconsumedPromises.push({ resolve, reject });
-        return promise;
-      },
-      return() {
-        return closeHandler();
-      },
-      throw(err) {
-        errorHandler2(err);
-        return Promise.resolve({ value: undefined, done: true });
-      },
-      [Symbol.asyncIterator]() {
-        return this;
-      },
-      async[Symbol.asyncDispose]() {
-        await closeHandler();
-      }
-    };
-    emitter.on("data", eventHandler);
-    emitter.on("error", errorHandler2);
-    const abortListener = (0, utils_1.addAbortListener)(signal, function() {
-      errorHandler2(this.reason);
-    });
-    const timeoutForSocketRead = timeoutContext?.timeoutForSocketRead;
-    timeoutForSocketRead?.throwIfExpired();
-    timeoutForSocketRead?.then(undefined, errorHandler2);
-    return iterator;
-    function eventHandler(value) {
-      const promise = unconsumedPromises.shift();
-      if (promise != null)
-        promise.resolve({ value, done: false });
-      else
-        unconsumedEvents.push(value);
-    }
-    function errorHandler2(err) {
-      const promise = unconsumedPromises.shift();
-      if (promise != null)
-        promise.reject(err);
-      else
-        error = err;
-      closeHandler();
-    }
-    function closeHandler() {
-      emitter.off("data", eventHandler);
-      emitter.off("error", errorHandler2);
-      abortListener?.[utils_1.kDispose]();
-      finished = true;
-      timeoutForSocketRead?.clear();
-      const doneResult = { value: undefined, done: finished };
-      for (const promise of unconsumedPromises) {
-        promise.resolve(doneResult);
-      }
-      return Promise.resolve(doneResult);
-    }
-  }
-});
-
 // node_modules/mongodb/lib/cmap/connection.js
 var require_connection = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
@@ -19500,7 +18012,7 @@ var require_connection = __commonJS((exports) => {
   var stream_1 = __require("stream");
   var timers_1 = __require("timers");
   var bson_1 = require_bson2();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var error_1 = require_error();
   var mongo_logger_1 = require_mongo_logger();
   var mongo_types_1 = require_mongo_types();
@@ -19910,9 +18422,6 @@ var require_connection = __commonJS((exports) => {
       if (serverWireVersion === 0) {
         return await super.command(ns, cmd, options, responseType);
       }
-      if (serverWireVersion < 8) {
-        throw new error_1.MongoCompatibilityError("Auto-encryption requires a minimum MongoDB version of 4.2");
-      }
       const sort = cmd.find || cmd.findAndModify ? cmd.sort : null;
       const indexKeys = cmd.createIndexes ? cmd.indexes.map((index) => index.key) : null;
       const encrypted = await autoEncrypter.encrypt(ns.toString(), cmd, options);
@@ -19951,14 +18460,14 @@ var require_connect = __commonJS((exports) => {
   exports.makeSocket = makeSocket;
   var net = __require("net");
   var tls = __require("tls");
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var deps_1 = require_deps();
   var error_1 = require_error();
   var utils_1 = require_utils();
   var auth_provider_1 = require_auth_provider();
   var providers_1 = require_providers();
   var connection_1 = require_connection();
-  var constants_2 = require_constants2();
+  var constants_2 = require_constants();
   async function connect(options) {
     let connection = null;
     try {
@@ -20263,7 +18772,7 @@ var require_connect = __commonJS((exports) => {
 var require_events = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.ServerHeartbeatFailedEvent = exports.ServerHeartbeatSucceededEvent = exports.ServerHeartbeatStartedEvent = exports.TopologyClosedEvent = exports.TopologyOpeningEvent = exports.TopologyDescriptionChangedEvent = exports.ServerClosedEvent = exports.ServerOpeningEvent = exports.ServerDescriptionChangedEvent = undefined;
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
 
   class ServerDescriptionChangedEvent {
     constructor(topologyId, address, previousDescription, newDescription) {
@@ -20356,7 +18865,7 @@ var require_events = __commonJS((exports) => {
 var require_connection_pool_events = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.ConnectionPoolClearedEvent = exports.ConnectionCheckedInEvent = exports.ConnectionCheckedOutEvent = exports.ConnectionCheckOutFailedEvent = exports.ConnectionCheckOutStartedEvent = exports.ConnectionClosedEvent = exports.ConnectionReadyEvent = exports.ConnectionCreatedEvent = exports.ConnectionPoolClosedEvent = exports.ConnectionPoolReadyEvent = exports.ConnectionPoolCreatedEvent = exports.ConnectionPoolMonitoringEvent = undefined;
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var utils_1 = require_utils();
 
   class ConnectionPoolMonitoringEvent {
@@ -20530,7 +19039,7 @@ var require_connection_pool = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.ConnectionPool = exports.PoolState = undefined;
   var timers_1 = __require("timers");
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var error_1 = require_error();
   var mongo_types_1 = require_mongo_types();
   var timeout_1 = require_timeout();
@@ -20957,15 +19466,17 @@ var require_server = __commonJS((exports) => {
   var connection_1 = require_connection();
   var connection_pool_1 = require_connection_pool();
   var errors_1 = require_errors2();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var error_1 = require_error();
   var mongo_types_1 = require_mongo_types();
+  var aggregate_1 = require_aggregate();
   var transactions_1 = require_transactions();
   var utils_1 = require_utils();
   var write_concern_1 = require_write_concern();
   var common_1 = require_common();
   var monitor_1 = require_monitor();
   var server_description_1 = require_server_description();
+  var server_selection_1 = require_server_selection();
   var stateTransition = (0, utils_1.makeStateMachine)({
     [common_1.STATE_CLOSED]: [common_1.STATE_CLOSED, common_1.STATE_CONNECTING],
     [common_1.STATE_CONNECTING]: [common_1.STATE_CONNECTING, common_1.STATE_CLOSING, common_1.STATE_CONNECTED, common_1.STATE_CLOSED],
@@ -21066,29 +19577,16 @@ var require_server = __commonJS((exports) => {
         this.monitor?.requestCheck();
       }
     }
-    async command(ns, cmd, { ...options }, responseType) {
-      if (ns.db == null || typeof ns === "string") {
-        throw new error_1.MongoInvalidArgumentError("Namespace must not be a string");
-      }
+    async command(operation, timeoutContext) {
       if (this.s.state === common_1.STATE_CLOSING || this.s.state === common_1.STATE_CLOSED) {
         throw new error_1.MongoServerClosedError;
       }
-      options.directConnection = this.topology.s.options.directConnection;
-      if (options.omitReadPreference) {
-        delete options.readPreference;
-      }
-      if (this.description.iscryptd) {
-        options.omitMaxTimeMS = true;
-      }
-      const session = options.session;
+      const session = operation.session;
       let conn = session?.pinnedConnection;
       this.incrementOperationCount();
       if (conn == null) {
         try {
-          conn = await this.pool.checkOut(options);
-          if (this.loadBalanced && isPinnableCommand(cmd, session)) {
-            session?.pin(conn);
-          }
+          conn = await this.pool.checkOut({ timeoutContext, signal: operation.options.signal });
         } catch (checkoutError) {
           this.decrementOperationCount();
           if (!(checkoutError instanceof errors_1.PoolClearedError))
@@ -21097,9 +19595,42 @@ var require_server = __commonJS((exports) => {
         }
       }
       let reauthPromise = null;
+      const cleanup = () => {
+        this.decrementOperationCount();
+        if (session?.pinnedConnection !== conn) {
+          if (reauthPromise != null) {
+            const checkBackIn = () => {
+              this.pool.checkIn(conn);
+            };
+            reauthPromise.then(checkBackIn, checkBackIn);
+          } else {
+            this.pool.checkIn(conn);
+          }
+        }
+      };
+      let cmd;
+      try {
+        cmd = operation.buildCommand(conn, session);
+      } catch (e) {
+        cleanup();
+        throw e;
+      }
+      const options = operation.buildOptions(timeoutContext);
+      const ns = operation.ns;
+      if (this.loadBalanced && isPinnableCommand(cmd, session) && !session?.pinnedConnection) {
+        session?.pin(conn);
+      }
+      options.directConnection = this.topology.s.options.directConnection;
+      const omitReadPreference = operation instanceof aggregate_1.AggregateOperation && operation.hasWriteStage && (0, utils_1.maxWireVersion)(conn) < server_selection_1.MIN_SECONDARY_WRITE_WIRE_VERSION;
+      if (omitReadPreference) {
+        delete options.readPreference;
+      }
+      if (this.description.iscryptd) {
+        options.omitMaxTimeMS = true;
+      }
       try {
         try {
-          const res = await conn.command(ns, cmd, options, responseType);
+          const res = await conn.command(ns, cmd, options, operation.SERVER_COMMAND_RESPONSE_TYPE);
           (0, write_concern_1.throwIfWriteConcernError)(res);
           return res;
         } catch (commandError) {
@@ -21115,7 +19646,7 @@ var require_server = __commonJS((exports) => {
           await (0, utils_1.abortable)(reauthPromise, options);
           reauthPromise = null;
           try {
-            const res = await conn.command(ns, cmd, options, responseType);
+            const res = await conn.command(ns, cmd, options, operation.SERVER_COMMAND_RESPONSE_TYPE);
             (0, write_concern_1.throwIfWriteConcernError)(res);
             return res;
           } catch (commandError) {
@@ -21125,17 +19656,7 @@ var require_server = __commonJS((exports) => {
           throw operationError;
         }
       } finally {
-        this.decrementOperationCount();
-        if (session?.pinnedConnection !== conn) {
-          if (reauthPromise != null) {
-            const checkBackIn = () => {
-              this.pool.checkIn(conn);
-            };
-            reauthPromise.then(checkBackIn, checkBackIn);
-          } else {
-            this.pool.checkIn(conn);
-          }
-        }
+        cleanup();
       }
     }
     handleError(error, connection) {
@@ -21159,7 +19680,7 @@ var require_server = __commonJS((exports) => {
       } else {
         if ((0, error_1.isSDAMUnrecoverableError)(error)) {
           if (shouldHandleStateChangeError(this, error)) {
-            const shouldClearPool = (0, utils_1.maxWireVersion)(this) <= 7 || (0, error_1.isNodeShuttingDownError)(error);
+            const shouldClearPool = (0, error_1.isNodeShuttingDownError)(error);
             if (this.loadBalanced && connection && shouldClearPool) {
               this.pool.clear({ serviceId: connection.serviceId });
             }
@@ -21266,7 +19787,7 @@ var require_monitor = __commonJS((exports) => {
   var bson_1 = require_bson2();
   var connect_1 = require_connect();
   var client_metadata_1 = require_client_metadata();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var error_1 = require_error();
   var mongo_logger_1 = require_mongo_logger();
   var mongo_types_1 = require_mongo_types();
@@ -21741,7 +20262,6 @@ var require_connection_string = __commonJS((exports) => {
   var url_1 = __require("url");
   var mongo_credentials_1 = require_mongo_credentials();
   var providers_1 = require_providers();
-  var client_metadata_1 = require_client_metadata();
   var compression_1 = require_compression();
   var encrypter_1 = require_encrypter();
   var error_1 = require_error();
@@ -22071,9 +20591,6 @@ var require_connection_string = __commonJS((exports) => {
       mongodbLogComponentSeverities: mongoOptions.mongodbLogComponentSeverities,
       mongodbLogMaxDocumentLength: mongoOptions.mongodbLogMaxDocumentLength
     });
-    mongoOptions.additionalDriverInfo = [];
-    mongoOptions.metadata = (0, client_metadata_1.makeClientMetadata)(mongoOptions);
-    mongoOptions.extendedMetadata = (0, client_metadata_1.addContainerMetadata)(mongoOptions.metadata).then(undefined, utils_1.squashError);
     return mongoOptions;
   }
   function validateLoadBalancedOptions(hosts, mongoOptions, isSrv) {
@@ -22736,6 +21253,880 @@ var require_connection_string = __commonJS((exports) => {
     __skipPingOnConnect: { type: "boolean" }
   };
   exports.DEFAULT_OPTIONS = new CaseInsensitiveMap(Object.entries(exports.OPTIONS).filter(([, descriptor]) => descriptor.default != null).map(([k, d]) => [k, d.default]));
+});
+
+// node_modules/mongodb/lib/operations/list_collections.js
+var require_list_collections = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListCollectionsOperation = undefined;
+  var responses_1 = require_responses();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class ListCollectionsOperation extends command_1.CommandOperation {
+    constructor(db, filter, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
+      this.options = { ...options };
+      delete this.options.writeConcern;
+      this.db = db;
+      this.filter = filter;
+      this.nameOnly = !!this.options.nameOnly;
+      this.authorizedCollections = !!this.options.authorizedCollections;
+      if (typeof this.options.batchSize === "number") {
+        this.batchSize = this.options.batchSize;
+      }
+      this.SERVER_COMMAND_RESPONSE_TYPE = this.explain ? responses_1.ExplainedCursorResponse : responses_1.CursorResponse;
+    }
+    get commandName() {
+      return "listCollections";
+    }
+    buildCommandDocument(connection) {
+      const command = {
+        listCollections: 1,
+        filter: this.filter,
+        cursor: this.batchSize ? { batchSize: this.batchSize } : {},
+        nameOnly: this.nameOnly,
+        authorizedCollections: this.authorizedCollections
+      };
+      if ((0, utils_1.maxWireVersion)(connection) >= 9 && this.options.comment !== undefined) {
+        command.comment = this.options.comment;
+      }
+      return command;
+    }
+    handleOk(response) {
+      return response;
+    }
+  }
+  exports.ListCollectionsOperation = ListCollectionsOperation;
+  (0, operation_1.defineAspects)(ListCollectionsOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.CURSOR_CREATING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/cursor/list_collections_cursor.js
+var require_list_collections_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListCollectionsCursor = undefined;
+  var execute_operation_1 = require_execute_operation();
+  var list_collections_1 = require_list_collections();
+  var abstract_cursor_1 = require_abstract_cursor();
+
+  class ListCollectionsCursor extends abstract_cursor_1.AbstractCursor {
+    constructor(db, filter, options) {
+      super(db.client, db.s.namespace, options);
+      this.parent = db;
+      this.filter = filter;
+      this.options = options;
+    }
+    clone() {
+      return new ListCollectionsCursor(this.parent, this.filter, {
+        ...this.options,
+        ...this.cursorOptions
+      });
+    }
+    async _initialize(session) {
+      const operation = new list_collections_1.ListCollectionsOperation(this.parent, this.filter, {
+        ...this.cursorOptions,
+        ...this.options,
+        session,
+        signal: this.signal
+      });
+      const response = await (0, execute_operation_1.executeOperation)(this.parent.client, operation, this.timeoutContext);
+      return { server: operation.server, session, response };
+    }
+  }
+  exports.ListCollectionsCursor = ListCollectionsCursor;
+});
+
+// node_modules/mongodb/lib/cursor/run_command_cursor.js
+var require_run_command_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.RunCommandCursor = undefined;
+  var error_1 = require_error();
+  var execute_operation_1 = require_execute_operation();
+  var get_more_1 = require_get_more();
+  var run_command_1 = require_run_command();
+  var utils_1 = require_utils();
+  var abstract_cursor_1 = require_abstract_cursor();
+
+  class RunCommandCursor extends abstract_cursor_1.AbstractCursor {
+    setComment(comment) {
+      this.getMoreOptions.comment = comment;
+      return this;
+    }
+    setMaxTimeMS(maxTimeMS) {
+      this.getMoreOptions.maxAwaitTimeMS = maxTimeMS;
+      return this;
+    }
+    setBatchSize(batchSize) {
+      this.getMoreOptions.batchSize = batchSize;
+      return this;
+    }
+    clone() {
+      throw new error_1.MongoAPIError("Clone not supported, create a new cursor with db.runCursorCommand");
+    }
+    withReadConcern(_) {
+      throw new error_1.MongoAPIError("RunCommandCursor does not support readConcern it must be attached to the command being run");
+    }
+    addCursorFlag(_, __) {
+      throw new error_1.MongoAPIError("RunCommandCursor does not support cursor flags, they must be attached to the command being run");
+    }
+    maxTimeMS(_) {
+      throw new error_1.MongoAPIError("maxTimeMS must be configured on the command document directly, to configure getMore.maxTimeMS use cursor.setMaxTimeMS()");
+    }
+    batchSize(_) {
+      throw new error_1.MongoAPIError("batchSize must be configured on the command document directly, to configure getMore.batchSize use cursor.setBatchSize()");
+    }
+    constructor(db, command, options = {}) {
+      super(db.client, (0, utils_1.ns)(db.namespace), options);
+      this.getMoreOptions = {};
+      this.db = db;
+      this.command = Object.freeze({ ...command });
+    }
+    async _initialize(session) {
+      const operation = new run_command_1.RunCursorCommandOperation(this.db.s.namespace, this.command, {
+        ...this.cursorOptions,
+        session,
+        readPreference: this.cursorOptions.readPreference
+      });
+      const response = await (0, execute_operation_1.executeOperation)(this.client, operation, this.timeoutContext);
+      return {
+        server: operation.server,
+        session,
+        response
+      };
+    }
+    async getMore(_batchSize) {
+      if (!this.session) {
+        throw new error_1.MongoRuntimeError("Unexpected null session. A cursor creating command should have set this");
+      }
+      const getMoreOperation = new get_more_1.GetMoreOperation(this.namespace, this.id, this.server, {
+        ...this.cursorOptions,
+        session: this.session,
+        ...this.getMoreOptions
+      });
+      return await (0, execute_operation_1.executeOperation)(this.client, getMoreOperation, this.timeoutContext);
+    }
+  }
+  exports.RunCommandCursor = RunCommandCursor;
+});
+
+// node_modules/mongodb/lib/operations/indexes.js
+var require_indexes = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListIndexesOperation = exports.DropIndexOperation = exports.CreateIndexesOperation = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+  var VALID_INDEX_OPTIONS = new Set([
+    "background",
+    "unique",
+    "name",
+    "partialFilterExpression",
+    "sparse",
+    "hidden",
+    "expireAfterSeconds",
+    "storageEngine",
+    "collation",
+    "version",
+    "weights",
+    "default_language",
+    "language_override",
+    "textIndexVersion",
+    "2dsphereIndexVersion",
+    "bits",
+    "min",
+    "max",
+    "bucketSize",
+    "wildcardProjection"
+  ]);
+  function isIndexDirection(x) {
+    return typeof x === "number" || x === "2d" || x === "2dsphere" || x === "text" || x === "geoHaystack";
+  }
+  function isSingleIndexTuple(t) {
+    return Array.isArray(t) && t.length === 2 && isIndexDirection(t[1]);
+  }
+  function constructIndexDescriptionMap(indexSpec) {
+    const key = new Map;
+    const indexSpecs = !Array.isArray(indexSpec) || isSingleIndexTuple(indexSpec) ? [indexSpec] : indexSpec;
+    for (const spec of indexSpecs) {
+      if (typeof spec === "string") {
+        key.set(spec, 1);
+      } else if (Array.isArray(spec)) {
+        key.set(spec[0], spec[1] ?? 1);
+      } else if (spec instanceof Map) {
+        for (const [property, value] of spec) {
+          key.set(property, value);
+        }
+      } else if ((0, utils_1.isObject)(spec)) {
+        for (const [property, value] of Object.entries(spec)) {
+          key.set(property, value);
+        }
+      }
+    }
+    return key;
+  }
+  function resolveIndexDescription(description) {
+    const validProvidedOptions = Object.entries(description).filter(([optionName]) => VALID_INDEX_OPTIONS.has(optionName));
+    return Object.fromEntries(validProvidedOptions.map(([name, value]) => name === "version" ? ["v", value] : [name, value]));
+  }
+
+  class CreateIndexesOperation extends command_1.CommandOperation {
+    constructor(parent, collectionName, indexes, options) {
+      super(parent, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options ?? {};
+      this.options.collation = undefined;
+      this.collectionName = collectionName;
+      this.indexes = indexes.map((userIndex) => {
+        const key = userIndex.key instanceof Map ? userIndex.key : new Map(Object.entries(userIndex.key));
+        const name = userIndex.name ?? Array.from(key).flat().join("_");
+        const validIndexOptions = resolveIndexDescription(userIndex);
+        return {
+          ...validIndexOptions,
+          name,
+          key
+        };
+      });
+      this.ns = parent.s.namespace;
+    }
+    static fromIndexDescriptionArray(parent, collectionName, indexes, options) {
+      return new CreateIndexesOperation(parent, collectionName, indexes, options);
+    }
+    static fromIndexSpecification(parent, collectionName, indexSpec, options = {}) {
+      const key = constructIndexDescriptionMap(indexSpec);
+      const description = { ...options, key };
+      return new CreateIndexesOperation(parent, collectionName, [description], options);
+    }
+    get commandName() {
+      return "createIndexes";
+    }
+    buildCommandDocument(connection) {
+      const options = this.options;
+      const indexes = this.indexes;
+      const serverWireVersion = (0, utils_1.maxWireVersion)(connection);
+      const cmd = { createIndexes: this.collectionName, indexes };
+      if (options.commitQuorum != null) {
+        if (serverWireVersion < 9) {
+          throw new error_1.MongoCompatibilityError("Option `commitQuorum` for `createIndexes` not supported on servers < 4.4");
+        }
+        cmd.commitQuorum = options.commitQuorum;
+      }
+      return cmd;
+    }
+    handleOk(_response) {
+      const indexNames = this.indexes.map((index) => index.name || "");
+      return indexNames;
+    }
+  }
+  exports.CreateIndexesOperation = CreateIndexesOperation;
+
+  class DropIndexOperation extends command_1.CommandOperation {
+    constructor(collection, indexName, options) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options ?? {};
+      this.collection = collection;
+      this.indexName = indexName;
+      this.ns = collection.fullNamespace;
+    }
+    get commandName() {
+      return "dropIndexes";
+    }
+    buildCommandDocument(_connection) {
+      return { dropIndexes: this.collection.collectionName, index: this.indexName };
+    }
+  }
+  exports.DropIndexOperation = DropIndexOperation;
+
+  class ListIndexesOperation extends command_1.CommandOperation {
+    constructor(collection, options) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
+      this.options = { ...options };
+      delete this.options.writeConcern;
+      this.collectionNamespace = collection.s.namespace;
+    }
+    get commandName() {
+      return "listIndexes";
+    }
+    buildCommandDocument(connection) {
+      const serverWireVersion = (0, utils_1.maxWireVersion)(connection);
+      const cursor = this.options.batchSize ? { batchSize: this.options.batchSize } : {};
+      const command = { listIndexes: this.collectionNamespace.collection, cursor };
+      if (serverWireVersion >= 9 && this.options.comment !== undefined) {
+        command.comment = this.options.comment;
+      }
+      return command;
+    }
+    handleOk(response) {
+      return response;
+    }
+  }
+  exports.ListIndexesOperation = ListIndexesOperation;
+  (0, operation_1.defineAspects)(ListIndexesOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.CURSOR_CREATING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+  (0, operation_1.defineAspects)(CreateIndexesOperation, [operation_1.Aspect.WRITE_OPERATION, operation_1.Aspect.SUPPORTS_RAW_DATA]);
+  (0, operation_1.defineAspects)(DropIndexOperation, [operation_1.Aspect.WRITE_OPERATION, operation_1.Aspect.SUPPORTS_RAW_DATA]);
+});
+
+// node_modules/mongodb/lib/operations/create_collection.js
+var require_create_collection = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.CreateCollectionOperation = undefined;
+  exports.createCollections = createCollections;
+  var constants_1 = require_constants();
+  var responses_1 = require_responses();
+  var collection_1 = require_collection2();
+  var error_1 = require_error();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var execute_operation_1 = require_execute_operation();
+  var indexes_1 = require_indexes();
+  var operation_1 = require_operation();
+  var ILLEGAL_COMMAND_FIELDS = new Set([
+    "w",
+    "wtimeout",
+    "timeoutMS",
+    "j",
+    "fsync",
+    "autoIndexId",
+    "pkFactory",
+    "raw",
+    "readPreference",
+    "session",
+    "readConcern",
+    "writeConcern",
+    "raw",
+    "fieldsAsRaw",
+    "useBigInt64",
+    "promoteLongs",
+    "promoteValues",
+    "promoteBuffers",
+    "bsonRegExp",
+    "serializeFunctions",
+    "ignoreUndefined",
+    "enableUtf8Validation"
+  ]);
+  var INVALID_QE_VERSION = "Driver support of Queryable Encryption is incompatible with server. Upgrade server to use Queryable Encryption.";
+
+  class CreateCollectionOperation extends command_1.CommandOperation {
+    constructor(db, name, options = {}) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.db = db;
+      this.name = name;
+    }
+    get commandName() {
+      return "create";
+    }
+    buildCommandDocument(_connection, _session) {
+      const isOptionValid = ([k, v]) => v != null && typeof v !== "function" && !ILLEGAL_COMMAND_FIELDS.has(k);
+      return {
+        create: this.name,
+        ...Object.fromEntries(Object.entries(this.options).filter(isOptionValid))
+      };
+    }
+    handleOk(_response) {
+      return new collection_1.Collection(this.db, this.name, this.options);
+    }
+  }
+  exports.CreateCollectionOperation = CreateCollectionOperation;
+  async function createCollections(db, name, options) {
+    const timeoutContext = timeout_1.TimeoutContext.create({
+      session: options.session,
+      serverSelectionTimeoutMS: db.client.s.options.serverSelectionTimeoutMS,
+      waitQueueTimeoutMS: db.client.s.options.waitQueueTimeoutMS,
+      timeoutMS: options.timeoutMS
+    });
+    const encryptedFields = options.encryptedFields ?? db.client.s.options.autoEncryption?.encryptedFieldsMap?.[`${db.databaseName}.${name}`];
+    if (encryptedFields) {
+
+      class CreateSupportingFLEv2CollectionOperation extends CreateCollectionOperation {
+        buildCommandDocument(connection, session) {
+          if (!connection.description.loadBalanced && (0, utils_1.maxWireVersion)(connection) < constants_1.MIN_SUPPORTED_QE_WIRE_VERSION) {
+            throw new error_1.MongoCompatibilityError(`${INVALID_QE_VERSION} The minimum server version required is ${constants_1.MIN_SUPPORTED_QE_SERVER_VERSION}`);
+          }
+          return super.buildCommandDocument(connection, session);
+        }
+      }
+      const escCollection = encryptedFields.escCollection ?? `enxcol_.${name}.esc`;
+      const ecocCollection = encryptedFields.ecocCollection ?? `enxcol_.${name}.ecoc`;
+      for (const collectionName of [escCollection, ecocCollection]) {
+        const createOp = new CreateSupportingFLEv2CollectionOperation(db, collectionName, {
+          clusteredIndex: {
+            key: { _id: 1 },
+            unique: true
+          },
+          session: options.session
+        });
+        await (0, execute_operation_1.executeOperation)(db.client, createOp, timeoutContext);
+      }
+      if (!options.encryptedFields) {
+        options = { ...options, encryptedFields };
+      }
+    }
+    const coll = await (0, execute_operation_1.executeOperation)(db.client, new CreateCollectionOperation(db, name, options), timeoutContext);
+    if (encryptedFields) {
+      const createIndexOp = indexes_1.CreateIndexesOperation.fromIndexSpecification(db, name, { __safeContent__: 1 }, { session: options.session });
+      await (0, execute_operation_1.executeOperation)(db.client, createIndexOp, timeoutContext);
+    }
+    return coll;
+  }
+  (0, operation_1.defineAspects)(CreateCollectionOperation, [operation_1.Aspect.WRITE_OPERATION]);
+});
+
+// node_modules/mongodb/lib/operations/drop.js
+var require_drop = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DropDatabaseOperation = exports.DropCollectionOperation = undefined;
+  exports.dropCollections = dropCollections;
+  var __1 = require_lib3();
+  var responses_1 = require_responses();
+  var abstract_cursor_1 = require_abstract_cursor();
+  var error_1 = require_error();
+  var timeout_1 = require_timeout();
+  var command_1 = require_command();
+  var execute_operation_1 = require_execute_operation();
+  var operation_1 = require_operation();
+
+  class DropCollectionOperation extends command_1.CommandOperation {
+    constructor(db, name, options = {}) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.name = name;
+    }
+    get commandName() {
+      return "drop";
+    }
+    buildCommandDocument(_connection, _session) {
+      return { drop: this.name };
+    }
+    handleOk(_response) {
+      return true;
+    }
+  }
+  exports.DropCollectionOperation = DropCollectionOperation;
+  async function dropCollections(db, name, options) {
+    const timeoutContext = timeout_1.TimeoutContext.create({
+      session: options.session,
+      serverSelectionTimeoutMS: db.client.s.options.serverSelectionTimeoutMS,
+      waitQueueTimeoutMS: db.client.s.options.waitQueueTimeoutMS,
+      timeoutMS: options.timeoutMS
+    });
+    const encryptedFieldsMap = db.client.s.options.autoEncryption?.encryptedFieldsMap;
+    let encryptedFields = options.encryptedFields ?? encryptedFieldsMap?.[`${db.databaseName}.${name}`];
+    if (!encryptedFields && encryptedFieldsMap) {
+      const listCollectionsResult = await db.listCollections({ name }, {
+        nameOnly: false,
+        session: options.session,
+        timeoutContext: new abstract_cursor_1.CursorTimeoutContext(timeoutContext, Symbol())
+      }).toArray();
+      encryptedFields = listCollectionsResult?.[0]?.options?.encryptedFields;
+    }
+    if (encryptedFields) {
+      const escCollection = encryptedFields.escCollection || `enxcol_.${name}.esc`;
+      const ecocCollection = encryptedFields.ecocCollection || `enxcol_.${name}.ecoc`;
+      for (const collectionName of [escCollection, ecocCollection]) {
+        const dropOp = new DropCollectionOperation(db, collectionName, options);
+        try {
+          await (0, execute_operation_1.executeOperation)(db.client, dropOp, timeoutContext);
+        } catch (err) {
+          if (!(err instanceof __1.MongoServerError) || err.code !== error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
+            throw err;
+          }
+        }
+      }
+    }
+    return await (0, execute_operation_1.executeOperation)(db.client, new DropCollectionOperation(db, name, options), timeoutContext);
+  }
+
+  class DropDatabaseOperation extends command_1.CommandOperation {
+    constructor(db, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+    }
+    get commandName() {
+      return "dropDatabase";
+    }
+    buildCommandDocument(_connection, _session) {
+      return { dropDatabase: 1 };
+    }
+    handleOk(_response) {
+      return true;
+    }
+  }
+  exports.DropDatabaseOperation = DropDatabaseOperation;
+  (0, operation_1.defineAspects)(DropCollectionOperation, [operation_1.Aspect.WRITE_OPERATION]);
+  (0, operation_1.defineAspects)(DropDatabaseOperation, [operation_1.Aspect.WRITE_OPERATION]);
+});
+
+// node_modules/mongodb/lib/operations/profiling_level.js
+var require_profiling_level = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ProfilingLevelOperation = undefined;
+  var bson_1 = require_bson2();
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var command_1 = require_command();
+
+  class ProfilingLevelResponse extends responses_1.MongoDBResponse {
+    get was() {
+      return this.get("was", bson_1.BSONType.int, true);
+    }
+  }
+
+  class ProfilingLevelOperation extends command_1.CommandOperation {
+    constructor(db, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = ProfilingLevelResponse;
+      this.options = options;
+    }
+    get commandName() {
+      return "profile";
+    }
+    buildCommandDocument(_connection) {
+      return { profile: -1 };
+    }
+    handleOk(response) {
+      if (response.ok === 1) {
+        const was = response.was;
+        if (was === 0)
+          return "off";
+        if (was === 1)
+          return "slow_only";
+        if (was === 2)
+          return "all";
+        throw new error_1.MongoUnexpectedServerResponseError(`Illegal profiling level value ${was}`);
+      } else {
+        throw new error_1.MongoUnexpectedServerResponseError("Error with profile command");
+      }
+    }
+  }
+  exports.ProfilingLevelOperation = ProfilingLevelOperation;
+});
+
+// node_modules/mongodb/lib/operations/rename.js
+var require_rename = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.RenameOperation = undefined;
+  var responses_1 = require_responses();
+  var collection_1 = require_collection2();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class RenameOperation extends command_1.CommandOperation {
+    constructor(collection, newName, options) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.collection = collection;
+      this.newName = newName;
+      this.options = options;
+      this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
+    }
+    get commandName() {
+      return "renameCollection";
+    }
+    buildCommandDocument(_connection, _session) {
+      const renameCollection = this.collection.namespace;
+      const to = this.collection.s.namespace.withCollection(this.newName).toString();
+      const dropTarget = typeof this.options.dropTarget === "boolean" ? this.options.dropTarget : false;
+      return {
+        renameCollection,
+        to,
+        dropTarget
+      };
+    }
+    handleOk(_response) {
+      return new collection_1.Collection(this.collection.db, this.newName, this.collection.s.options);
+    }
+  }
+  exports.RenameOperation = RenameOperation;
+  (0, operation_1.defineAspects)(RenameOperation, [operation_1.Aspect.WRITE_OPERATION]);
+});
+
+// node_modules/mongodb/lib/operations/set_profiling_level.js
+var require_set_profiling_level = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.SetProfilingLevelOperation = exports.ProfilingLevel = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var levelValues = new Set(["off", "slow_only", "all"]);
+  exports.ProfilingLevel = Object.freeze({
+    off: "off",
+    slowOnly: "slow_only",
+    all: "all"
+  });
+
+  class SetProfilingLevelOperation extends command_1.CommandOperation {
+    constructor(db, level, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      switch (level) {
+        case exports.ProfilingLevel.off:
+          this.profile = 0;
+          break;
+        case exports.ProfilingLevel.slowOnly:
+          this.profile = 1;
+          break;
+        case exports.ProfilingLevel.all:
+          this.profile = 2;
+          break;
+        default:
+          this.profile = 0;
+          break;
+      }
+      this.level = level;
+    }
+    get commandName() {
+      return "profile";
+    }
+    buildCommandDocument(_connection) {
+      const level = this.level;
+      if (!levelValues.has(level)) {
+        throw new error_1.MongoInvalidArgumentError(`Profiling level must be one of "${(0, utils_1.enumToString)(exports.ProfilingLevel)}"`);
+      }
+      return { profile: this.profile };
+    }
+    handleOk(_response) {
+      return this.level;
+    }
+  }
+  exports.SetProfilingLevelOperation = SetProfilingLevelOperation;
+});
+
+// node_modules/mongodb/lib/operations/stats.js
+var require_stats = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DbStatsOperation = undefined;
+  var responses_1 = require_responses();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class DbStatsOperation extends command_1.CommandOperation {
+    constructor(db, options) {
+      super(db, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+    }
+    get commandName() {
+      return "dbStats";
+    }
+    buildCommandDocument(_connection) {
+      const command = { dbStats: true };
+      if (this.options.scale != null) {
+        command.scale = this.options.scale;
+      }
+      return command;
+    }
+  }
+  exports.DbStatsOperation = DbStatsOperation;
+  (0, operation_1.defineAspects)(DbStatsOperation, [operation_1.Aspect.READ_OPERATION]);
+});
+
+// node_modules/mongodb/lib/db.js
+var require_db = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Db = undefined;
+  var admin_1 = require_admin();
+  var bson_1 = require_bson2();
+  var change_stream_1 = require_change_stream();
+  var collection_1 = require_collection2();
+  var CONSTANTS = require_constants2();
+  var aggregation_cursor_1 = require_aggregation_cursor();
+  var list_collections_cursor_1 = require_list_collections_cursor();
+  var run_command_cursor_1 = require_run_command_cursor();
+  var error_1 = require_error();
+  var create_collection_1 = require_create_collection();
+  var drop_1 = require_drop();
+  var execute_operation_1 = require_execute_operation();
+  var indexes_1 = require_indexes();
+  var profiling_level_1 = require_profiling_level();
+  var remove_user_1 = require_remove_user();
+  var rename_1 = require_rename();
+  var run_command_1 = require_run_command();
+  var set_profiling_level_1 = require_set_profiling_level();
+  var stats_1 = require_stats();
+  var read_concern_1 = require_read_concern();
+  var read_preference_1 = require_read_preference();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+  var DB_OPTIONS_ALLOW_LIST = [
+    "writeConcern",
+    "readPreference",
+    "readPreferenceTags",
+    "native_parser",
+    "forceServerObjectId",
+    "pkFactory",
+    "serializeFunctions",
+    "raw",
+    "authSource",
+    "ignoreUndefined",
+    "readConcern",
+    "retryMiliSeconds",
+    "numberOfRetries",
+    "useBigInt64",
+    "promoteBuffers",
+    "promoteLongs",
+    "bsonRegExp",
+    "enableUtf8Validation",
+    "promoteValues",
+    "compression",
+    "retryWrites",
+    "timeoutMS"
+  ];
+
+  class Db {
+    constructor(client, databaseName, options) {
+      options = options ?? {};
+      options = (0, utils_1.filterOptions)(options, DB_OPTIONS_ALLOW_LIST);
+      if (typeof databaseName === "string" && databaseName.includes(".")) {
+        throw new error_1.MongoInvalidArgumentError(`Database names cannot contain the character '.'`);
+      }
+      this.s = {
+        options,
+        readPreference: read_preference_1.ReadPreference.fromOptions(options),
+        bsonOptions: (0, bson_1.resolveBSONOptions)(options, client),
+        pkFactory: options?.pkFactory ?? utils_1.DEFAULT_PK_FACTORY,
+        readConcern: read_concern_1.ReadConcern.fromOptions(options),
+        writeConcern: write_concern_1.WriteConcern.fromOptions(options),
+        namespace: new utils_1.MongoDBNamespace(databaseName)
+      };
+      this.client = client;
+    }
+    get databaseName() {
+      return this.s.namespace.db;
+    }
+    get options() {
+      return this.s.options;
+    }
+    get secondaryOk() {
+      return this.s.readPreference?.preference !== "primary" || false;
+    }
+    get readConcern() {
+      return this.s.readConcern;
+    }
+    get readPreference() {
+      if (this.s.readPreference == null) {
+        return this.client.readPreference;
+      }
+      return this.s.readPreference;
+    }
+    get bsonOptions() {
+      return this.s.bsonOptions;
+    }
+    get writeConcern() {
+      return this.s.writeConcern;
+    }
+    get namespace() {
+      return this.s.namespace.toString();
+    }
+    get timeoutMS() {
+      return this.s.options?.timeoutMS;
+    }
+    async createCollection(name, options) {
+      options = (0, utils_1.resolveOptions)(this, options);
+      return await (0, create_collection_1.createCollections)(this, name, options);
+    }
+    async command(command, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new run_command_1.RunCommandOperation(this.s.namespace, command, (0, utils_1.resolveOptions)(undefined, {
+        ...(0, bson_1.resolveBSONOptions)(options),
+        timeoutMS: options?.timeoutMS ?? this.timeoutMS,
+        session: options?.session,
+        readPreference: options?.readPreference,
+        signal: options?.signal
+      })));
+    }
+    aggregate(pipeline = [], options) {
+      return new aggregation_cursor_1.AggregationCursor(this.client, this.s.namespace, pipeline, (0, utils_1.resolveOptions)(this, options));
+    }
+    admin() {
+      return new admin_1.Admin(this);
+    }
+    collection(name, options = {}) {
+      if (typeof options === "function") {
+        throw new error_1.MongoInvalidArgumentError("The callback form of this helper has been removed.");
+      }
+      return new collection_1.Collection(this, name, (0, utils_1.resolveOptions)(this, options));
+    }
+    async stats(options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new stats_1.DbStatsOperation(this, (0, utils_1.resolveOptions)(this, options)));
+    }
+    listCollections(filter = {}, options = {}) {
+      return new list_collections_cursor_1.ListCollectionsCursor(this, filter, (0, utils_1.resolveOptions)(this, options));
+    }
+    async renameCollection(fromCollection, toCollection, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new rename_1.RenameOperation(this.collection(fromCollection), toCollection, (0, utils_1.resolveOptions)(undefined, {
+        ...options,
+        new_collection: true,
+        readPreference: read_preference_1.ReadPreference.primary
+      })));
+    }
+    async dropCollection(name, options) {
+      options = (0, utils_1.resolveOptions)(this, options);
+      return await (0, drop_1.dropCollections)(this, name, options);
+    }
+    async dropDatabase(options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new drop_1.DropDatabaseOperation(this, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async collections(options) {
+      options = (0, utils_1.resolveOptions)(this, options);
+      const collections = await this.listCollections({}, { ...options, nameOnly: true }).toArray();
+      return collections.filter(({ name }) => !name.includes("$")).map(({ name }) => new collection_1.Collection(this, name, this.s.options));
+    }
+    async createIndex(name, indexSpec, options) {
+      const indexes = await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexSpecification(this, name, indexSpec, options));
+      return indexes[0];
+    }
+    async removeUser(username, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new remove_user_1.RemoveUserOperation(this, username, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async setProfilingLevel(level, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new set_profiling_level_1.SetProfilingLevelOperation(this, level, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async profilingLevel(options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new profiling_level_1.ProfilingLevelOperation(this, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async indexInformation(name, options) {
+      return await this.collection(name).indexInformation((0, utils_1.resolveOptions)(this, options));
+    }
+    watch(pipeline = [], options = {}) {
+      if (!Array.isArray(pipeline)) {
+        options = pipeline;
+        pipeline = [];
+      }
+      return new change_stream_1.ChangeStream(this, pipeline, (0, utils_1.resolveOptions)(this, options));
+    }
+    runCursorCommand(command, options) {
+      return new run_command_cursor_1.RunCommandCursor(this, command, options);
+    }
+  }
+  exports.Db = Db;
+  Db.SYSTEM_NAMESPACE_COLLECTION = CONSTANTS.SYSTEM_NAMESPACE_COLLECTION;
+  Db.SYSTEM_INDEX_COLLECTION = CONSTANTS.SYSTEM_INDEX_COLLECTION;
+  Db.SYSTEM_PROFILE_COLLECTION = CONSTANTS.SYSTEM_PROFILE_COLLECTION;
+  Db.SYSTEM_USER_COLLECTION = CONSTANTS.SYSTEM_USER_COLLECTION;
+  Db.SYSTEM_COMMAND_COLLECTION = CONSTANTS.SYSTEM_COMMAND_COLLECTION;
+  Db.SYSTEM_JS_COLLECTION = CONSTANTS.SYSTEM_JS_COLLECTION;
 });
 
 // node_modules/mongodb/lib/cmap/auth/mongodb_aws.js
@@ -24088,1312 +23479,10 @@ var require_mongo_client_auth_providers = __commonJS((exports) => {
   }
 });
 
-// node_modules/mongodb/lib/gridfs/download.js
-var require_download = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.GridFSBucketReadStream = undefined;
-  var stream_1 = __require("stream");
-  var abstract_cursor_1 = require_abstract_cursor();
-  var error_1 = require_error();
-  var timeout_1 = require_timeout();
-
-  class GridFSBucketReadStream extends stream_1.Readable {
-    constructor(chunks, files, readPreference, filter, options) {
-      super({ emitClose: true });
-      this.s = {
-        bytesToTrim: 0,
-        bytesToSkip: 0,
-        bytesRead: 0,
-        chunks,
-        expected: 0,
-        files,
-        filter,
-        init: false,
-        expectedEnd: 0,
-        options: {
-          start: 0,
-          end: 0,
-          ...options
-        },
-        readPreference,
-        timeoutContext: options?.timeoutMS != null ? new timeout_1.CSOTTimeoutContext({ timeoutMS: options.timeoutMS, serverSelectionTimeoutMS: 0 }) : undefined
-      };
-    }
-    _read() {
-      if (this.destroyed)
-        return;
-      waitForFile(this, () => doRead(this));
-    }
-    start(start = 0) {
-      throwIfInitialized(this);
-      this.s.options.start = start;
-      return this;
-    }
-    end(end = 0) {
-      throwIfInitialized(this);
-      this.s.options.end = end;
-      return this;
-    }
-    async abort() {
-      this.push(null);
-      this.destroy();
-      const remainingTimeMS = this.s.timeoutContext?.getRemainingTimeMSOrThrow();
-      await this.s.cursor?.close({ timeoutMS: remainingTimeMS });
-    }
-  }
-  exports.GridFSBucketReadStream = GridFSBucketReadStream;
-  GridFSBucketReadStream.FILE = "file";
-  function throwIfInitialized(stream) {
-    if (stream.s.init) {
-      throw new error_1.MongoGridFSStreamError("Options cannot be changed after the stream is initialized");
-    }
-  }
-  function doRead(stream) {
-    if (stream.destroyed)
-      return;
-    if (!stream.s.cursor)
-      return;
-    if (!stream.s.file)
-      return;
-    const handleReadResult = (doc) => {
-      if (stream.destroyed)
-        return;
-      if (!doc) {
-        stream.push(null);
-        stream.s.cursor?.close().then(undefined, (error) => stream.destroy(error));
-        return;
-      }
-      if (!stream.s.file)
-        return;
-      const bytesRemaining = stream.s.file.length - stream.s.bytesRead;
-      const expectedN = stream.s.expected++;
-      const expectedLength = Math.min(stream.s.file.chunkSize, bytesRemaining);
-      if (doc.n > expectedN) {
-        return stream.destroy(new error_1.MongoGridFSChunkError(`ChunkIsMissing: Got unexpected n: ${doc.n}, expected: ${expectedN}`));
-      }
-      if (doc.n < expectedN) {
-        return stream.destroy(new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected: ${expectedN}`));
-      }
-      let buf = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
-      if (buf.byteLength !== expectedLength) {
-        if (bytesRemaining <= 0) {
-          return stream.destroy(new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected file length ${stream.s.file.length} bytes but already read ${stream.s.bytesRead} bytes`));
-        }
-        return stream.destroy(new error_1.MongoGridFSChunkError(`ChunkIsWrongSize: Got unexpected length: ${buf.byteLength}, expected: ${expectedLength}`));
-      }
-      stream.s.bytesRead += buf.byteLength;
-      if (buf.byteLength === 0) {
-        return stream.push(null);
-      }
-      let sliceStart = null;
-      let sliceEnd = null;
-      if (stream.s.bytesToSkip != null) {
-        sliceStart = stream.s.bytesToSkip;
-        stream.s.bytesToSkip = 0;
-      }
-      const atEndOfStream = expectedN === stream.s.expectedEnd - 1;
-      const bytesLeftToRead = stream.s.options.end - stream.s.bytesToSkip;
-      if (atEndOfStream && stream.s.bytesToTrim != null) {
-        sliceEnd = stream.s.file.chunkSize - stream.s.bytesToTrim;
-      } else if (stream.s.options.end && bytesLeftToRead < doc.data.byteLength) {
-        sliceEnd = bytesLeftToRead;
-      }
-      if (sliceStart != null || sliceEnd != null) {
-        buf = buf.slice(sliceStart || 0, sliceEnd || buf.byteLength);
-      }
-      stream.push(buf);
-      return;
-    };
-    stream.s.cursor.next().then(handleReadResult, (error) => {
-      if (stream.destroyed)
-        return;
-      stream.destroy(error);
-    });
-  }
-  function init(stream) {
-    const findOneOptions = {};
-    if (stream.s.readPreference) {
-      findOneOptions.readPreference = stream.s.readPreference;
-    }
-    if (stream.s.options && stream.s.options.sort) {
-      findOneOptions.sort = stream.s.options.sort;
-    }
-    if (stream.s.options && stream.s.options.skip) {
-      findOneOptions.skip = stream.s.options.skip;
-    }
-    const handleReadResult = (doc) => {
-      if (stream.destroyed)
-        return;
-      if (!doc) {
-        const identifier = stream.s.filter._id ? stream.s.filter._id.toString() : stream.s.filter.filename;
-        const errmsg = `FileNotFound: file ${identifier} was not found`;
-        const err = new error_1.MongoRuntimeError(errmsg);
-        err.code = "ENOENT";
-        return stream.destroy(err);
-      }
-      if (doc.length <= 0) {
-        stream.push(null);
-        return;
-      }
-      if (stream.destroyed) {
-        stream.destroy();
-        return;
-      }
-      try {
-        stream.s.bytesToSkip = handleStartOption(stream, doc, stream.s.options);
-      } catch (error) {
-        return stream.destroy(error);
-      }
-      const filter = { files_id: doc._id };
-      if (stream.s.options && stream.s.options.start != null) {
-        const skip = Math.floor(stream.s.options.start / doc.chunkSize);
-        if (skip > 0) {
-          filter["n"] = { $gte: skip };
-        }
-      }
-      let remainingTimeMS2;
-      try {
-        remainingTimeMS2 = stream.s.timeoutContext?.getRemainingTimeMSOrThrow(`Download timed out after ${stream.s.timeoutContext?.timeoutMS}ms`);
-      } catch (error) {
-        return stream.destroy(error);
-      }
-      stream.s.cursor = stream.s.chunks.find(filter, {
-        timeoutMode: stream.s.options.timeoutMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
-        timeoutMS: remainingTimeMS2
-      }).sort({ n: 1 });
-      if (stream.s.readPreference) {
-        stream.s.cursor.withReadPreference(stream.s.readPreference);
-      }
-      stream.s.expectedEnd = Math.ceil(doc.length / doc.chunkSize);
-      stream.s.file = doc;
-      try {
-        stream.s.bytesToTrim = handleEndOption(stream, doc, stream.s.cursor, stream.s.options);
-      } catch (error) {
-        return stream.destroy(error);
-      }
-      stream.emit(GridFSBucketReadStream.FILE, doc);
-      return;
-    };
-    let remainingTimeMS;
-    try {
-      remainingTimeMS = stream.s.timeoutContext?.getRemainingTimeMSOrThrow(`Download timed out after ${stream.s.timeoutContext?.timeoutMS}ms`);
-    } catch (error) {
-      if (!stream.destroyed)
-        stream.destroy(error);
-      return;
-    }
-    findOneOptions.timeoutMS = remainingTimeMS;
-    stream.s.files.findOne(stream.s.filter, findOneOptions).then(handleReadResult, (error) => {
-      if (stream.destroyed)
-        return;
-      stream.destroy(error);
-    });
-  }
-  function waitForFile(stream, callback) {
-    if (stream.s.file) {
-      return callback();
-    }
-    if (!stream.s.init) {
-      init(stream);
-      stream.s.init = true;
-    }
-    stream.once("file", () => {
-      callback();
-    });
-  }
-  function handleStartOption(stream, doc, options) {
-    if (options && options.start != null) {
-      if (options.start > doc.length) {
-        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be more than the length of the file (${doc.length})`);
-      }
-      if (options.start < 0) {
-        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be negative`);
-      }
-      if (options.end != null && options.end < options.start) {
-        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be greater than stream end (${options.end})`);
-      }
-      stream.s.bytesRead = Math.floor(options.start / doc.chunkSize) * doc.chunkSize;
-      stream.s.expected = Math.floor(options.start / doc.chunkSize);
-      return options.start - stream.s.bytesRead;
-    }
-    throw new error_1.MongoInvalidArgumentError("Start option must be defined");
-  }
-  function handleEndOption(stream, doc, cursor, options) {
-    if (options && options.end != null) {
-      if (options.end > doc.length) {
-        throw new error_1.MongoInvalidArgumentError(`Stream end (${options.end}) must not be more than the length of the file (${doc.length})`);
-      }
-      if (options.start == null || options.start < 0) {
-        throw new error_1.MongoInvalidArgumentError(`Stream end (${options.end}) must not be negative`);
-      }
-      const start = options.start != null ? Math.floor(options.start / doc.chunkSize) : 0;
-      cursor.limit(Math.ceil(options.end / doc.chunkSize) - start);
-      stream.s.expectedEnd = Math.ceil(options.end / doc.chunkSize);
-      return Math.ceil(options.end / doc.chunkSize) * doc.chunkSize - options.end;
-    }
-    throw new error_1.MongoInvalidArgumentError("End option must be defined");
-  }
-});
-
-// node_modules/mongodb/lib/gridfs/upload.js
-var require_upload = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.GridFSBucketWriteStream = undefined;
-  var stream_1 = __require("stream");
-  var bson_1 = require_bson2();
-  var abstract_cursor_1 = require_abstract_cursor();
-  var error_1 = require_error();
-  var timeout_1 = require_timeout();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-
-  class GridFSBucketWriteStream extends stream_1.Writable {
-    constructor(bucket, filename, options) {
-      super();
-      this.gridFSFile = null;
-      options = options ?? {};
-      this.bucket = bucket;
-      this.chunks = bucket.s._chunksCollection;
-      this.filename = filename;
-      this.files = bucket.s._filesCollection;
-      this.options = options;
-      this.writeConcern = write_concern_1.WriteConcern.fromOptions(options) || bucket.s.options.writeConcern;
-      this.done = false;
-      this.id = options.id ? options.id : new bson_1.ObjectId;
-      this.chunkSizeBytes = options.chunkSizeBytes || this.bucket.s.options.chunkSizeBytes;
-      this.bufToStore = Buffer.alloc(this.chunkSizeBytes);
-      this.length = 0;
-      this.n = 0;
-      this.pos = 0;
-      this.state = {
-        streamEnd: false,
-        outstandingRequests: 0,
-        errored: false,
-        aborted: false
-      };
-      if (options.timeoutMS != null)
-        this.timeoutContext = new timeout_1.CSOTTimeoutContext({
-          timeoutMS: options.timeoutMS,
-          serverSelectionTimeoutMS: (0, utils_1.resolveTimeoutOptions)(this.bucket.s.db.client, {}).serverSelectionTimeoutMS
-        });
-    }
-    _construct(callback) {
-      if (!this.bucket.s.calledOpenUploadStream) {
-        this.bucket.s.calledOpenUploadStream = true;
-        checkIndexes(this).then(() => {
-          this.bucket.s.checkedIndexes = true;
-          this.bucket.emit("index");
-          callback();
-        }, (error) => {
-          if (error instanceof error_1.MongoOperationTimeoutError) {
-            return handleError(this, error, callback);
-          }
-          (0, utils_1.squashError)(error);
-          callback();
-        });
-      } else {
-        return process.nextTick(callback);
-      }
-    }
-    _write(chunk, encoding, callback) {
-      doWrite(this, chunk, encoding, callback);
-    }
-    _final(callback) {
-      if (this.state.streamEnd) {
-        return process.nextTick(callback);
-      }
-      this.state.streamEnd = true;
-      writeRemnant(this, callback);
-    }
-    async abort() {
-      if (this.state.streamEnd) {
-        throw new error_1.MongoAPIError("Cannot abort a stream that has already completed");
-      }
-      if (this.state.aborted) {
-        throw new error_1.MongoAPIError("Cannot call abort() on a stream twice");
-      }
-      this.state.aborted = true;
-      const remainingTimeMS = this.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${this.timeoutContext?.timeoutMS}ms`);
-      await this.chunks.deleteMany({ files_id: this.id }, { timeoutMS: remainingTimeMS });
-    }
-  }
-  exports.GridFSBucketWriteStream = GridFSBucketWriteStream;
-  function handleError(stream, error, callback) {
-    if (stream.state.errored) {
-      process.nextTick(callback);
-      return;
-    }
-    stream.state.errored = true;
-    process.nextTick(callback, error);
-  }
-  function createChunkDoc(filesId, n, data) {
-    return {
-      _id: new bson_1.ObjectId,
-      files_id: filesId,
-      n,
-      data
-    };
-  }
-  async function checkChunksIndex(stream) {
-    const index = { files_id: 1, n: 1 };
-    let remainingTimeMS;
-    remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
-    let indexes;
-    try {
-      indexes = await stream.chunks.listIndexes({
-        timeoutMode: remainingTimeMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
-        timeoutMS: remainingTimeMS
-      }).toArray();
-    } catch (error) {
-      if (error instanceof error_1.MongoError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
-        indexes = [];
-      } else {
-        throw error;
-      }
-    }
-    const hasChunksIndex = !!indexes.find((index2) => {
-      const keys = Object.keys(index2.key);
-      if (keys.length === 2 && index2.key.files_id === 1 && index2.key.n === 1) {
-        return true;
-      }
-      return false;
-    });
-    if (!hasChunksIndex) {
-      remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
-      await stream.chunks.createIndex(index, {
-        ...stream.writeConcern,
-        background: true,
-        unique: true,
-        timeoutMS: remainingTimeMS
-      });
-    }
-  }
-  function checkDone(stream, callback) {
-    if (stream.done) {
-      return process.nextTick(callback);
-    }
-    if (stream.state.streamEnd && stream.state.outstandingRequests === 0 && !stream.state.errored) {
-      stream.done = true;
-      const gridFSFile = createFilesDoc(stream.id, stream.length, stream.chunkSizeBytes, stream.filename, stream.options.contentType, stream.options.aliases, stream.options.metadata);
-      if (isAborted(stream, callback)) {
-        return;
-      }
-      const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
-      if (remainingTimeMS != null && remainingTimeMS <= 0) {
-        return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
-      }
-      stream.files.insertOne(gridFSFile, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
-        stream.gridFSFile = gridFSFile;
-        callback();
-      }, (error) => {
-        return handleError(stream, error, callback);
-      });
-      return;
-    }
-    process.nextTick(callback);
-  }
-  async function checkIndexes(stream) {
-    let remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
-    const doc = await stream.files.findOne({}, {
-      projection: { _id: 1 },
-      timeoutMS: remainingTimeMS
-    });
-    if (doc != null) {
-      return;
-    }
-    const index = { filename: 1, uploadDate: 1 };
-    let indexes;
-    remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
-    const listIndexesOptions = {
-      timeoutMode: remainingTimeMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
-      timeoutMS: remainingTimeMS
-    };
-    try {
-      indexes = await stream.files.listIndexes(listIndexesOptions).toArray();
-    } catch (error) {
-      if (error instanceof error_1.MongoError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
-        indexes = [];
-      } else {
-        throw error;
-      }
-    }
-    const hasFileIndex = !!indexes.find((index2) => {
-      const keys = Object.keys(index2.key);
-      if (keys.length === 2 && index2.key.filename === 1 && index2.key.uploadDate === 1) {
-        return true;
-      }
-      return false;
-    });
-    if (!hasFileIndex) {
-      remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
-      await stream.files.createIndex(index, { background: false, timeoutMS: remainingTimeMS });
-    }
-    await checkChunksIndex(stream);
-  }
-  function createFilesDoc(_id, length, chunkSize, filename, contentType, aliases, metadata) {
-    const ret = {
-      _id,
-      length,
-      chunkSize,
-      uploadDate: new Date,
-      filename
-    };
-    if (contentType) {
-      ret.contentType = contentType;
-    }
-    if (aliases) {
-      ret.aliases = aliases;
-    }
-    if (metadata) {
-      ret.metadata = metadata;
-    }
-    return ret;
-  }
-  function doWrite(stream, chunk, encoding, callback) {
-    if (isAborted(stream, callback)) {
-      return;
-    }
-    const inputBuf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
-    stream.length += inputBuf.length;
-    if (stream.pos + inputBuf.length < stream.chunkSizeBytes) {
-      inputBuf.copy(stream.bufToStore, stream.pos);
-      stream.pos += inputBuf.length;
-      process.nextTick(callback);
-      return;
-    }
-    let inputBufRemaining = inputBuf.length;
-    let spaceRemaining = stream.chunkSizeBytes - stream.pos;
-    let numToCopy = Math.min(spaceRemaining, inputBuf.length);
-    let outstandingRequests = 0;
-    while (inputBufRemaining > 0) {
-      const inputBufPos = inputBuf.length - inputBufRemaining;
-      inputBuf.copy(stream.bufToStore, stream.pos, inputBufPos, inputBufPos + numToCopy);
-      stream.pos += numToCopy;
-      spaceRemaining -= numToCopy;
-      let doc;
-      if (spaceRemaining === 0) {
-        doc = createChunkDoc(stream.id, stream.n, Buffer.from(stream.bufToStore));
-        const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
-        if (remainingTimeMS != null && remainingTimeMS <= 0) {
-          return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
-        }
-        ++stream.state.outstandingRequests;
-        ++outstandingRequests;
-        if (isAborted(stream, callback)) {
-          return;
-        }
-        stream.chunks.insertOne(doc, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
-          --stream.state.outstandingRequests;
-          --outstandingRequests;
-          if (!outstandingRequests) {
-            checkDone(stream, callback);
-          }
-        }, (error) => {
-          return handleError(stream, error, callback);
-        });
-        spaceRemaining = stream.chunkSizeBytes;
-        stream.pos = 0;
-        ++stream.n;
-      }
-      inputBufRemaining -= numToCopy;
-      numToCopy = Math.min(spaceRemaining, inputBufRemaining);
-    }
-  }
-  function writeRemnant(stream, callback) {
-    if (stream.pos === 0) {
-      return checkDone(stream, callback);
-    }
-    const remnant = Buffer.alloc(stream.pos);
-    stream.bufToStore.copy(remnant, 0, 0, stream.pos);
-    const doc = createChunkDoc(stream.id, stream.n, remnant);
-    if (isAborted(stream, callback)) {
-      return;
-    }
-    const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
-    if (remainingTimeMS != null && remainingTimeMS <= 0) {
-      return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
-    }
-    ++stream.state.outstandingRequests;
-    stream.chunks.insertOne(doc, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
-      --stream.state.outstandingRequests;
-      checkDone(stream, callback);
-    }, (error) => {
-      return handleError(stream, error, callback);
-    });
-  }
-  function isAborted(stream, callback) {
-    if (stream.state.aborted) {
-      process.nextTick(callback, new error_1.MongoAPIError("Stream has been aborted"));
-      return true;
-    }
-    return false;
-  }
-});
-
-// node_modules/mongodb/lib/gridfs/index.js
-var require_gridfs = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.GridFSBucket = undefined;
-  var error_1 = require_error();
-  var mongo_types_1 = require_mongo_types();
-  var timeout_1 = require_timeout();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  var download_1 = require_download();
-  var upload_1 = require_upload();
-  var DEFAULT_GRIDFS_BUCKET_OPTIONS = {
-    bucketName: "fs",
-    chunkSizeBytes: 255 * 1024
-  };
-
-  class GridFSBucket extends mongo_types_1.TypedEventEmitter {
-    constructor(db, options) {
-      super();
-      this.on("error", utils_1.noop);
-      this.setMaxListeners(0);
-      const privateOptions = (0, utils_1.resolveOptions)(db, {
-        ...DEFAULT_GRIDFS_BUCKET_OPTIONS,
-        ...options,
-        writeConcern: write_concern_1.WriteConcern.fromOptions(options)
-      });
-      this.s = {
-        db,
-        options: privateOptions,
-        _chunksCollection: db.collection(privateOptions.bucketName + ".chunks"),
-        _filesCollection: db.collection(privateOptions.bucketName + ".files"),
-        checkedIndexes: false,
-        calledOpenUploadStream: false
-      };
-    }
-    openUploadStream(filename, options) {
-      return new upload_1.GridFSBucketWriteStream(this, filename, {
-        timeoutMS: this.s.options.timeoutMS,
-        ...options
-      });
-    }
-    openUploadStreamWithId(id, filename, options) {
-      return new upload_1.GridFSBucketWriteStream(this, filename, {
-        timeoutMS: this.s.options.timeoutMS,
-        ...options,
-        id
-      });
-    }
-    openDownloadStream(id, options) {
-      return new download_1.GridFSBucketReadStream(this.s._chunksCollection, this.s._filesCollection, this.s.options.readPreference, { _id: id }, { timeoutMS: this.s.options.timeoutMS, ...options });
-    }
-    async delete(id, options) {
-      const { timeoutMS } = (0, utils_1.resolveOptions)(this.s.db, options);
-      let timeoutContext = undefined;
-      if (timeoutMS) {
-        timeoutContext = new timeout_1.CSOTTimeoutContext({
-          timeoutMS,
-          serverSelectionTimeoutMS: this.s.db.client.s.options.serverSelectionTimeoutMS
-        });
-      }
-      const { deletedCount } = await this.s._filesCollection.deleteOne({ _id: id }, { timeoutMS: timeoutContext?.remainingTimeMS });
-      const remainingTimeMS = timeoutContext?.remainingTimeMS;
-      if (remainingTimeMS != null && remainingTimeMS <= 0)
-        throw new error_1.MongoOperationTimeoutError(`Timed out after ${timeoutMS}ms`);
-      await this.s._chunksCollection.deleteMany({ files_id: id }, { timeoutMS: remainingTimeMS });
-      if (deletedCount === 0) {
-        throw new error_1.MongoRuntimeError(`File not found for id ${id}`);
-      }
-    }
-    find(filter = {}, options = {}) {
-      return this.s._filesCollection.find(filter, options);
-    }
-    openDownloadStreamByName(filename, options) {
-      let sort = { uploadDate: -1 };
-      let skip = undefined;
-      if (options && options.revision != null) {
-        if (options.revision >= 0) {
-          sort = { uploadDate: 1 };
-          skip = options.revision;
-        } else {
-          skip = -options.revision - 1;
-        }
-      }
-      return new download_1.GridFSBucketReadStream(this.s._chunksCollection, this.s._filesCollection, this.s.options.readPreference, { filename }, { timeoutMS: this.s.options.timeoutMS, ...options, sort, skip });
-    }
-    async rename(id, filename, options) {
-      const filter = { _id: id };
-      const update = { $set: { filename } };
-      const { matchedCount } = await this.s._filesCollection.updateOne(filter, update, options);
-      if (matchedCount === 0) {
-        throw new error_1.MongoRuntimeError(`File with id ${id} not found`);
-      }
-    }
-    async drop(options) {
-      const { timeoutMS } = (0, utils_1.resolveOptions)(this.s.db, options);
-      let timeoutContext = undefined;
-      if (timeoutMS) {
-        timeoutContext = new timeout_1.CSOTTimeoutContext({
-          timeoutMS,
-          serverSelectionTimeoutMS: this.s.db.client.s.options.serverSelectionTimeoutMS
-        });
-      }
-      if (timeoutContext) {
-        await this.s._filesCollection.drop({ timeoutMS: timeoutContext.remainingTimeMS });
-        const remainingTimeMS = timeoutContext.getRemainingTimeMSOrThrow(`Timed out after ${timeoutMS}ms`);
-        await this.s._chunksCollection.drop({ timeoutMS: remainingTimeMS });
-      } else {
-        await this.s._filesCollection.drop();
-        await this.s._chunksCollection.drop();
-      }
-    }
-  }
-  exports.GridFSBucket = GridFSBucket;
-  GridFSBucket.INDEX = "index";
-});
-
-// node_modules/mongodb/lib/sdam/server_selection_events.js
-var require_server_selection_events = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.WaitingForSuitableServerEvent = exports.ServerSelectionSucceededEvent = exports.ServerSelectionFailedEvent = exports.ServerSelectionStartedEvent = exports.ServerSelectionEvent = undefined;
-  var utils_1 = require_utils();
-  var constants_1 = require_constants();
-
-  class ServerSelectionEvent {
-    constructor(selector, topologyDescription, operation) {
-      this.selector = selector;
-      this.operation = operation;
-      this.topologyDescription = topologyDescription;
-    }
-  }
-  exports.ServerSelectionEvent = ServerSelectionEvent;
-
-  class ServerSelectionStartedEvent extends ServerSelectionEvent {
-    constructor(selector, topologyDescription, operation) {
-      super(selector, topologyDescription, operation);
-      this.name = constants_1.SERVER_SELECTION_STARTED;
-      this.message = "Server selection started";
-    }
-  }
-  exports.ServerSelectionStartedEvent = ServerSelectionStartedEvent;
-
-  class ServerSelectionFailedEvent extends ServerSelectionEvent {
-    constructor(selector, topologyDescription, error, operation) {
-      super(selector, topologyDescription, operation);
-      this.name = constants_1.SERVER_SELECTION_FAILED;
-      this.message = "Server selection failed";
-      this.failure = error;
-    }
-  }
-  exports.ServerSelectionFailedEvent = ServerSelectionFailedEvent;
-
-  class ServerSelectionSucceededEvent extends ServerSelectionEvent {
-    constructor(selector, topologyDescription, address, operation) {
-      super(selector, topologyDescription, operation);
-      this.name = constants_1.SERVER_SELECTION_SUCCEEDED;
-      this.message = "Server selection succeeded";
-      const { host, port } = utils_1.HostAddress.fromString(address).toHostPort();
-      this.serverHost = host;
-      this.serverPort = port;
-    }
-  }
-  exports.ServerSelectionSucceededEvent = ServerSelectionSucceededEvent;
-
-  class WaitingForSuitableServerEvent extends ServerSelectionEvent {
-    constructor(selector, topologyDescription, remainingTimeMS, operation) {
-      super(selector, topologyDescription, operation);
-      this.name = constants_1.WAITING_FOR_SUITABLE_SERVER;
-      this.message = "Waiting for suitable server to become available";
-      this.remainingTimeMS = remainingTimeMS;
-    }
-  }
-  exports.WaitingForSuitableServerEvent = WaitingForSuitableServerEvent;
-});
-
-// node_modules/mongodb/lib/sdam/srv_polling.js
-var require_srv_polling = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.SrvPoller = exports.SrvPollingEvent = undefined;
-  var dns = __require("dns");
-  var timers_1 = __require("timers");
-  var error_1 = require_error();
-  var mongo_types_1 = require_mongo_types();
-  var utils_1 = require_utils();
-
-  class SrvPollingEvent {
-    constructor(srvRecords) {
-      this.srvRecords = srvRecords;
-    }
-    hostnames() {
-      return new Set(this.srvRecords.map((r) => utils_1.HostAddress.fromSrvRecord(r).toString()));
-    }
-  }
-  exports.SrvPollingEvent = SrvPollingEvent;
-
-  class SrvPoller extends mongo_types_1.TypedEventEmitter {
-    constructor(options) {
-      super();
-      this.on("error", utils_1.noop);
-      if (!options || !options.srvHost) {
-        throw new error_1.MongoRuntimeError("Options for SrvPoller must exist and include srvHost");
-      }
-      this.srvHost = options.srvHost;
-      this.srvMaxHosts = options.srvMaxHosts ?? 0;
-      this.srvServiceName = options.srvServiceName ?? "mongodb";
-      this.rescanSrvIntervalMS = 60000;
-      this.heartbeatFrequencyMS = options.heartbeatFrequencyMS ?? 1e4;
-      this.haMode = false;
-      this.generation = 0;
-      this._timeout = undefined;
-    }
-    get srvAddress() {
-      return `_${this.srvServiceName}._tcp.${this.srvHost}`;
-    }
-    get intervalMS() {
-      return this.haMode ? this.heartbeatFrequencyMS : this.rescanSrvIntervalMS;
-    }
-    start() {
-      if (!this._timeout) {
-        this.schedule();
-      }
-    }
-    stop() {
-      if (this._timeout) {
-        (0, timers_1.clearTimeout)(this._timeout);
-        this.generation += 1;
-        this._timeout = undefined;
-      }
-    }
-    schedule() {
-      if (this._timeout) {
-        (0, timers_1.clearTimeout)(this._timeout);
-      }
-      this._timeout = (0, timers_1.setTimeout)(() => {
-        this._poll().then(undefined, utils_1.squashError);
-      }, this.intervalMS);
-    }
-    success(srvRecords) {
-      this.haMode = false;
-      this.schedule();
-      this.emit(SrvPoller.SRV_RECORD_DISCOVERY, new SrvPollingEvent(srvRecords));
-    }
-    failure() {
-      this.haMode = true;
-      this.schedule();
-    }
-    async _poll() {
-      const generation = this.generation;
-      let srvRecords;
-      try {
-        srvRecords = await dns.promises.resolveSrv(this.srvAddress);
-      } catch {
-        this.failure();
-        return;
-      }
-      if (generation !== this.generation) {
-        return;
-      }
-      const finalAddresses = [];
-      for (const record of srvRecords) {
-        try {
-          (0, utils_1.checkParentDomainMatch)(record.name, this.srvHost);
-          finalAddresses.push(record);
-        } catch (error) {
-          (0, utils_1.squashError)(error);
-        }
-      }
-      if (!finalAddresses.length) {
-        this.failure();
-        return;
-      }
-      this.success(finalAddresses);
-    }
-  }
-  exports.SrvPoller = SrvPoller;
-  SrvPoller.SRV_RECORD_DISCOVERY = "srvRecordDiscovery";
-});
-
-// node_modules/mongodb/lib/index.js
-var require_lib3 = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  exports.MongoServerClosedError = exports.MongoRuntimeError = exports.MongoParseError = exports.MongoOperationTimeoutError = exports.MongoOIDCError = exports.MongoNotConnectedError = exports.MongoNetworkTimeoutError = exports.MongoNetworkError = exports.MongoMissingDependencyError = exports.MongoMissingCredentialsError = exports.MongoKerberosError = exports.MongoInvalidArgumentError = exports.MongoGridFSStreamError = exports.MongoGridFSChunkError = exports.MongoGCPError = exports.MongoExpiredSessionError = exports.MongoError = exports.MongoDriverError = exports.MongoDecompressionError = exports.MongoCursorInUseError = exports.MongoCursorExhaustedError = exports.MongoCompatibilityError = exports.MongoClientClosedError = exports.MongoClientBulkWriteExecutionError = exports.MongoClientBulkWriteError = exports.MongoClientBulkWriteCursorError = exports.MongoChangeStreamError = exports.MongoBatchReExecutionError = exports.MongoAzureError = exports.MongoAWSError = exports.MongoAPIError = exports.ChangeStreamCursor = exports.ClientEncryption = exports.MongoBulkWriteError = exports.UUID = exports.Timestamp = exports.ObjectId = exports.MinKey = exports.MaxKey = exports.Long = exports.Int32 = exports.Double = exports.Decimal128 = exports.DBRef = exports.Code = exports.BSONType = exports.BSONSymbol = exports.BSONRegExp = exports.Binary = exports.BSON = undefined;
-  exports.CommandFailedEvent = exports.WriteConcern = exports.ReadPreference = exports.ReadConcern = exports.TopologyType = exports.ServerType = exports.ReadPreferenceMode = exports.ReadConcernLevel = exports.ProfilingLevel = exports.ReturnDocument = exports.SeverityLevel = exports.MongoLoggableComponent = exports.ServerApiVersion = exports.ExplainVerbosity = exports.MongoErrorLabel = exports.CursorTimeoutMode = exports.CURSOR_FLAGS = exports.Compressor = exports.AuthMechanism = exports.GSSAPICanonicalizationValue = exports.AutoEncryptionLoggerLevel = exports.BatchType = exports.UnorderedBulkOperation = exports.OrderedBulkOperation = exports.MongoClient = exports.ListIndexesCursor = exports.ListCollectionsCursor = exports.GridFSBucketWriteStream = exports.GridFSBucketReadStream = exports.GridFSBucket = exports.FindCursor = exports.ExplainableCursor = exports.Db = exports.Collection = exports.ClientSession = exports.ChangeStream = exports.CancellationToken = exports.AggregationCursor = exports.Admin = exports.AbstractCursor = exports.configureExplicitResourceManagement = exports.MongoWriteConcernError = exports.MongoUnexpectedServerResponseError = exports.MongoTransactionError = exports.MongoTopologyClosedError = exports.MongoTailableCursorError = exports.MongoSystemError = exports.MongoStalePrimaryError = exports.MongoServerSelectionError = exports.MongoServerError = undefined;
-  exports.MongoClientAuthProviders = exports.MongoCryptKMSRequestNetworkTimeoutError = exports.MongoCryptInvalidArgumentError = exports.MongoCryptError = exports.MongoCryptCreateEncryptedCollectionError = exports.MongoCryptCreateDataKeyError = exports.MongoCryptAzureKMSRequestError = exports.SrvPollingEvent = exports.WaitingForSuitableServerEvent = exports.ServerSelectionSucceededEvent = exports.ServerSelectionStartedEvent = exports.ServerSelectionFailedEvent = exports.ServerSelectionEvent = exports.TopologyOpeningEvent = exports.TopologyDescriptionChangedEvent = exports.TopologyClosedEvent = exports.ServerOpeningEvent = exports.ServerHeartbeatSucceededEvent = exports.ServerHeartbeatStartedEvent = exports.ServerHeartbeatFailedEvent = exports.ServerDescriptionChangedEvent = exports.ServerClosedEvent = exports.ConnectionReadyEvent = exports.ConnectionPoolReadyEvent = exports.ConnectionPoolMonitoringEvent = exports.ConnectionPoolCreatedEvent = exports.ConnectionPoolClosedEvent = exports.ConnectionPoolClearedEvent = exports.ConnectionCreatedEvent = exports.ConnectionClosedEvent = exports.ConnectionCheckOutStartedEvent = exports.ConnectionCheckOutFailedEvent = exports.ConnectionCheckedOutEvent = exports.ConnectionCheckedInEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = undefined;
-  var admin_1 = require_admin();
-  Object.defineProperty(exports, "Admin", { enumerable: true, get: function() {
-    return admin_1.Admin;
-  } });
-  var ordered_1 = require_ordered();
-  Object.defineProperty(exports, "OrderedBulkOperation", { enumerable: true, get: function() {
-    return ordered_1.OrderedBulkOperation;
-  } });
-  var unordered_1 = require_unordered();
-  Object.defineProperty(exports, "UnorderedBulkOperation", { enumerable: true, get: function() {
-    return unordered_1.UnorderedBulkOperation;
-  } });
-  var change_stream_1 = require_change_stream();
-  Object.defineProperty(exports, "ChangeStream", { enumerable: true, get: function() {
-    return change_stream_1.ChangeStream;
-  } });
-  var collection_1 = require_collection();
-  Object.defineProperty(exports, "Collection", { enumerable: true, get: function() {
-    return collection_1.Collection;
-  } });
-  var abstract_cursor_1 = require_abstract_cursor();
-  Object.defineProperty(exports, "AbstractCursor", { enumerable: true, get: function() {
-    return abstract_cursor_1.AbstractCursor;
-  } });
-  var aggregation_cursor_1 = require_aggregation_cursor();
-  Object.defineProperty(exports, "AggregationCursor", { enumerable: true, get: function() {
-    return aggregation_cursor_1.AggregationCursor;
-  } });
-  var find_cursor_1 = require_find_cursor();
-  Object.defineProperty(exports, "FindCursor", { enumerable: true, get: function() {
-    return find_cursor_1.FindCursor;
-  } });
-  var list_collections_cursor_1 = require_list_collections_cursor();
-  Object.defineProperty(exports, "ListCollectionsCursor", { enumerable: true, get: function() {
-    return list_collections_cursor_1.ListCollectionsCursor;
-  } });
-  var list_indexes_cursor_1 = require_list_indexes_cursor();
-  Object.defineProperty(exports, "ListIndexesCursor", { enumerable: true, get: function() {
-    return list_indexes_cursor_1.ListIndexesCursor;
-  } });
-  var db_1 = require_db();
-  Object.defineProperty(exports, "Db", { enumerable: true, get: function() {
-    return db_1.Db;
-  } });
-  var explain_1 = require_explain();
-  Object.defineProperty(exports, "ExplainableCursor", { enumerable: true, get: function() {
-    return explain_1.ExplainableCursor;
-  } });
-  var gridfs_1 = require_gridfs();
-  Object.defineProperty(exports, "GridFSBucket", { enumerable: true, get: function() {
-    return gridfs_1.GridFSBucket;
-  } });
-  var download_1 = require_download();
-  Object.defineProperty(exports, "GridFSBucketReadStream", { enumerable: true, get: function() {
-    return download_1.GridFSBucketReadStream;
-  } });
-  var upload_1 = require_upload();
-  Object.defineProperty(exports, "GridFSBucketWriteStream", { enumerable: true, get: function() {
-    return upload_1.GridFSBucketWriteStream;
-  } });
-  var mongo_client_1 = require_mongo_client();
-  Object.defineProperty(exports, "MongoClient", { enumerable: true, get: function() {
-    return mongo_client_1.MongoClient;
-  } });
-  var mongo_types_1 = require_mongo_types();
-  Object.defineProperty(exports, "CancellationToken", { enumerable: true, get: function() {
-    return mongo_types_1.CancellationToken;
-  } });
-  var sessions_1 = require_sessions();
-  Object.defineProperty(exports, "ClientSession", { enumerable: true, get: function() {
-    return sessions_1.ClientSession;
-  } });
-  var bson_1 = require_bson2();
-  Object.defineProperty(exports, "BSON", { enumerable: true, get: function() {
-    return bson_1.BSON;
-  } });
-  var bson_2 = require_bson2();
-  Object.defineProperty(exports, "Binary", { enumerable: true, get: function() {
-    return bson_2.Binary;
-  } });
-  Object.defineProperty(exports, "BSONRegExp", { enumerable: true, get: function() {
-    return bson_2.BSONRegExp;
-  } });
-  Object.defineProperty(exports, "BSONSymbol", { enumerable: true, get: function() {
-    return bson_2.BSONSymbol;
-  } });
-  Object.defineProperty(exports, "BSONType", { enumerable: true, get: function() {
-    return bson_2.BSONType;
-  } });
-  Object.defineProperty(exports, "Code", { enumerable: true, get: function() {
-    return bson_2.Code;
-  } });
-  Object.defineProperty(exports, "DBRef", { enumerable: true, get: function() {
-    return bson_2.DBRef;
-  } });
-  Object.defineProperty(exports, "Decimal128", { enumerable: true, get: function() {
-    return bson_2.Decimal128;
-  } });
-  Object.defineProperty(exports, "Double", { enumerable: true, get: function() {
-    return bson_2.Double;
-  } });
-  Object.defineProperty(exports, "Int32", { enumerable: true, get: function() {
-    return bson_2.Int32;
-  } });
-  Object.defineProperty(exports, "Long", { enumerable: true, get: function() {
-    return bson_2.Long;
-  } });
-  Object.defineProperty(exports, "MaxKey", { enumerable: true, get: function() {
-    return bson_2.MaxKey;
-  } });
-  Object.defineProperty(exports, "MinKey", { enumerable: true, get: function() {
-    return bson_2.MinKey;
-  } });
-  Object.defineProperty(exports, "ObjectId", { enumerable: true, get: function() {
-    return bson_2.ObjectId;
-  } });
-  Object.defineProperty(exports, "Timestamp", { enumerable: true, get: function() {
-    return bson_2.Timestamp;
-  } });
-  Object.defineProperty(exports, "UUID", { enumerable: true, get: function() {
-    return bson_2.UUID;
-  } });
-  var common_1 = require_common2();
-  Object.defineProperty(exports, "MongoBulkWriteError", { enumerable: true, get: function() {
-    return common_1.MongoBulkWriteError;
-  } });
-  var client_encryption_1 = require_client_encryption();
-  Object.defineProperty(exports, "ClientEncryption", { enumerable: true, get: function() {
-    return client_encryption_1.ClientEncryption;
-  } });
-  var change_stream_cursor_1 = require_change_stream_cursor();
-  Object.defineProperty(exports, "ChangeStreamCursor", { enumerable: true, get: function() {
-    return change_stream_cursor_1.ChangeStreamCursor;
-  } });
-  var error_1 = require_error();
-  Object.defineProperty(exports, "MongoAPIError", { enumerable: true, get: function() {
-    return error_1.MongoAPIError;
-  } });
-  Object.defineProperty(exports, "MongoAWSError", { enumerable: true, get: function() {
-    return error_1.MongoAWSError;
-  } });
-  Object.defineProperty(exports, "MongoAzureError", { enumerable: true, get: function() {
-    return error_1.MongoAzureError;
-  } });
-  Object.defineProperty(exports, "MongoBatchReExecutionError", { enumerable: true, get: function() {
-    return error_1.MongoBatchReExecutionError;
-  } });
-  Object.defineProperty(exports, "MongoChangeStreamError", { enumerable: true, get: function() {
-    return error_1.MongoChangeStreamError;
-  } });
-  Object.defineProperty(exports, "MongoClientBulkWriteCursorError", { enumerable: true, get: function() {
-    return error_1.MongoClientBulkWriteCursorError;
-  } });
-  Object.defineProperty(exports, "MongoClientBulkWriteError", { enumerable: true, get: function() {
-    return error_1.MongoClientBulkWriteError;
-  } });
-  Object.defineProperty(exports, "MongoClientBulkWriteExecutionError", { enumerable: true, get: function() {
-    return error_1.MongoClientBulkWriteExecutionError;
-  } });
-  Object.defineProperty(exports, "MongoClientClosedError", { enumerable: true, get: function() {
-    return error_1.MongoClientClosedError;
-  } });
-  Object.defineProperty(exports, "MongoCompatibilityError", { enumerable: true, get: function() {
-    return error_1.MongoCompatibilityError;
-  } });
-  Object.defineProperty(exports, "MongoCursorExhaustedError", { enumerable: true, get: function() {
-    return error_1.MongoCursorExhaustedError;
-  } });
-  Object.defineProperty(exports, "MongoCursorInUseError", { enumerable: true, get: function() {
-    return error_1.MongoCursorInUseError;
-  } });
-  Object.defineProperty(exports, "MongoDecompressionError", { enumerable: true, get: function() {
-    return error_1.MongoDecompressionError;
-  } });
-  Object.defineProperty(exports, "MongoDriverError", { enumerable: true, get: function() {
-    return error_1.MongoDriverError;
-  } });
-  Object.defineProperty(exports, "MongoError", { enumerable: true, get: function() {
-    return error_1.MongoError;
-  } });
-  Object.defineProperty(exports, "MongoExpiredSessionError", { enumerable: true, get: function() {
-    return error_1.MongoExpiredSessionError;
-  } });
-  Object.defineProperty(exports, "MongoGCPError", { enumerable: true, get: function() {
-    return error_1.MongoGCPError;
-  } });
-  Object.defineProperty(exports, "MongoGridFSChunkError", { enumerable: true, get: function() {
-    return error_1.MongoGridFSChunkError;
-  } });
-  Object.defineProperty(exports, "MongoGridFSStreamError", { enumerable: true, get: function() {
-    return error_1.MongoGridFSStreamError;
-  } });
-  Object.defineProperty(exports, "MongoInvalidArgumentError", { enumerable: true, get: function() {
-    return error_1.MongoInvalidArgumentError;
-  } });
-  Object.defineProperty(exports, "MongoKerberosError", { enumerable: true, get: function() {
-    return error_1.MongoKerberosError;
-  } });
-  Object.defineProperty(exports, "MongoMissingCredentialsError", { enumerable: true, get: function() {
-    return error_1.MongoMissingCredentialsError;
-  } });
-  Object.defineProperty(exports, "MongoMissingDependencyError", { enumerable: true, get: function() {
-    return error_1.MongoMissingDependencyError;
-  } });
-  Object.defineProperty(exports, "MongoNetworkError", { enumerable: true, get: function() {
-    return error_1.MongoNetworkError;
-  } });
-  Object.defineProperty(exports, "MongoNetworkTimeoutError", { enumerable: true, get: function() {
-    return error_1.MongoNetworkTimeoutError;
-  } });
-  Object.defineProperty(exports, "MongoNotConnectedError", { enumerable: true, get: function() {
-    return error_1.MongoNotConnectedError;
-  } });
-  Object.defineProperty(exports, "MongoOIDCError", { enumerable: true, get: function() {
-    return error_1.MongoOIDCError;
-  } });
-  Object.defineProperty(exports, "MongoOperationTimeoutError", { enumerable: true, get: function() {
-    return error_1.MongoOperationTimeoutError;
-  } });
-  Object.defineProperty(exports, "MongoParseError", { enumerable: true, get: function() {
-    return error_1.MongoParseError;
-  } });
-  Object.defineProperty(exports, "MongoRuntimeError", { enumerable: true, get: function() {
-    return error_1.MongoRuntimeError;
-  } });
-  Object.defineProperty(exports, "MongoServerClosedError", { enumerable: true, get: function() {
-    return error_1.MongoServerClosedError;
-  } });
-  Object.defineProperty(exports, "MongoServerError", { enumerable: true, get: function() {
-    return error_1.MongoServerError;
-  } });
-  Object.defineProperty(exports, "MongoServerSelectionError", { enumerable: true, get: function() {
-    return error_1.MongoServerSelectionError;
-  } });
-  Object.defineProperty(exports, "MongoStalePrimaryError", { enumerable: true, get: function() {
-    return error_1.MongoStalePrimaryError;
-  } });
-  Object.defineProperty(exports, "MongoSystemError", { enumerable: true, get: function() {
-    return error_1.MongoSystemError;
-  } });
-  Object.defineProperty(exports, "MongoTailableCursorError", { enumerable: true, get: function() {
-    return error_1.MongoTailableCursorError;
-  } });
-  Object.defineProperty(exports, "MongoTopologyClosedError", { enumerable: true, get: function() {
-    return error_1.MongoTopologyClosedError;
-  } });
-  Object.defineProperty(exports, "MongoTransactionError", { enumerable: true, get: function() {
-    return error_1.MongoTransactionError;
-  } });
-  Object.defineProperty(exports, "MongoUnexpectedServerResponseError", { enumerable: true, get: function() {
-    return error_1.MongoUnexpectedServerResponseError;
-  } });
-  Object.defineProperty(exports, "MongoWriteConcernError", { enumerable: true, get: function() {
-    return error_1.MongoWriteConcernError;
-  } });
-  var resource_management_1 = require_resource_management();
-  Object.defineProperty(exports, "configureExplicitResourceManagement", { enumerable: true, get: function() {
-    return resource_management_1.configureExplicitResourceManagement;
-  } });
-  var common_2 = require_common2();
-  Object.defineProperty(exports, "BatchType", { enumerable: true, get: function() {
-    return common_2.BatchType;
-  } });
-  var auto_encrypter_1 = require_auto_encrypter();
-  Object.defineProperty(exports, "AutoEncryptionLoggerLevel", { enumerable: true, get: function() {
-    return auto_encrypter_1.AutoEncryptionLoggerLevel;
-  } });
-  var gssapi_1 = require_gssapi();
-  Object.defineProperty(exports, "GSSAPICanonicalizationValue", { enumerable: true, get: function() {
-    return gssapi_1.GSSAPICanonicalizationValue;
-  } });
-  var providers_1 = require_providers();
-  Object.defineProperty(exports, "AuthMechanism", { enumerable: true, get: function() {
-    return providers_1.AuthMechanism;
-  } });
-  var compression_1 = require_compression();
-  Object.defineProperty(exports, "Compressor", { enumerable: true, get: function() {
-    return compression_1.Compressor;
-  } });
-  var abstract_cursor_2 = require_abstract_cursor();
-  Object.defineProperty(exports, "CURSOR_FLAGS", { enumerable: true, get: function() {
-    return abstract_cursor_2.CURSOR_FLAGS;
-  } });
-  Object.defineProperty(exports, "CursorTimeoutMode", { enumerable: true, get: function() {
-    return abstract_cursor_2.CursorTimeoutMode;
-  } });
-  var error_2 = require_error();
-  Object.defineProperty(exports, "MongoErrorLabel", { enumerable: true, get: function() {
-    return error_2.MongoErrorLabel;
-  } });
-  var explain_2 = require_explain();
-  Object.defineProperty(exports, "ExplainVerbosity", { enumerable: true, get: function() {
-    return explain_2.ExplainVerbosity;
-  } });
-  var mongo_client_2 = require_mongo_client();
-  Object.defineProperty(exports, "ServerApiVersion", { enumerable: true, get: function() {
-    return mongo_client_2.ServerApiVersion;
-  } });
-  var mongo_logger_1 = require_mongo_logger();
-  Object.defineProperty(exports, "MongoLoggableComponent", { enumerable: true, get: function() {
-    return mongo_logger_1.MongoLoggableComponent;
-  } });
-  Object.defineProperty(exports, "SeverityLevel", { enumerable: true, get: function() {
-    return mongo_logger_1.SeverityLevel;
-  } });
-  var find_and_modify_1 = require_find_and_modify();
-  Object.defineProperty(exports, "ReturnDocument", { enumerable: true, get: function() {
-    return find_and_modify_1.ReturnDocument;
-  } });
-  var set_profiling_level_1 = require_set_profiling_level();
-  Object.defineProperty(exports, "ProfilingLevel", { enumerable: true, get: function() {
-    return set_profiling_level_1.ProfilingLevel;
-  } });
-  var read_concern_1 = require_read_concern();
-  Object.defineProperty(exports, "ReadConcernLevel", { enumerable: true, get: function() {
-    return read_concern_1.ReadConcernLevel;
-  } });
-  var read_preference_1 = require_read_preference();
-  Object.defineProperty(exports, "ReadPreferenceMode", { enumerable: true, get: function() {
-    return read_preference_1.ReadPreferenceMode;
-  } });
-  var common_3 = require_common();
-  Object.defineProperty(exports, "ServerType", { enumerable: true, get: function() {
-    return common_3.ServerType;
-  } });
-  Object.defineProperty(exports, "TopologyType", { enumerable: true, get: function() {
-    return common_3.TopologyType;
-  } });
-  var read_concern_2 = require_read_concern();
-  Object.defineProperty(exports, "ReadConcern", { enumerable: true, get: function() {
-    return read_concern_2.ReadConcern;
-  } });
-  var read_preference_2 = require_read_preference();
-  Object.defineProperty(exports, "ReadPreference", { enumerable: true, get: function() {
-    return read_preference_2.ReadPreference;
-  } });
-  var write_concern_1 = require_write_concern();
-  Object.defineProperty(exports, "WriteConcern", { enumerable: true, get: function() {
-    return write_concern_1.WriteConcern;
-  } });
-  var command_monitoring_events_1 = require_command_monitoring_events();
-  Object.defineProperty(exports, "CommandFailedEvent", { enumerable: true, get: function() {
-    return command_monitoring_events_1.CommandFailedEvent;
-  } });
-  Object.defineProperty(exports, "CommandStartedEvent", { enumerable: true, get: function() {
-    return command_monitoring_events_1.CommandStartedEvent;
-  } });
-  Object.defineProperty(exports, "CommandSucceededEvent", { enumerable: true, get: function() {
-    return command_monitoring_events_1.CommandSucceededEvent;
-  } });
-  var connection_pool_events_1 = require_connection_pool_events();
-  Object.defineProperty(exports, "ConnectionCheckedInEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionCheckedInEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionCheckedOutEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionCheckedOutEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionCheckOutFailedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionCheckOutFailedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionCheckOutStartedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionCheckOutStartedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionClosedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionClosedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionCreatedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionCreatedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionPoolClearedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionPoolClearedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionPoolClosedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionPoolClosedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionPoolCreatedEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionPoolCreatedEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionPoolMonitoringEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionPoolMonitoringEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionPoolReadyEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionPoolReadyEvent;
-  } });
-  Object.defineProperty(exports, "ConnectionReadyEvent", { enumerable: true, get: function() {
-    return connection_pool_events_1.ConnectionReadyEvent;
-  } });
-  var events_1 = require_events();
-  Object.defineProperty(exports, "ServerClosedEvent", { enumerable: true, get: function() {
-    return events_1.ServerClosedEvent;
-  } });
-  Object.defineProperty(exports, "ServerDescriptionChangedEvent", { enumerable: true, get: function() {
-    return events_1.ServerDescriptionChangedEvent;
-  } });
-  Object.defineProperty(exports, "ServerHeartbeatFailedEvent", { enumerable: true, get: function() {
-    return events_1.ServerHeartbeatFailedEvent;
-  } });
-  Object.defineProperty(exports, "ServerHeartbeatStartedEvent", { enumerable: true, get: function() {
-    return events_1.ServerHeartbeatStartedEvent;
-  } });
-  Object.defineProperty(exports, "ServerHeartbeatSucceededEvent", { enumerable: true, get: function() {
-    return events_1.ServerHeartbeatSucceededEvent;
-  } });
-  Object.defineProperty(exports, "ServerOpeningEvent", { enumerable: true, get: function() {
-    return events_1.ServerOpeningEvent;
-  } });
-  Object.defineProperty(exports, "TopologyClosedEvent", { enumerable: true, get: function() {
-    return events_1.TopologyClosedEvent;
-  } });
-  Object.defineProperty(exports, "TopologyDescriptionChangedEvent", { enumerable: true, get: function() {
-    return events_1.TopologyDescriptionChangedEvent;
-  } });
-  Object.defineProperty(exports, "TopologyOpeningEvent", { enumerable: true, get: function() {
-    return events_1.TopologyOpeningEvent;
-  } });
-  var server_selection_events_1 = require_server_selection_events();
-  Object.defineProperty(exports, "ServerSelectionEvent", { enumerable: true, get: function() {
-    return server_selection_events_1.ServerSelectionEvent;
-  } });
-  Object.defineProperty(exports, "ServerSelectionFailedEvent", { enumerable: true, get: function() {
-    return server_selection_events_1.ServerSelectionFailedEvent;
-  } });
-  Object.defineProperty(exports, "ServerSelectionStartedEvent", { enumerable: true, get: function() {
-    return server_selection_events_1.ServerSelectionStartedEvent;
-  } });
-  Object.defineProperty(exports, "ServerSelectionSucceededEvent", { enumerable: true, get: function() {
-    return server_selection_events_1.ServerSelectionSucceededEvent;
-  } });
-  Object.defineProperty(exports, "WaitingForSuitableServerEvent", { enumerable: true, get: function() {
-    return server_selection_events_1.WaitingForSuitableServerEvent;
-  } });
-  var srv_polling_1 = require_srv_polling();
-  Object.defineProperty(exports, "SrvPollingEvent", { enumerable: true, get: function() {
-    return srv_polling_1.SrvPollingEvent;
-  } });
-  var errors_1 = require_errors();
-  Object.defineProperty(exports, "MongoCryptAzureKMSRequestError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptAzureKMSRequestError;
-  } });
-  Object.defineProperty(exports, "MongoCryptCreateDataKeyError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptCreateDataKeyError;
-  } });
-  Object.defineProperty(exports, "MongoCryptCreateEncryptedCollectionError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptCreateEncryptedCollectionError;
-  } });
-  Object.defineProperty(exports, "MongoCryptError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptError;
-  } });
-  Object.defineProperty(exports, "MongoCryptInvalidArgumentError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptInvalidArgumentError;
-  } });
-  Object.defineProperty(exports, "MongoCryptKMSRequestNetworkTimeoutError", { enumerable: true, get: function() {
-    return errors_1.MongoCryptKMSRequestNetworkTimeoutError;
-  } });
-  var mongo_client_auth_providers_1 = require_mongo_client_auth_providers();
-  Object.defineProperty(exports, "MongoClientAuthProviders", { enumerable: true, get: function() {
-    return mongo_client_auth_providers_1.MongoClientAuthProviders;
-  } });
-});
-
-// node_modules/mongodb/lib/beta.js
-var require_beta = __commonJS((exports) => {
-  Object.defineProperty(exports, "__esModule", { value: true });
-  __exportStar(require_lib3(), exports);
-  function __exportStar(mod) {
-    for (const key of Object.keys(mod)) {
-      Object.defineProperty(exports, key, {
-        enumerable: true,
-        get: function() {
-          return mod[key];
-        }
-      });
-    }
-  }
-});
-
 // node_modules/mongodb/lib/operations/client_bulk_write/client_bulk_write.js
 var require_client_bulk_write = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.ClientBulkWriteOperation = undefined;
-  var beta_1 = require_beta();
   var responses_1 = require_responses();
   var utils_1 = require_utils();
   var command_1 = require_command();
@@ -25405,6 +23494,7 @@ var require_client_bulk_write = __commonJS((exports) => {
     }
     constructor(commandBuilder, options) {
       super(undefined, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.ClientBulkWriteCursorResponse;
       this.commandBuilder = commandBuilder;
       this.options = options;
       this.ns = new utils_1.MongoDBNamespace("admin", "$cmd");
@@ -25415,31 +23505,15 @@ var require_client_bulk_write = __commonJS((exports) => {
     get canRetryWrite() {
       return this.commandBuilder.isBatchRetryable;
     }
-    async execute(server, session, timeoutContext) {
-      let command;
-      if (server.description.type === beta_1.ServerType.LoadBalancer) {
-        if (session) {
-          let connection;
-          if (!session.pinnedConnection) {
-            connection = await server.pool.checkOut({ timeoutContext });
-            session.pin(connection);
-          } else {
-            connection = session.pinnedConnection;
-          }
-          command = this.commandBuilder.buildBatch(connection.hello?.maxMessageSizeBytes, connection.hello?.maxWriteBatchSize, connection.hello?.maxBsonObjectSize);
-        } else {
-          throw new beta_1.MongoClientBulkWriteExecutionError("Session provided to the client bulk write operation must be present.");
-        }
-      } else {
-        if (!server.description.maxWriteBatchSize || !server.description.maxMessageSizeBytes || !server.description.maxBsonObjectSize) {
-          throw new beta_1.MongoClientBulkWriteExecutionError("In order to execute a client bulk write, both maxWriteBatchSize, maxMessageSizeBytes and maxBsonObjectSize must be provided by the servers hello response.");
-        }
-        command = this.commandBuilder.buildBatch(server.description.maxMessageSizeBytes, server.description.maxWriteBatchSize, server.description.maxBsonObjectSize);
-      }
+    handleOk(response) {
+      return response;
+    }
+    buildCommandDocument(connection, _session) {
+      const command = this.commandBuilder.buildBatch(connection.description.maxMessageSizeBytes, connection.description.maxWriteBatchSize, connection.description.maxBsonObjectSize);
       if (!this.canRetryWrite) {
         this.options.willRetryWrite = false;
       }
-      return await super.executeCommand(server, session, command, timeoutContext, responses_1.ClientBulkWriteCursorResponse);
+      return command;
     }
   }
   exports.ClientBulkWriteOperation = ClientBulkWriteOperation;
@@ -25448,7 +23522,8 @@ var require_client_bulk_write = __commonJS((exports) => {
     operation_1.Aspect.SKIP_COLLATION,
     operation_1.Aspect.CURSOR_CREATING,
     operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.COMMAND_BATCHING
+    operation_1.Aspect.COMMAND_BATCHING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
   ]);
 });
 
@@ -25973,12 +24048,173 @@ var require_executor = __commonJS((exports) => {
   exports.ClientBulkWriteExecutor = ClientBulkWriteExecutor;
 });
 
+// node_modules/mongodb/lib/sdam/server_selection_events.js
+var require_server_selection_events = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.WaitingForSuitableServerEvent = exports.ServerSelectionSucceededEvent = exports.ServerSelectionFailedEvent = exports.ServerSelectionStartedEvent = exports.ServerSelectionEvent = undefined;
+  var utils_1 = require_utils();
+  var constants_1 = require_constants2();
+
+  class ServerSelectionEvent {
+    constructor(selector, topologyDescription, operation) {
+      this.selector = selector;
+      this.operation = operation;
+      this.topologyDescription = topologyDescription;
+    }
+  }
+  exports.ServerSelectionEvent = ServerSelectionEvent;
+
+  class ServerSelectionStartedEvent extends ServerSelectionEvent {
+    constructor(selector, topologyDescription, operation) {
+      super(selector, topologyDescription, operation);
+      this.name = constants_1.SERVER_SELECTION_STARTED;
+      this.message = "Server selection started";
+    }
+  }
+  exports.ServerSelectionStartedEvent = ServerSelectionStartedEvent;
+
+  class ServerSelectionFailedEvent extends ServerSelectionEvent {
+    constructor(selector, topologyDescription, error, operation) {
+      super(selector, topologyDescription, operation);
+      this.name = constants_1.SERVER_SELECTION_FAILED;
+      this.message = "Server selection failed";
+      this.failure = error;
+    }
+  }
+  exports.ServerSelectionFailedEvent = ServerSelectionFailedEvent;
+
+  class ServerSelectionSucceededEvent extends ServerSelectionEvent {
+    constructor(selector, topologyDescription, address, operation) {
+      super(selector, topologyDescription, operation);
+      this.name = constants_1.SERVER_SELECTION_SUCCEEDED;
+      this.message = "Server selection succeeded";
+      const { host, port } = utils_1.HostAddress.fromString(address).toHostPort();
+      this.serverHost = host;
+      this.serverPort = port;
+    }
+  }
+  exports.ServerSelectionSucceededEvent = ServerSelectionSucceededEvent;
+
+  class WaitingForSuitableServerEvent extends ServerSelectionEvent {
+    constructor(selector, topologyDescription, remainingTimeMS, operation) {
+      super(selector, topologyDescription, operation);
+      this.name = constants_1.WAITING_FOR_SUITABLE_SERVER;
+      this.message = "Waiting for suitable server to become available";
+      this.remainingTimeMS = remainingTimeMS;
+    }
+  }
+  exports.WaitingForSuitableServerEvent = WaitingForSuitableServerEvent;
+});
+
+// node_modules/mongodb/lib/sdam/srv_polling.js
+var require_srv_polling = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.SrvPoller = exports.SrvPollingEvent = undefined;
+  var dns = __require("dns");
+  var timers_1 = __require("timers");
+  var error_1 = require_error();
+  var mongo_types_1 = require_mongo_types();
+  var utils_1 = require_utils();
+
+  class SrvPollingEvent {
+    constructor(srvRecords) {
+      this.srvRecords = srvRecords;
+    }
+    hostnames() {
+      return new Set(this.srvRecords.map((r) => utils_1.HostAddress.fromSrvRecord(r).toString()));
+    }
+  }
+  exports.SrvPollingEvent = SrvPollingEvent;
+
+  class SrvPoller extends mongo_types_1.TypedEventEmitter {
+    constructor(options) {
+      super();
+      this.on("error", utils_1.noop);
+      if (!options || !options.srvHost) {
+        throw new error_1.MongoRuntimeError("Options for SrvPoller must exist and include srvHost");
+      }
+      this.srvHost = options.srvHost;
+      this.srvMaxHosts = options.srvMaxHosts ?? 0;
+      this.srvServiceName = options.srvServiceName ?? "mongodb";
+      this.rescanSrvIntervalMS = 60000;
+      this.heartbeatFrequencyMS = options.heartbeatFrequencyMS ?? 1e4;
+      this.haMode = false;
+      this.generation = 0;
+      this._timeout = undefined;
+    }
+    get srvAddress() {
+      return `_${this.srvServiceName}._tcp.${this.srvHost}`;
+    }
+    get intervalMS() {
+      return this.haMode ? this.heartbeatFrequencyMS : this.rescanSrvIntervalMS;
+    }
+    start() {
+      if (!this._timeout) {
+        this.schedule();
+      }
+    }
+    stop() {
+      if (this._timeout) {
+        (0, timers_1.clearTimeout)(this._timeout);
+        this.generation += 1;
+        this._timeout = undefined;
+      }
+    }
+    schedule() {
+      if (this._timeout) {
+        (0, timers_1.clearTimeout)(this._timeout);
+      }
+      this._timeout = (0, timers_1.setTimeout)(() => {
+        this._poll().then(undefined, utils_1.squashError);
+      }, this.intervalMS);
+    }
+    success(srvRecords) {
+      this.haMode = false;
+      this.schedule();
+      this.emit(SrvPoller.SRV_RECORD_DISCOVERY, new SrvPollingEvent(srvRecords));
+    }
+    failure() {
+      this.haMode = true;
+      this.schedule();
+    }
+    async _poll() {
+      const generation = this.generation;
+      let srvRecords;
+      try {
+        srvRecords = await dns.promises.resolveSrv(this.srvAddress);
+      } catch {
+        this.failure();
+        return;
+      }
+      if (generation !== this.generation) {
+        return;
+      }
+      const finalAddresses = [];
+      for (const record of srvRecords) {
+        try {
+          (0, utils_1.checkParentDomainMatch)(record.name, this.srvHost);
+          finalAddresses.push(record);
+        } catch (error) {
+          (0, utils_1.squashError)(error);
+        }
+      }
+      if (!finalAddresses.length) {
+        this.failure();
+        return;
+      }
+      this.success(finalAddresses);
+    }
+  }
+  exports.SrvPoller = SrvPoller;
+  SrvPoller.SRV_RECORD_DISCOVERY = "srvRecordDiscovery";
+});
+
 // node_modules/mongodb/lib/sdam/topology.js
 var require_topology = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.ServerCapabilities = exports.Topology = undefined;
   var connection_string_1 = require_connection_string();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var error_1 = require_error();
   var mongo_logger_1 = require_mongo_logger();
   var mongo_types_1 = require_mongo_types();
@@ -26131,7 +24367,7 @@ var require_topology = __commonJS((exports) => {
         waitQueueTimeoutMS: this.client.s.options.waitQueueTimeoutMS
       });
       const selectServerOptions = {
-        operationName: "ping",
+        operationName: "handshake",
         ...options,
         timeoutContext
       };
@@ -26139,7 +24375,8 @@ var require_topology = __commonJS((exports) => {
         const server = await this.selectServer((0, server_selection_1.readPreferenceServerSelector)(readPreference), selectServerOptions);
         const skipPingOnConnect = this.s.options.__skipPingOnConnect === true;
         if (!skipPingOnConnect && this.s.credentials) {
-          await server.command((0, utils_1.ns)("admin.$cmd"), { ping: 1 }, { timeoutContext });
+          const connection = await server.pool.checkOut({ timeoutContext });
+          server.pool.checkIn(connection);
           stateTransition(this, common_1.STATE_CONNECTED);
           this.emit(Topology.OPEN, this);
           this.emit(Topology.CONNECT, this);
@@ -26515,31 +24752,31 @@ var require_topology = __commonJS((exports) => {
       this.maxWireVersion = hello.maxWireVersion || 0;
     }
     get hasAggregationCursor() {
-      return this.maxWireVersion >= 1;
+      return true;
     }
     get hasWriteCommands() {
-      return this.maxWireVersion >= 2;
+      return true;
     }
     get hasTextSearch() {
-      return this.minWireVersion >= 0;
+      return true;
     }
     get hasAuthCommands() {
-      return this.maxWireVersion >= 1;
+      return true;
     }
     get hasListCollectionsCommand() {
-      return this.maxWireVersion >= 3;
+      return true;
     }
     get hasListIndexesCommand() {
-      return this.maxWireVersion >= 3;
+      return true;
     }
     get supportsSnapshotReads() {
       return this.maxWireVersion >= 13;
     }
     get commandsTakeWriteConcern() {
-      return this.maxWireVersion >= 5;
+      return true;
     }
     get commandsTakeCollation() {
-      return this.maxWireVersion >= 5;
+      return true;
     }
   }
   exports.ServerCapabilities = ServerCapabilities;
@@ -26555,8 +24792,9 @@ var require_mongo_client = __commonJS((exports) => {
   var mongo_credentials_1 = require_mongo_credentials();
   var providers_1 = require_providers();
   var client_metadata_1 = require_client_metadata();
+  var responses_1 = require_responses();
   var connection_string_1 = require_connection_string();
-  var constants_1 = require_constants();
+  var constants_1 = require_constants2();
   var db_1 = require_db();
   var error_1 = require_error();
   var mongo_client_auth_providers_1 = require_mongo_client_auth_providers();
@@ -26564,7 +24802,7 @@ var require_mongo_client = __commonJS((exports) => {
   var mongo_types_1 = require_mongo_types();
   var executor_1 = require_executor();
   var execute_operation_1 = require_execute_operation();
-  var run_command_1 = require_run_command();
+  var operation_1 = require_operation();
   var read_preference_1 = require_read_preference();
   var resource_management_1 = require_resource_management();
   var server_selection_1 = require_server_selection();
@@ -26578,8 +24816,10 @@ var require_mongo_client = __commonJS((exports) => {
   class MongoClient extends mongo_types_1.TypedEventEmitter {
     constructor(url, options) {
       super();
+      this.driverInfoList = [];
       this.on("error", utils_1.noop);
       this.options = (0, connection_string_1.parseOptions)(url, this, options);
+      this.appendMetadata(this.options.driverInfo);
       const shouldSetLogger = Object.values(this.options.mongoLoggerOptions.componentSeverities).some((value) => value !== mongo_logger_1.SeverityLevel.OFF);
       this.mongoLogger = shouldSetLogger ? new mongo_logger_1.MongoLogger(this.options.mongoLoggerOptions) : undefined;
       const client = this;
@@ -26614,8 +24854,11 @@ var require_mongo_client = __commonJS((exports) => {
       await this.close();
     }
     appendMetadata(driverInfo) {
-      this.options.additionalDriverInfo.push(driverInfo);
-      this.options.metadata = (0, client_metadata_1.makeClientMetadata)(this.options);
+      const isDuplicateDriverInfo = this.driverInfoList.some((info) => (0, client_metadata_1.isDriverInfoEqual)(info, driverInfo));
+      if (isDuplicateDriverInfo)
+        return;
+      this.driverInfoList.push(driverInfo);
+      this.options.metadata = (0, client_metadata_1.makeClientMetadata)(this.driverInfoList, this.options);
       this.options.extendedMetadata = (0, client_metadata_1.addContainerMetadata)(this.options.metadata).then(undefined, utils_1.squashError).then((result) => result ?? {});
     }
     checkForNonGenuineHosts() {
@@ -26769,7 +25012,30 @@ var require_mongo_client = __commonJS((exports) => {
         const endSessions = Array.from(this.s.sessionPool.sessions, ({ id }) => id);
         if (endSessions.length !== 0) {
           try {
-            await (0, execute_operation_1.executeOperation)(this, new run_command_1.RunAdminCommandOperation({ endSessions }, { readPreference: read_preference_1.ReadPreference.primaryPreferred, noResponse: true }));
+
+            class EndSessionsOperation extends operation_1.AbstractOperation {
+              constructor() {
+                super(...arguments);
+                this.ns = utils_1.MongoDBNamespace.fromString("admin.$cmd");
+                this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+              }
+              buildCommand(_connection, _session) {
+                return {
+                  endSessions
+                };
+              }
+              buildOptions(timeoutContext) {
+                return {
+                  timeoutContext,
+                  readPreference: read_preference_1.ReadPreference.primaryPreferred,
+                  noResponse: true
+                };
+              }
+              get commandName() {
+                return "endSessions";
+              }
+            }
+            await (0, execute_operation_1.executeOperation)(this, new EndSessionsOperation);
           } catch (error) {
             (0, utils_1.squashError)(error);
           }
@@ -27539,55 +25805,11 @@ var require_abstract_cursor = __commonJS((exports) => {
   exports.CursorTimeoutContext = CursorTimeoutContext;
 });
 
-// node_modules/mongodb/lib/explain.js
-var require_explain = __commonJS((exports) => {
+// node_modules/mongodb/lib/cursor/explainable_cursor.js
+var require_explainable_cursor = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.ExplainableCursor = exports.Explain = exports.ExplainVerbosity = undefined;
-  exports.validateExplainTimeoutOptions = validateExplainTimeoutOptions;
-  exports.decorateWithExplain = decorateWithExplain;
+  exports.ExplainableCursor = undefined;
   var abstract_cursor_1 = require_abstract_cursor();
-  var error_1 = require_error();
-  exports.ExplainVerbosity = Object.freeze({
-    queryPlanner: "queryPlanner",
-    queryPlannerExtended: "queryPlannerExtended",
-    executionStats: "executionStats",
-    allPlansExecution: "allPlansExecution"
-  });
-
-  class Explain {
-    constructor(verbosity, maxTimeMS) {
-      if (typeof verbosity === "boolean") {
-        this.verbosity = verbosity ? exports.ExplainVerbosity.allPlansExecution : exports.ExplainVerbosity.queryPlanner;
-      } else {
-        this.verbosity = verbosity;
-      }
-      this.maxTimeMS = maxTimeMS;
-    }
-    static fromOptions({ explain } = {}) {
-      if (explain == null)
-        return;
-      if (typeof explain === "boolean" || typeof explain === "string") {
-        return new Explain(explain);
-      }
-      const { verbosity, maxTimeMS } = explain;
-      return new Explain(verbosity, maxTimeMS);
-    }
-  }
-  exports.Explain = Explain;
-  function validateExplainTimeoutOptions(options, explain) {
-    const { maxTimeMS, timeoutMS } = options;
-    if (timeoutMS != null && (maxTimeMS != null || explain?.maxTimeMS != null)) {
-      throw new error_1.MongoAPIError("Cannot use maxTimeMS with timeoutMS for explain commands.");
-    }
-  }
-  function decorateWithExplain(command, explain) {
-    const { verbosity, maxTimeMS } = explain;
-    const baseCommand = { explain: command, verbosity };
-    if (typeof maxTimeMS === "number") {
-      baseCommand.maxTimeMS = maxTimeMS;
-    }
-    return baseCommand;
-  }
 
   class ExplainableCursor extends abstract_cursor_1.AbstractCursor {
     resolveExplainTimeoutOptions(verbosity, options) {
@@ -27609,1025 +25831,2811 @@ var require_explain = __commonJS((exports) => {
   exports.ExplainableCursor = ExplainableCursor;
 });
 
-// node_modules/mongodb/lib/operations/command.js
-var require_command = __commonJS((exports) => {
+// node_modules/mongodb/lib/cursor/aggregation_cursor.js
+var require_aggregation_cursor = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.CommandOperation = undefined;
+  exports.AggregationCursor = undefined;
   var error_1 = require_error();
   var explain_1 = require_explain();
-  var read_concern_1 = require_read_concern();
-  var server_selection_1 = require_server_selection();
+  var aggregate_1 = require_aggregate();
+  var execute_operation_1 = require_execute_operation();
   var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
+  var abstract_cursor_1 = require_abstract_cursor();
+  var explainable_cursor_1 = require_explainable_cursor();
+
+  class AggregationCursor extends explainable_cursor_1.ExplainableCursor {
+    constructor(client, namespace, pipeline = [], options = {}) {
+      super(client, namespace, options);
+      this.pipeline = pipeline;
+      this.aggregateOptions = options;
+      const lastStage = this.pipeline[this.pipeline.length - 1];
+      if (this.cursorOptions.timeoutMS != null && this.cursorOptions.timeoutMode === abstract_cursor_1.CursorTimeoutMode.ITERATION && (lastStage?.$merge != null || lastStage?.$out != null))
+        throw new error_1.MongoAPIError("Cannot use $out or $merge stage with ITERATION timeoutMode");
+    }
+    clone() {
+      const clonedOptions = (0, utils_1.mergeOptions)({}, this.aggregateOptions);
+      delete clonedOptions.session;
+      return new AggregationCursor(this.client, this.namespace, this.pipeline, {
+        ...clonedOptions
+      });
+    }
+    map(transform) {
+      return super.map(transform);
+    }
+    async _initialize(session) {
+      const options = {
+        ...this.aggregateOptions,
+        ...this.cursorOptions,
+        session,
+        signal: this.signal
+      };
+      if (options.explain) {
+        try {
+          (0, explain_1.validateExplainTimeoutOptions)(options, explain_1.Explain.fromOptions(options));
+        } catch {
+          throw new error_1.MongoAPIError("timeoutMS cannot be used with explain when explain is specified in aggregateOptions");
+        }
+      }
+      const aggregateOperation = new aggregate_1.AggregateOperation(this.namespace, this.pipeline, options);
+      const response = await (0, execute_operation_1.executeOperation)(this.client, aggregateOperation, this.timeoutContext);
+      return { server: aggregateOperation.server, session, response };
+    }
+    async explain(verbosity, options) {
+      const { explain, timeout } = this.resolveExplainTimeoutOptions(verbosity, options);
+      return (await (0, execute_operation_1.executeOperation)(this.client, new aggregate_1.AggregateOperation(this.namespace, this.pipeline, {
+        ...this.aggregateOptions,
+        ...this.cursorOptions,
+        ...timeout,
+        explain: explain ?? true
+      }))).shift(this.deserializationOptions);
+    }
+    addStage(stage) {
+      this.throwIfInitialized();
+      if (this.cursorOptions.timeoutMS != null && this.cursorOptions.timeoutMode === abstract_cursor_1.CursorTimeoutMode.ITERATION && (stage.$out != null || stage.$merge != null)) {
+        throw new error_1.MongoAPIError("Cannot use $out or $merge stage with ITERATION timeoutMode");
+      }
+      this.pipeline.push(stage);
+      return this;
+    }
+    group($group) {
+      return this.addStage({ $group });
+    }
+    limit($limit) {
+      return this.addStage({ $limit });
+    }
+    match($match) {
+      return this.addStage({ $match });
+    }
+    out($out) {
+      return this.addStage({ $out });
+    }
+    project($project) {
+      return this.addStage({ $project });
+    }
+    lookup($lookup) {
+      return this.addStage({ $lookup });
+    }
+    redact($redact) {
+      return this.addStage({ $redact });
+    }
+    skip($skip) {
+      return this.addStage({ $skip });
+    }
+    sort($sort) {
+      return this.addStage({ $sort });
+    }
+    unwind($unwind) {
+      return this.addStage({ $unwind });
+    }
+    geoNear($geoNear) {
+      return this.addStage({ $geoNear });
+    }
+  }
+  exports.AggregationCursor = AggregationCursor;
+});
+
+// node_modules/mongodb/lib/operations/count.js
+var require_count = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.CountOperation = undefined;
+  var responses_1 = require_responses();
+  var command_1 = require_command();
   var operation_1 = require_operation();
 
-  class CommandOperation extends operation_1.AbstractOperation {
-    constructor(parent, options) {
-      super(options);
-      this.options = options ?? {};
-      const dbNameOverride = options?.dbName || options?.authdb;
-      if (dbNameOverride) {
-        this.ns = new utils_1.MongoDBNamespace(dbNameOverride, "$cmd");
-      } else {
-        this.ns = parent ? parent.s.namespace.withCollection("$cmd") : new utils_1.MongoDBNamespace("admin", "$cmd");
-      }
-      this.readConcern = read_concern_1.ReadConcern.fromOptions(options);
-      this.writeConcern = write_concern_1.WriteConcern.fromOptions(options);
-      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE)) {
-        this.explain = explain_1.Explain.fromOptions(options);
-        if (this.explain)
-          (0, explain_1.validateExplainTimeoutOptions)(this.options, this.explain);
-      } else if (options?.explain != null) {
-        throw new error_1.MongoInvalidArgumentError(`Option "explain" is not supported on this command`);
-      }
+  class CountOperation extends command_1.CommandOperation {
+    constructor(namespace, filter, options) {
+      super({ s: { namespace } }, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.collectionName = namespace.collection;
+      this.query = filter;
     }
-    get canRetryWrite() {
-      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE)) {
-        return this.explain == null;
-      }
-      return super.canRetryWrite;
+    get commandName() {
+      return "count";
     }
-    async executeCommand(server, session, cmd, timeoutContext, responseType) {
-      this.server = server;
-      const options = {
-        ...this.options,
-        ...this.bsonOptions,
-        timeoutContext,
-        readPreference: this.readPreference,
-        session
+    buildCommandDocument(_connection, _session) {
+      const options = this.options;
+      const cmd = {
+        count: this.collectionName,
+        query: this.query
       };
-      const serverWireVersion = (0, utils_1.maxWireVersion)(server);
-      const inTransaction = this.session && this.session.inTransaction();
-      if (this.readConcern && (0, utils_1.commandSupportsReadConcern)(cmd) && !inTransaction) {
-        Object.assign(cmd, { readConcern: this.readConcern });
+      if (typeof options.limit === "number") {
+        cmd.limit = options.limit;
       }
-      if (this.trySecondaryWrite && serverWireVersion < server_selection_1.MIN_SECONDARY_WRITE_WIRE_VERSION) {
-        options.omitReadPreference = true;
+      if (typeof options.skip === "number") {
+        cmd.skip = options.skip;
       }
-      if (this.writeConcern && this.hasAspect(operation_1.Aspect.WRITE_OPERATION) && !inTransaction) {
-        write_concern_1.WriteConcern.apply(cmd, this.writeConcern);
-      }
-      if (options.collation && typeof options.collation === "object" && !this.hasAspect(operation_1.Aspect.SKIP_COLLATION)) {
-        Object.assign(cmd, { collation: options.collation });
+      if (options.hint != null) {
+        cmd.hint = options.hint;
       }
       if (typeof options.maxTimeMS === "number") {
         cmd.maxTimeMS = options.maxTimeMS;
       }
-      if (this.hasAspect(operation_1.Aspect.EXPLAINABLE) && this.explain) {
-        cmd = (0, explain_1.decorateWithExplain)(cmd, this.explain);
-      }
-      return await server.command(this.ns, cmd, options, responseType);
+      return cmd;
+    }
+    handleOk(response) {
+      return response.getNumber("n") ?? 0;
     }
   }
-  exports.CommandOperation = CommandOperation;
+  exports.CountOperation = CountOperation;
+  (0, operation_1.defineAspects)(CountOperation, [operation_1.Aspect.READ_OPERATION, operation_1.Aspect.RETRYABLE, operation_1.Aspect.SUPPORTS_RAW_DATA]);
 });
 
-// node_modules/mongodb/lib/operations/delete.js
-var require_delete = __commonJS((exports) => {
+// node_modules/mongodb/lib/operations/find.js
+var require_find = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.DeleteManyOperation = exports.DeleteOneOperation = exports.DeleteOperation = undefined;
-  exports.makeDeleteStatement = makeDeleteStatement;
+  exports.FindOperation = undefined;
+  var responses_1 = require_responses();
   var error_1 = require_error();
+  var sort_1 = require_sort();
+  var utils_1 = require_utils();
   var command_1 = require_command();
   var operation_1 = require_operation();
 
-  class DeleteOperation extends command_1.CommandOperation {
-    constructor(ns, statements, options) {
+  class FindOperation extends command_1.CommandOperation {
+    constructor(ns, filter = {}, options = {}) {
       super(undefined, options);
-      this.options = options;
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.CursorResponse;
+      this.options = { ...options };
+      delete this.options.writeConcern;
       this.ns = ns;
-      this.statements = statements;
+      if (typeof filter !== "object" || Array.isArray(filter)) {
+        throw new error_1.MongoInvalidArgumentError("Query filter must be a plain object or ObjectId");
+      }
+      this.filter = filter != null && filter._bsontype === "ObjectId" ? { _id: filter } : filter;
+      this.SERVER_COMMAND_RESPONSE_TYPE = this.explain ? responses_1.ExplainedCursorResponse : responses_1.CursorResponse;
     }
     get commandName() {
-      return "delete";
+      return "find";
     }
-    get canRetryWrite() {
-      if (super.canRetryWrite === false) {
-        return false;
-      }
-      return this.statements.every((op) => op.limit != null ? op.limit > 0 : true);
-    }
-    async execute(server, session, timeoutContext) {
-      const options = this.options ?? {};
-      const ordered = typeof options.ordered === "boolean" ? options.ordered : true;
-      const command = {
-        delete: this.ns.collection,
-        deletes: this.statements,
-        ordered
+    buildOptions(timeoutContext) {
+      return {
+        ...this.options,
+        ...this.bsonOptions,
+        documentsReturnedIn: "firstBatch",
+        session: this.session,
+        timeoutContext
       };
+    }
+    handleOk(response) {
+      return response;
+    }
+    buildCommandDocument() {
+      return makeFindCommand(this.ns, this.filter, this.options);
+    }
+  }
+  exports.FindOperation = FindOperation;
+  function makeFindCommand(ns, filter, options) {
+    const findCommand = {
+      find: ns.collection,
+      filter
+    };
+    if (options.sort) {
+      findCommand.sort = (0, sort_1.formatSort)(options.sort);
+    }
+    if (options.projection) {
+      let projection = options.projection;
+      if (projection && Array.isArray(projection)) {
+        projection = projection.length ? projection.reduce((result, field) => {
+          result[field] = 1;
+          return result;
+        }, {}) : { _id: 1 };
+      }
+      findCommand.projection = projection;
+    }
+    if (options.hint) {
+      findCommand.hint = (0, utils_1.normalizeHintField)(options.hint);
+    }
+    if (typeof options.skip === "number") {
+      findCommand.skip = options.skip;
+    }
+    if (typeof options.limit === "number") {
+      if (options.limit < 0) {
+        findCommand.limit = -options.limit;
+        findCommand.singleBatch = true;
+      } else {
+        findCommand.limit = options.limit;
+      }
+    }
+    if (typeof options.batchSize === "number") {
+      if (options.batchSize < 0) {
+        findCommand.limit = -options.batchSize;
+      } else {
+        if (options.batchSize === options.limit) {
+          findCommand.batchSize = options.batchSize + 1;
+        } else {
+          findCommand.batchSize = options.batchSize;
+        }
+      }
+    }
+    if (typeof options.singleBatch === "boolean") {
+      findCommand.singleBatch = options.singleBatch;
+    }
+    if (options.comment !== undefined) {
+      findCommand.comment = options.comment;
+    }
+    if (options.max) {
+      findCommand.max = options.max;
+    }
+    if (options.min) {
+      findCommand.min = options.min;
+    }
+    if (typeof options.returnKey === "boolean") {
+      findCommand.returnKey = options.returnKey;
+    }
+    if (typeof options.showRecordId === "boolean") {
+      findCommand.showRecordId = options.showRecordId;
+    }
+    if (typeof options.tailable === "boolean") {
+      findCommand.tailable = options.tailable;
+    }
+    if (typeof options.oplogReplay === "boolean") {
+      findCommand.oplogReplay = options.oplogReplay;
+    }
+    if (typeof options.timeout === "boolean") {
+      findCommand.noCursorTimeout = !options.timeout;
+    } else if (typeof options.noCursorTimeout === "boolean") {
+      findCommand.noCursorTimeout = options.noCursorTimeout;
+    }
+    if (typeof options.awaitData === "boolean") {
+      findCommand.awaitData = options.awaitData;
+    }
+    if (typeof options.allowPartialResults === "boolean") {
+      findCommand.allowPartialResults = options.allowPartialResults;
+    }
+    if (typeof options.allowDiskUse === "boolean") {
+      findCommand.allowDiskUse = options.allowDiskUse;
+    }
+    if (options.let) {
+      findCommand.let = options.let;
+    }
+    return findCommand;
+  }
+  (0, operation_1.defineAspects)(FindOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.CURSOR_CREATING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/cursor/find_cursor.js
+var require_find_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.FindCursor = exports.FLAGS = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var explain_1 = require_explain();
+  var count_1 = require_count();
+  var execute_operation_1 = require_execute_operation();
+  var find_1 = require_find();
+  var sort_1 = require_sort();
+  var utils_1 = require_utils();
+  var explainable_cursor_1 = require_explainable_cursor();
+  exports.FLAGS = [
+    "tailable",
+    "oplogReplay",
+    "noCursorTimeout",
+    "awaitData",
+    "exhaust",
+    "partial"
+  ];
+
+  class FindCursor extends explainable_cursor_1.ExplainableCursor {
+    constructor(client, namespace, filter = {}, options = {}) {
+      super(client, namespace, options);
+      this.numReturned = 0;
+      this.cursorFilter = filter;
+      this.findOptions = options;
+      if (options.sort != null) {
+        this.findOptions.sort = (0, sort_1.formatSort)(options.sort);
+      }
+    }
+    clone() {
+      const clonedOptions = (0, utils_1.mergeOptions)({}, this.findOptions);
+      delete clonedOptions.session;
+      return new FindCursor(this.client, this.namespace, this.cursorFilter, {
+        ...clonedOptions
+      });
+    }
+    map(transform) {
+      return super.map(transform);
+    }
+    async _initialize(session) {
+      const options = {
+        ...this.findOptions,
+        ...this.cursorOptions,
+        session,
+        signal: this.signal
+      };
+      if (options.explain) {
+        try {
+          (0, explain_1.validateExplainTimeoutOptions)(options, explain_1.Explain.fromOptions(options));
+        } catch {
+          throw new error_1.MongoAPIError("timeoutMS cannot be used with explain when explain is specified in findOptions");
+        }
+      }
+      const findOperation = new find_1.FindOperation(this.namespace, this.cursorFilter, options);
+      const response = await (0, execute_operation_1.executeOperation)(this.client, findOperation, this.timeoutContext);
+      this.numReturned = response.batchSize;
+      return { server: findOperation.server, session, response };
+    }
+    async getMore(batchSize) {
+      const numReturned = this.numReturned;
+      if (numReturned) {
+        const limit = this.findOptions.limit;
+        batchSize = limit && limit > 0 && numReturned + batchSize > limit ? limit - numReturned : batchSize;
+        if (batchSize <= 0) {
+          try {
+            await this.close();
+          } catch (error) {
+            (0, utils_1.squashError)(error);
+          }
+          return responses_1.CursorResponse.emptyGetMore;
+        }
+      }
+      const response = await super.getMore(batchSize);
+      this.numReturned = this.numReturned + response.batchSize;
+      return response;
+    }
+    async count(options) {
+      (0, utils_1.emitWarningOnce)("cursor.count is deprecated and will be removed in the next major version, please use `collection.estimatedDocumentCount` or `collection.countDocuments` instead ");
+      if (typeof options === "boolean") {
+        throw new error_1.MongoInvalidArgumentError("Invalid first parameter to count");
+      }
+      return await (0, execute_operation_1.executeOperation)(this.client, new count_1.CountOperation(this.namespace, this.cursorFilter, {
+        ...this.findOptions,
+        ...this.cursorOptions,
+        ...options
+      }));
+    }
+    async explain(verbosity, options) {
+      const { explain, timeout } = this.resolveExplainTimeoutOptions(verbosity, options);
+      return (await (0, execute_operation_1.executeOperation)(this.client, new find_1.FindOperation(this.namespace, this.cursorFilter, {
+        ...this.findOptions,
+        ...this.cursorOptions,
+        ...timeout,
+        explain: explain ?? true
+      }))).shift(this.deserializationOptions);
+    }
+    filter(filter) {
+      this.throwIfInitialized();
+      this.cursorFilter = filter;
+      return this;
+    }
+    hint(hint) {
+      this.throwIfInitialized();
+      this.findOptions.hint = hint;
+      return this;
+    }
+    min(min) {
+      this.throwIfInitialized();
+      this.findOptions.min = min;
+      return this;
+    }
+    max(max) {
+      this.throwIfInitialized();
+      this.findOptions.max = max;
+      return this;
+    }
+    returnKey(value) {
+      this.throwIfInitialized();
+      this.findOptions.returnKey = value;
+      return this;
+    }
+    showRecordId(value) {
+      this.throwIfInitialized();
+      this.findOptions.showRecordId = value;
+      return this;
+    }
+    addQueryModifier(name, value) {
+      this.throwIfInitialized();
+      if (name[0] !== "$") {
+        throw new error_1.MongoInvalidArgumentError(`${name} is not a valid query modifier`);
+      }
+      const field = name.substr(1);
+      switch (field) {
+        case "comment":
+          this.findOptions.comment = value;
+          break;
+        case "explain":
+          this.findOptions.explain = value;
+          break;
+        case "hint":
+          this.findOptions.hint = value;
+          break;
+        case "max":
+          this.findOptions.max = value;
+          break;
+        case "maxTimeMS":
+          this.findOptions.maxTimeMS = value;
+          break;
+        case "min":
+          this.findOptions.min = value;
+          break;
+        case "orderby":
+          this.findOptions.sort = (0, sort_1.formatSort)(value);
+          break;
+        case "query":
+          this.cursorFilter = value;
+          break;
+        case "returnKey":
+          this.findOptions.returnKey = value;
+          break;
+        case "showDiskLoc":
+          this.findOptions.showRecordId = value;
+          break;
+        default:
+          throw new error_1.MongoInvalidArgumentError(`Invalid query modifier: ${name}`);
+      }
+      return this;
+    }
+    comment(value) {
+      this.throwIfInitialized();
+      this.findOptions.comment = value;
+      return this;
+    }
+    maxAwaitTimeMS(value) {
+      this.throwIfInitialized();
+      if (typeof value !== "number") {
+        throw new error_1.MongoInvalidArgumentError("Argument for maxAwaitTimeMS must be a number");
+      }
+      this.findOptions.maxAwaitTimeMS = value;
+      return this;
+    }
+    maxTimeMS(value) {
+      this.throwIfInitialized();
+      if (typeof value !== "number") {
+        throw new error_1.MongoInvalidArgumentError("Argument for maxTimeMS must be a number");
+      }
+      this.findOptions.maxTimeMS = value;
+      return this;
+    }
+    project(value) {
+      this.throwIfInitialized();
+      this.findOptions.projection = value;
+      return this;
+    }
+    sort(sort, direction) {
+      this.throwIfInitialized();
+      if (this.findOptions.tailable) {
+        throw new error_1.MongoTailableCursorError("Tailable cursor does not support sorting");
+      }
+      this.findOptions.sort = (0, sort_1.formatSort)(sort, direction);
+      return this;
+    }
+    allowDiskUse(allow = true) {
+      this.throwIfInitialized();
+      if (!this.findOptions.sort) {
+        throw new error_1.MongoInvalidArgumentError('Option "allowDiskUse" requires a sort specification');
+      }
+      if (!allow) {
+        this.findOptions.allowDiskUse = false;
+        return this;
+      }
+      this.findOptions.allowDiskUse = true;
+      return this;
+    }
+    collation(value) {
+      this.throwIfInitialized();
+      this.findOptions.collation = value;
+      return this;
+    }
+    limit(value) {
+      this.throwIfInitialized();
+      if (this.findOptions.tailable) {
+        throw new error_1.MongoTailableCursorError("Tailable cursor does not support limit");
+      }
+      if (typeof value !== "number") {
+        throw new error_1.MongoInvalidArgumentError('Operation "limit" requires an integer');
+      }
+      this.findOptions.limit = value;
+      return this;
+    }
+    skip(value) {
+      this.throwIfInitialized();
+      if (this.findOptions.tailable) {
+        throw new error_1.MongoTailableCursorError("Tailable cursor does not support skip");
+      }
+      if (typeof value !== "number") {
+        throw new error_1.MongoInvalidArgumentError('Operation "skip" requires an integer');
+      }
+      this.findOptions.skip = value;
+      return this;
+    }
+  }
+  exports.FindCursor = FindCursor;
+});
+
+// node_modules/mongodb/lib/cursor/list_indexes_cursor.js
+var require_list_indexes_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListIndexesCursor = undefined;
+  var execute_operation_1 = require_execute_operation();
+  var indexes_1 = require_indexes();
+  var abstract_cursor_1 = require_abstract_cursor();
+
+  class ListIndexesCursor extends abstract_cursor_1.AbstractCursor {
+    constructor(collection, options) {
+      super(collection.client, collection.s.namespace, options);
+      this.parent = collection;
+      this.options = options;
+    }
+    clone() {
+      return new ListIndexesCursor(this.parent, {
+        ...this.options,
+        ...this.cursorOptions
+      });
+    }
+    async _initialize(session) {
+      const operation = new indexes_1.ListIndexesOperation(this.parent, {
+        ...this.cursorOptions,
+        ...this.options,
+        session
+      });
+      const response = await (0, execute_operation_1.executeOperation)(this.parent.client, operation, this.timeoutContext);
+      return { server: operation.server, session, response };
+    }
+  }
+  exports.ListIndexesCursor = ListIndexesCursor;
+});
+
+// node_modules/mongodb/lib/cursor/list_search_indexes_cursor.js
+var require_list_search_indexes_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ListSearchIndexesCursor = undefined;
+  var aggregation_cursor_1 = require_aggregation_cursor();
+
+  class ListSearchIndexesCursor extends aggregation_cursor_1.AggregationCursor {
+    constructor({ fullNamespace: ns, client }, name, options = {}) {
+      const pipeline = name == null ? [{ $listSearchIndexes: {} }] : [{ $listSearchIndexes: { name } }];
+      super(client, ns, pipeline, options);
+    }
+  }
+  exports.ListSearchIndexesCursor = ListSearchIndexesCursor;
+});
+
+// node_modules/mongodb/lib/operations/distinct.js
+var require_distinct = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DistinctOperation = undefined;
+  var responses_1 = require_responses();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class DistinctOperation extends command_1.CommandOperation {
+    constructor(collection, key, query, options) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options ?? {};
+      this.collection = collection;
+      this.key = key;
+      this.query = query;
+    }
+    get commandName() {
+      return "distinct";
+    }
+    buildCommandDocument(_connection) {
+      const command = {
+        distinct: this.collection.collectionName,
+        key: this.key,
+        query: this.query
+      };
+      if (this.options.comment !== undefined) {
+        command.comment = this.options.comment;
+      }
+      if (this.options.hint != null) {
+        command.hint = this.options.hint;
+      }
+      return command;
+    }
+    handleOk(response) {
+      if (this.explain) {
+        return response.toObject(this.bsonOptions);
+      }
+      return response.toObject(this.bsonOptions).values;
+    }
+  }
+  exports.DistinctOperation = DistinctOperation;
+  (0, operation_1.defineAspects)(DistinctOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.EXPLAINABLE,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/operations/estimated_document_count.js
+var require_estimated_document_count = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.EstimatedDocumentCountOperation = undefined;
+  var responses_1 = require_responses();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+
+  class EstimatedDocumentCountOperation extends command_1.CommandOperation {
+    constructor(collection, options = {}) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.collectionName = collection.collectionName;
+    }
+    get commandName() {
+      return "count";
+    }
+    buildCommandDocument(_connection, _session) {
+      const cmd = { count: this.collectionName };
+      if (typeof this.options.maxTimeMS === "number") {
+        cmd.maxTimeMS = this.options.maxTimeMS;
+      }
+      if (this.options.comment !== undefined) {
+        cmd.comment = this.options.comment;
+      }
+      return cmd;
+    }
+    handleOk(response) {
+      return response.getNumber("n") ?? 0;
+    }
+  }
+  exports.EstimatedDocumentCountOperation = EstimatedDocumentCountOperation;
+  (0, operation_1.defineAspects)(EstimatedDocumentCountOperation, [
+    operation_1.Aspect.READ_OPERATION,
+    operation_1.Aspect.RETRYABLE,
+    operation_1.Aspect.CURSOR_CREATING,
+    operation_1.Aspect.SUPPORTS_RAW_DATA
+  ]);
+});
+
+// node_modules/mongodb/lib/operations/find_and_modify.js
+var require_find_and_modify = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.FindOneAndUpdateOperation = exports.FindOneAndReplaceOperation = exports.FindOneAndDeleteOperation = exports.FindAndModifyOperation = exports.ReturnDocument = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var read_preference_1 = require_read_preference();
+  var sort_1 = require_sort();
+  var utils_1 = require_utils();
+  var command_1 = require_command();
+  var operation_1 = require_operation();
+  exports.ReturnDocument = Object.freeze({
+    BEFORE: "before",
+    AFTER: "after"
+  });
+  function configureFindAndModifyCmdBaseUpdateOpts(cmdBase, options) {
+    cmdBase.new = options.returnDocument === exports.ReturnDocument.AFTER;
+    cmdBase.upsert = options.upsert === true;
+    if (options.bypassDocumentValidation === true) {
+      cmdBase.bypassDocumentValidation = options.bypassDocumentValidation;
+    }
+    return cmdBase;
+  }
+
+  class FindAndModifyOperation extends command_1.CommandOperation {
+    constructor(collection, query, options) {
+      super(collection, options);
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.options = options;
+      this.readPreference = read_preference_1.ReadPreference.primary;
+      this.collection = collection;
+      this.query = query;
+    }
+    get commandName() {
+      return "findAndModify";
+    }
+    buildCommandDocument(connection, _session) {
+      const options = this.options;
+      const command = {
+        findAndModify: this.collection.collectionName,
+        query: this.query,
+        remove: false,
+        new: false,
+        upsert: false
+      };
+      options.includeResultMetadata ??= false;
+      const sort = (0, sort_1.formatSort)(options.sort);
+      if (sort) {
+        command.sort = sort;
+      }
+      if (options.projection) {
+        command.fields = options.projection;
+      }
+      if (options.maxTimeMS) {
+        command.maxTimeMS = options.maxTimeMS;
+      }
+      if (options.writeConcern) {
+        command.writeConcern = options.writeConcern;
+      }
       if (options.let) {
         command.let = options.let;
       }
       if (options.comment !== undefined) {
         command.comment = options.comment;
       }
-      const unacknowledgedWrite = this.writeConcern && this.writeConcern.w === 0;
-      if (unacknowledgedWrite) {
-        if (this.statements.find((o) => o.hint)) {
-          throw new error_1.MongoCompatibilityError(`hint is not supported with unacknowledged writes`);
+      (0, utils_1.decorateWithCollation)(command, options);
+      if (options.hint) {
+        const unacknowledgedWrite = this.writeConcern?.w === 0;
+        if (unacknowledgedWrite && (0, utils_1.maxWireVersion)(connection) < 9) {
+          throw new error_1.MongoCompatibilityError("hint for the findAndModify command is only supported on MongoDB 4.4+");
         }
+        command.hint = options.hint;
       }
-      const res = await super.executeCommand(server, session, command, timeoutContext);
-      return res;
+      return command;
+    }
+    handleOk(response) {
+      const result = super.handleOk(response);
+      return this.options.includeResultMetadata ? result : result.value ?? null;
     }
   }
-  exports.DeleteOperation = DeleteOperation;
+  exports.FindAndModifyOperation = FindAndModifyOperation;
 
-  class DeleteOneOperation extends DeleteOperation {
+  class FindOneAndDeleteOperation extends FindAndModifyOperation {
     constructor(collection, filter, options) {
-      super(collection.s.namespace, [makeDeleteStatement(filter, { ...options, limit: 1 })], options);
+      if (filter == null || typeof filter !== "object") {
+        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
+      }
+      super(collection, filter, options);
     }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (this.explain)
-        return res;
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors)
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        deletedCount: res.n
-      };
+    buildCommandDocument(connection, session) {
+      const document2 = super.buildCommandDocument(connection, session);
+      document2.remove = true;
+      return document2;
     }
   }
-  exports.DeleteOneOperation = DeleteOneOperation;
+  exports.FindOneAndDeleteOperation = FindOneAndDeleteOperation;
 
-  class DeleteManyOperation extends DeleteOperation {
-    constructor(collection, filter, options) {
-      super(collection.s.namespace, [makeDeleteStatement(filter, options)], options);
+  class FindOneAndReplaceOperation extends FindAndModifyOperation {
+    constructor(collection, filter, replacement, options) {
+      if (filter == null || typeof filter !== "object") {
+        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
+      }
+      if (replacement == null || typeof replacement !== "object") {
+        throw new error_1.MongoInvalidArgumentError('Argument "replacement" must be an object');
+      }
+      if ((0, utils_1.hasAtomicOperators)(replacement)) {
+        throw new error_1.MongoInvalidArgumentError("Replacement document must not contain atomic operators");
+      }
+      super(collection, filter, options);
+      this.replacement = replacement;
     }
-    async execute(server, session, timeoutContext) {
-      const res = await super.execute(server, session, timeoutContext);
-      if (this.explain)
-        return res;
-      if (res.code)
-        throw new error_1.MongoServerError(res);
-      if (res.writeErrors)
-        throw new error_1.MongoServerError(res.writeErrors[0]);
-      return {
-        acknowledged: this.writeConcern?.w !== 0,
-        deletedCount: res.n
-      };
+    buildCommandDocument(connection, session) {
+      const document2 = super.buildCommandDocument(connection, session);
+      document2.update = this.replacement;
+      configureFindAndModifyCmdBaseUpdateOpts(document2, this.options);
+      return document2;
     }
   }
-  exports.DeleteManyOperation = DeleteManyOperation;
-  function makeDeleteStatement(filter, options) {
-    const op = {
-      q: filter,
-      limit: typeof options.limit === "number" ? options.limit : 0
-    };
-    if (options.collation) {
-      op.collation = options.collation;
+  exports.FindOneAndReplaceOperation = FindOneAndReplaceOperation;
+
+  class FindOneAndUpdateOperation extends FindAndModifyOperation {
+    constructor(collection, filter, update, options) {
+      if (filter == null || typeof filter !== "object") {
+        throw new error_1.MongoInvalidArgumentError('Argument "filter" must be an object');
+      }
+      if (update == null || typeof update !== "object") {
+        throw new error_1.MongoInvalidArgumentError('Argument "update" must be an object');
+      }
+      if (!(0, utils_1.hasAtomicOperators)(update, options)) {
+        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
+      }
+      super(collection, filter, options);
+      this.update = update;
+      this.options = options;
     }
-    if (options.hint) {
-      op.hint = options.hint;
+    buildCommandDocument(connection, session) {
+      const document2 = super.buildCommandDocument(connection, session);
+      document2.update = this.update;
+      configureFindAndModifyCmdBaseUpdateOpts(document2, this.options);
+      if (this.options.arrayFilters) {
+        document2.arrayFilters = this.options.arrayFilters;
+      }
+      return document2;
     }
-    return op;
   }
-  (0, operation_1.defineAspects)(DeleteOperation, [operation_1.Aspect.RETRYABLE, operation_1.Aspect.WRITE_OPERATION]);
-  (0, operation_1.defineAspects)(DeleteOneOperation, [
+  exports.FindOneAndUpdateOperation = FindOneAndUpdateOperation;
+  (0, operation_1.defineAspects)(FindAndModifyOperation, [
+    operation_1.Aspect.WRITE_OPERATION,
     operation_1.Aspect.RETRYABLE,
-    operation_1.Aspect.WRITE_OPERATION,
     operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.SKIP_COLLATION
-  ]);
-  (0, operation_1.defineAspects)(DeleteManyOperation, [
-    operation_1.Aspect.WRITE_OPERATION,
-    operation_1.Aspect.EXPLAINABLE,
-    operation_1.Aspect.SKIP_COLLATION
+    operation_1.Aspect.SUPPORTS_RAW_DATA
   ]);
 });
 
-// node_modules/mongodb/lib/bulk/common.js
-var require_common2 = __commonJS((exports) => {
+// node_modules/mongodb/lib/operations/search_indexes/create.js
+var require_create = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.BulkOperationBase = exports.BulkWriteShimOperation = exports.FindOperators = exports.MongoBulkWriteError = exports.WriteError = exports.WriteConcernError = exports.BulkWriteResult = exports.Batch = exports.BatchType = undefined;
-  exports.mergeBatchResults = mergeBatchResults;
-  var bson_1 = require_bson2();
-  var error_1 = require_error();
-  var delete_1 = require_delete();
-  var execute_operation_1 = require_execute_operation();
-  var insert_1 = require_insert();
+  exports.CreateSearchIndexesOperation = undefined;
+  var responses_1 = require_responses();
   var operation_1 = require_operation();
-  var update_1 = require_update2();
-  var utils_1 = require_utils();
-  var write_concern_1 = require_write_concern();
-  exports.BatchType = Object.freeze({
-    INSERT: 1,
-    UPDATE: 2,
-    DELETE: 3
-  });
 
-  class Batch {
-    constructor(batchType, originalZeroIndex) {
-      this.originalZeroIndex = originalZeroIndex;
-      this.currentIndex = 0;
-      this.originalIndexes = [];
-      this.batchType = batchType;
-      this.operations = [];
-      this.size = 0;
-      this.sizeBytes = 0;
-    }
-  }
-  exports.Batch = Batch;
-
-  class BulkWriteResult {
-    static generateIdMap(ids) {
-      const idMap = {};
-      for (const doc of ids) {
-        idMap[doc.index] = doc._id;
-      }
-      return idMap;
-    }
-    constructor(bulkResult, isOrdered) {
-      this.result = bulkResult;
-      this.insertedCount = this.result.nInserted ?? 0;
-      this.matchedCount = this.result.nMatched ?? 0;
-      this.modifiedCount = this.result.nModified ?? 0;
-      this.deletedCount = this.result.nRemoved ?? 0;
-      this.upsertedCount = this.result.upserted.length ?? 0;
-      this.upsertedIds = BulkWriteResult.generateIdMap(this.result.upserted);
-      this.insertedIds = BulkWriteResult.generateIdMap(this.getSuccessfullyInsertedIds(bulkResult, isOrdered));
-      Object.defineProperty(this, "result", { value: this.result, enumerable: false });
-    }
-    get ok() {
-      return this.result.ok;
-    }
-    getSuccessfullyInsertedIds(bulkResult, isOrdered) {
-      if (bulkResult.writeErrors.length === 0)
-        return bulkResult.insertedIds;
-      if (isOrdered) {
-        return bulkResult.insertedIds.slice(0, bulkResult.writeErrors[0].index);
-      }
-      return bulkResult.insertedIds.filter(({ index }) => !bulkResult.writeErrors.some((writeError) => index === writeError.index));
-    }
-    getUpsertedIdAt(index) {
-      return this.result.upserted[index];
-    }
-    getRawResponse() {
-      return this.result;
-    }
-    hasWriteErrors() {
-      return this.result.writeErrors.length > 0;
-    }
-    getWriteErrorCount() {
-      return this.result.writeErrors.length;
-    }
-    getWriteErrorAt(index) {
-      return index < this.result.writeErrors.length ? this.result.writeErrors[index] : undefined;
-    }
-    getWriteErrors() {
-      return this.result.writeErrors;
-    }
-    getWriteConcernError() {
-      if (this.result.writeConcernErrors.length === 0) {
-        return;
-      } else if (this.result.writeConcernErrors.length === 1) {
-        return this.result.writeConcernErrors[0];
-      } else {
-        let errmsg = "";
-        for (let i = 0;i < this.result.writeConcernErrors.length; i++) {
-          const err = this.result.writeConcernErrors[i];
-          errmsg = errmsg + err.errmsg;
-          if (i === 0)
-            errmsg = errmsg + " and ";
-        }
-        return new WriteConcernError({ errmsg, code: error_1.MONGODB_ERROR_CODES.WriteConcernTimeout });
-      }
-    }
-    toString() {
-      return `BulkWriteResult(${bson_1.EJSON.stringify(this.result)})`;
-    }
-    isOk() {
-      return this.result.ok === 1;
-    }
-  }
-  exports.BulkWriteResult = BulkWriteResult;
-
-  class WriteConcernError {
-    constructor(error) {
-      this.serverError = error;
-    }
-    get code() {
-      return this.serverError.code;
-    }
-    get errmsg() {
-      return this.serverError.errmsg;
-    }
-    get errInfo() {
-      return this.serverError.errInfo;
-    }
-    toJSON() {
-      return this.serverError;
-    }
-    toString() {
-      return `WriteConcernError(${this.errmsg})`;
-    }
-  }
-  exports.WriteConcernError = WriteConcernError;
-
-  class WriteError {
-    constructor(err) {
-      this.err = err;
-    }
-    get code() {
-      return this.err.code;
-    }
-    get index() {
-      return this.err.index;
-    }
-    get errmsg() {
-      return this.err.errmsg;
-    }
-    get errInfo() {
-      return this.err.errInfo;
-    }
-    getOperation() {
-      return this.err.op;
-    }
-    toJSON() {
-      return { code: this.err.code, index: this.err.index, errmsg: this.err.errmsg, op: this.err.op };
-    }
-    toString() {
-      return `WriteError(${JSON.stringify(this.toJSON())})`;
-    }
-  }
-  exports.WriteError = WriteError;
-  function mergeBatchResults(batch, bulkResult, err, result) {
-    if (err) {
-      result = err;
-    } else if (result && result.result) {
-      result = result.result;
-    }
-    if (result == null) {
-      return;
-    }
-    if (result.ok === 0 && bulkResult.ok === 1) {
-      bulkResult.ok = 0;
-      const writeError = {
-        index: 0,
-        code: result.code || 0,
-        errmsg: result.message,
-        errInfo: result.errInfo,
-        op: batch.operations[0]
-      };
-      bulkResult.writeErrors.push(new WriteError(writeError));
-      return;
-    } else if (result.ok === 0 && bulkResult.ok === 0) {
-      return;
-    }
-    if (isInsertBatch(batch) && result.n) {
-      bulkResult.nInserted = bulkResult.nInserted + result.n;
-    }
-    if (isDeleteBatch(batch) && result.n) {
-      bulkResult.nRemoved = bulkResult.nRemoved + result.n;
-    }
-    let nUpserted = 0;
-    if (Array.isArray(result.upserted)) {
-      nUpserted = result.upserted.length;
-      for (let i = 0;i < result.upserted.length; i++) {
-        bulkResult.upserted.push({
-          index: result.upserted[i].index + batch.originalZeroIndex,
-          _id: result.upserted[i]._id
-        });
-      }
-    } else if (result.upserted) {
-      nUpserted = 1;
-      bulkResult.upserted.push({
-        index: batch.originalZeroIndex,
-        _id: result.upserted
-      });
-    }
-    if (isUpdateBatch(batch) && result.n) {
-      const nModified = result.nModified;
-      bulkResult.nUpserted = bulkResult.nUpserted + nUpserted;
-      bulkResult.nMatched = bulkResult.nMatched + (result.n - nUpserted);
-      if (typeof nModified === "number") {
-        bulkResult.nModified = bulkResult.nModified + nModified;
-      } else {
-        bulkResult.nModified = 0;
-      }
-    }
-    if (Array.isArray(result.writeErrors)) {
-      for (let i = 0;i < result.writeErrors.length; i++) {
-        const writeError = {
-          index: batch.originalIndexes[result.writeErrors[i].index],
-          code: result.writeErrors[i].code,
-          errmsg: result.writeErrors[i].errmsg,
-          errInfo: result.writeErrors[i].errInfo,
-          op: batch.operations[result.writeErrors[i].index]
-        };
-        bulkResult.writeErrors.push(new WriteError(writeError));
-      }
-    }
-    if (result.writeConcernError) {
-      bulkResult.writeConcernErrors.push(new WriteConcernError(result.writeConcernError));
-    }
-  }
-  async function executeCommands(bulkOperation, options) {
-    if (bulkOperation.s.batches.length === 0) {
-      return new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
-    }
-    for (const batch of bulkOperation.s.batches) {
-      const finalOptions = (0, utils_1.resolveOptions)(bulkOperation, {
-        ...options,
-        ordered: bulkOperation.isOrdered
-      });
-      if (finalOptions.bypassDocumentValidation !== true) {
-        delete finalOptions.bypassDocumentValidation;
-      }
-      if (bulkOperation.s.bypassDocumentValidation === true) {
-        finalOptions.bypassDocumentValidation = true;
-      }
-      if (bulkOperation.s.checkKeys === false) {
-        finalOptions.checkKeys = false;
-      }
-      if (finalOptions.retryWrites) {
-        if (isUpdateBatch(batch)) {
-          finalOptions.retryWrites = finalOptions.retryWrites && !batch.operations.some((op) => op.multi);
-        }
-        if (isDeleteBatch(batch)) {
-          finalOptions.retryWrites = finalOptions.retryWrites && !batch.operations.some((op) => op.limit === 0);
-        }
-      }
-      const operation = isInsertBatch(batch) ? new insert_1.InsertOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : isUpdateBatch(batch) ? new update_1.UpdateOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : isDeleteBatch(batch) ? new delete_1.DeleteOperation(bulkOperation.s.namespace, batch.operations, finalOptions) : null;
-      if (operation == null)
-        throw new error_1.MongoRuntimeError(`Unknown batchType: ${batch.batchType}`);
-      let thrownError = null;
-      let result;
-      try {
-        result = await (0, execute_operation_1.executeOperation)(bulkOperation.s.collection.client, operation, finalOptions.timeoutContext);
-      } catch (error) {
-        thrownError = error;
-      }
-      if (thrownError != null) {
-        if (thrownError instanceof error_1.MongoWriteConcernError) {
-          mergeBatchResults(batch, bulkOperation.s.bulkResult, thrownError, result);
-          const writeResult3 = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
-          throw new MongoBulkWriteError({
-            message: thrownError.result.writeConcernError.errmsg,
-            code: thrownError.result.writeConcernError.code
-          }, writeResult3);
-        } else {
-          throw new MongoBulkWriteError(thrownError, new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered));
-        }
-      }
-      mergeBatchResults(batch, bulkOperation.s.bulkResult, thrownError, result);
-      const writeResult2 = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
-      bulkOperation.handleWriteError(writeResult2);
-    }
-    bulkOperation.s.batches.length = 0;
-    const writeResult = new BulkWriteResult(bulkOperation.s.bulkResult, bulkOperation.isOrdered);
-    bulkOperation.handleWriteError(writeResult);
-    return writeResult;
-  }
-
-  class MongoBulkWriteError extends error_1.MongoServerError {
-    constructor(error, result) {
-      super(error);
-      this.writeErrors = [];
-      if (error instanceof WriteConcernError)
-        this.err = error;
-      else if (!(error instanceof Error)) {
-        this.message = error.message;
-        this.code = error.code;
-        this.writeErrors = error.writeErrors ?? [];
-      }
-      this.result = result;
-      Object.assign(this, error);
-    }
-    get name() {
-      return "MongoBulkWriteError";
-    }
-    get insertedCount() {
-      return this.result.insertedCount;
-    }
-    get matchedCount() {
-      return this.result.matchedCount;
-    }
-    get modifiedCount() {
-      return this.result.modifiedCount;
-    }
-    get deletedCount() {
-      return this.result.deletedCount;
-    }
-    get upsertedCount() {
-      return this.result.upsertedCount;
-    }
-    get insertedIds() {
-      return this.result.insertedIds;
-    }
-    get upsertedIds() {
-      return this.result.upsertedIds;
-    }
-  }
-  exports.MongoBulkWriteError = MongoBulkWriteError;
-
-  class FindOperators {
-    constructor(bulkOperation) {
-      this.bulkOperation = bulkOperation;
-    }
-    update(updateDocument) {
-      const currentOp = buildCurrentOp(this.bulkOperation);
-      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, updateDocument, {
-        ...currentOp,
-        multi: true
-      }));
-    }
-    updateOne(updateDocument) {
-      if (!(0, utils_1.hasAtomicOperators)(updateDocument, this.bulkOperation.bsonOptions)) {
-        throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-      }
-      const currentOp = buildCurrentOp(this.bulkOperation);
-      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, updateDocument, { ...currentOp, multi: false }));
-    }
-    replaceOne(replacement) {
-      if ((0, utils_1.hasAtomicOperators)(replacement)) {
-        throw new error_1.MongoInvalidArgumentError("Replacement document must not use atomic operators");
-      }
-      const currentOp = buildCurrentOp(this.bulkOperation);
-      return this.bulkOperation.addToOperationsList(exports.BatchType.UPDATE, (0, update_1.makeUpdateStatement)(currentOp.selector, replacement, { ...currentOp, multi: false }));
-    }
-    deleteOne() {
-      const currentOp = buildCurrentOp(this.bulkOperation);
-      return this.bulkOperation.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(currentOp.selector, { ...currentOp, limit: 1 }));
-    }
-    delete() {
-      const currentOp = buildCurrentOp(this.bulkOperation);
-      return this.bulkOperation.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(currentOp.selector, { ...currentOp, limit: 0 }));
-    }
-    upsert() {
-      if (!this.bulkOperation.s.currentOp) {
-        this.bulkOperation.s.currentOp = {};
-      }
-      this.bulkOperation.s.currentOp.upsert = true;
-      return this;
-    }
-    collation(collation) {
-      if (!this.bulkOperation.s.currentOp) {
-        this.bulkOperation.s.currentOp = {};
-      }
-      this.bulkOperation.s.currentOp.collation = collation;
-      return this;
-    }
-    arrayFilters(arrayFilters) {
-      if (!this.bulkOperation.s.currentOp) {
-        this.bulkOperation.s.currentOp = {};
-      }
-      this.bulkOperation.s.currentOp.arrayFilters = arrayFilters;
-      return this;
-    }
-    hint(hint) {
-      if (!this.bulkOperation.s.currentOp) {
-        this.bulkOperation.s.currentOp = {};
-      }
-      this.bulkOperation.s.currentOp.hint = hint;
-      return this;
-    }
-  }
-  exports.FindOperators = FindOperators;
-
-  class BulkWriteShimOperation extends operation_1.AbstractOperation {
-    constructor(bulkOperation, options) {
-      super(options);
-      this.bulkOperation = bulkOperation;
+  class CreateSearchIndexesOperation extends operation_1.AbstractOperation {
+    constructor(collection, descriptions) {
+      super();
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.collection = collection;
+      this.descriptions = descriptions;
+      this.ns = collection.fullNamespace;
     }
     get commandName() {
-      return "bulkWrite";
+      return "createSearchIndexes";
     }
-    async execute(_server, session, timeoutContext) {
-      if (this.options.session == null) {
-        this.options.session = session;
-      }
-      return await executeCommands(this.bulkOperation, { ...this.options, timeoutContext });
+    buildCommand(_connection, _session) {
+      const namespace = this.collection.fullNamespace;
+      return {
+        createSearchIndexes: namespace.collection,
+        indexes: this.descriptions
+      };
+    }
+    handleOk(response) {
+      return super.handleOk(response).indexesCreated.map((val) => val.name);
+    }
+    buildOptions(timeoutContext) {
+      return { session: this.session, timeoutContext };
     }
   }
-  exports.BulkWriteShimOperation = BulkWriteShimOperation;
+  exports.CreateSearchIndexesOperation = CreateSearchIndexesOperation;
+});
 
-  class BulkOperationBase {
-    constructor(collection, options, isOrdered) {
+// node_modules/mongodb/lib/operations/search_indexes/drop.js
+var require_drop2 = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.DropSearchIndexOperation = undefined;
+  var responses_1 = require_responses();
+  var error_1 = require_error();
+  var operation_1 = require_operation();
+
+  class DropSearchIndexOperation extends operation_1.AbstractOperation {
+    constructor(collection, name) {
+      super();
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
       this.collection = collection;
-      this.isOrdered = isOrdered;
-      const topology = (0, utils_1.getTopology)(collection);
-      options = options == null ? {} : options;
-      const namespace = collection.s.namespace;
-      const executed = false;
-      const currentOp = undefined;
-      const hello = topology.lastHello();
-      const usingAutoEncryption = !!(topology.s.options && topology.s.options.autoEncrypter);
-      const maxBsonObjectSize = hello && hello.maxBsonObjectSize ? hello.maxBsonObjectSize : 1024 * 1024 * 16;
-      const maxBatchSizeBytes = usingAutoEncryption ? 1024 * 1024 * 2 : maxBsonObjectSize;
-      const maxWriteBatchSize = hello && hello.maxWriteBatchSize ? hello.maxWriteBatchSize : 1000;
-      const maxKeySize = (maxWriteBatchSize - 1).toString(10).length + 2;
-      let finalOptions = Object.assign({}, options);
-      finalOptions = (0, utils_1.applyRetryableWrites)(finalOptions, collection.s.db);
-      const bulkResult = {
-        ok: 1,
-        writeErrors: [],
-        writeConcernErrors: [],
-        insertedIds: [],
-        nInserted: 0,
-        nUpserted: 0,
-        nMatched: 0,
-        nModified: 0,
-        nRemoved: 0,
-        upserted: []
+      this.name = name;
+      this.ns = collection.fullNamespace;
+    }
+    get commandName() {
+      return "dropSearchIndex";
+    }
+    buildCommand(_connection, _session) {
+      const namespace = this.collection.fullNamespace;
+      const command = {
+        dropSearchIndex: namespace.collection
       };
+      if (typeof this.name === "string") {
+        command.name = this.name;
+      }
+      return command;
+    }
+    handleOk(_response) {}
+    buildOptions(timeoutContext) {
+      return { session: this.session, timeoutContext };
+    }
+    handleError(error) {
+      const isNamespaceNotFoundError = error instanceof error_1.MongoServerError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound;
+      if (!isNamespaceNotFoundError) {
+        throw error;
+      }
+    }
+  }
+  exports.DropSearchIndexOperation = DropSearchIndexOperation;
+});
+
+// node_modules/mongodb/lib/operations/search_indexes/update.js
+var require_update2 = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.UpdateSearchIndexOperation = undefined;
+  var responses_1 = require_responses();
+  var operation_1 = require_operation();
+
+  class UpdateSearchIndexOperation extends operation_1.AbstractOperation {
+    constructor(collection, name, definition) {
+      super();
+      this.SERVER_COMMAND_RESPONSE_TYPE = responses_1.MongoDBResponse;
+      this.collection = collection;
+      this.name = name;
+      this.definition = definition;
+      this.ns = collection.fullNamespace;
+    }
+    get commandName() {
+      return "updateSearchIndex";
+    }
+    buildCommand(_connection, _session) {
+      const namespace = this.collection.fullNamespace;
+      return {
+        updateSearchIndex: namespace.collection,
+        name: this.name,
+        definition: this.definition
+      };
+    }
+    handleOk(_response) {}
+    buildOptions(timeoutContext) {
+      return { session: this.session, timeoutContext };
+    }
+  }
+  exports.UpdateSearchIndexOperation = UpdateSearchIndexOperation;
+});
+
+// node_modules/mongodb/lib/collection.js
+var require_collection2 = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.Collection = undefined;
+  var bson_1 = require_bson2();
+  var ordered_1 = require_ordered();
+  var unordered_1 = require_unordered();
+  var change_stream_1 = require_change_stream();
+  var aggregation_cursor_1 = require_aggregation_cursor();
+  var find_cursor_1 = require_find_cursor();
+  var list_indexes_cursor_1 = require_list_indexes_cursor();
+  var list_search_indexes_cursor_1 = require_list_search_indexes_cursor();
+  var error_1 = require_error();
+  var count_1 = require_count();
+  var delete_1 = require_delete();
+  var distinct_1 = require_distinct();
+  var estimated_document_count_1 = require_estimated_document_count();
+  var execute_operation_1 = require_execute_operation();
+  var find_and_modify_1 = require_find_and_modify();
+  var indexes_1 = require_indexes();
+  var insert_1 = require_insert();
+  var rename_1 = require_rename();
+  var create_1 = require_create();
+  var drop_1 = require_drop2();
+  var update_1 = require_update2();
+  var update_2 = require_update();
+  var read_concern_1 = require_read_concern();
+  var read_preference_1 = require_read_preference();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+
+  class Collection {
+    constructor(db, name, options) {
+      this.db = db;
       this.s = {
-        bulkResult,
-        currentBatch: undefined,
-        currentIndex: 0,
-        currentBatchSize: 0,
-        currentBatchSizeBytes: 0,
-        currentInsertBatch: undefined,
-        currentUpdateBatch: undefined,
-        currentRemoveBatch: undefined,
-        batches: [],
-        writeConcern: write_concern_1.WriteConcern.fromOptions(options),
-        maxBsonObjectSize,
-        maxBatchSizeBytes,
-        maxWriteBatchSize,
-        maxKeySize,
-        namespace,
-        topology,
-        options: finalOptions,
-        bsonOptions: (0, bson_1.resolveBSONOptions)(options),
-        currentOp,
-        executed,
-        collection,
-        err: undefined,
-        checkKeys: typeof options.checkKeys === "boolean" ? options.checkKeys : false
+        db,
+        options,
+        namespace: new utils_1.MongoDBCollectionNamespace(db.databaseName, name),
+        pkFactory: db.options?.pkFactory ?? utils_1.DEFAULT_PK_FACTORY,
+        readPreference: read_preference_1.ReadPreference.fromOptions(options),
+        bsonOptions: (0, bson_1.resolveBSONOptions)(options, db),
+        readConcern: read_concern_1.ReadConcern.fromOptions(options),
+        writeConcern: write_concern_1.WriteConcern.fromOptions(options)
       };
-      if (options.bypassDocumentValidation === true) {
-        this.s.bypassDocumentValidation = true;
-      }
+      this.client = db.client;
     }
-    insert(document2) {
-      (0, utils_1.maybeAddIdToDocuments)(this.collection, document2, {
-        forceServerObjectId: this.shouldForceServerObjectId()
-      });
-      return this.addToOperationsList(exports.BatchType.INSERT, document2);
+    get dbName() {
+      return this.s.namespace.db;
     }
-    find(selector) {
-      if (!selector) {
-        throw new error_1.MongoInvalidArgumentError("Bulk find operation must specify a selector");
-      }
-      this.s.currentOp = {
-        selector
-      };
-      return new FindOperators(this);
+    get collectionName() {
+      return this.s.namespace.collection;
     }
-    raw(op) {
-      if (op == null || typeof op !== "object") {
-        throw new error_1.MongoInvalidArgumentError("Operation must be an object with an operation key");
-      }
-      if ("insertOne" in op) {
-        const forceServerObjectId = this.shouldForceServerObjectId();
-        const document2 = op.insertOne && op.insertOne.document == null ? op.insertOne : op.insertOne.document;
-        (0, utils_1.maybeAddIdToDocuments)(this.collection, document2, { forceServerObjectId });
-        return this.addToOperationsList(exports.BatchType.INSERT, document2);
-      }
-      if ("replaceOne" in op || "updateOne" in op || "updateMany" in op) {
-        if ("replaceOne" in op) {
-          if ("q" in op.replaceOne) {
-            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
-          }
-          const updateStatement = (0, update_1.makeUpdateStatement)(op.replaceOne.filter, op.replaceOne.replacement, { ...op.replaceOne, multi: false });
-          if ((0, utils_1.hasAtomicOperators)(updateStatement.u)) {
-            throw new error_1.MongoInvalidArgumentError("Replacement document must not use atomic operators");
-          }
-          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
-        }
-        if ("updateOne" in op) {
-          if ("q" in op.updateOne) {
-            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
-          }
-          const updateStatement = (0, update_1.makeUpdateStatement)(op.updateOne.filter, op.updateOne.update, {
-            ...op.updateOne,
-            multi: false
-          });
-          if (!(0, utils_1.hasAtomicOperators)(updateStatement.u, this.bsonOptions)) {
-            throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-          }
-          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
-        }
-        if ("updateMany" in op) {
-          if ("q" in op.updateMany) {
-            throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
-          }
-          const updateStatement = (0, update_1.makeUpdateStatement)(op.updateMany.filter, op.updateMany.update, {
-            ...op.updateMany,
-            multi: true
-          });
-          if (!(0, utils_1.hasAtomicOperators)(updateStatement.u, this.bsonOptions)) {
-            throw new error_1.MongoInvalidArgumentError("Update document requires atomic operators");
-          }
-          return this.addToOperationsList(exports.BatchType.UPDATE, updateStatement);
-        }
-      }
-      if ("deleteOne" in op) {
-        if ("q" in op.deleteOne) {
-          throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
-        }
-        return this.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(op.deleteOne.filter, { ...op.deleteOne, limit: 1 }));
-      }
-      if ("deleteMany" in op) {
-        if ("q" in op.deleteMany) {
-          throw new error_1.MongoInvalidArgumentError("Raw operations are not allowed");
-        }
-        return this.addToOperationsList(exports.BatchType.DELETE, (0, delete_1.makeDeleteStatement)(op.deleteMany.filter, { ...op.deleteMany, limit: 0 }));
-      }
-      throw new error_1.MongoInvalidArgumentError("bulkWrite only supports insertOne, updateOne, updateMany, deleteOne, deleteMany");
+    get namespace() {
+      return this.fullNamespace.toString();
     }
-    get length() {
-      return this.s.currentIndex;
+    get fullNamespace() {
+      return this.s.namespace;
+    }
+    get readConcern() {
+      if (this.s.readConcern == null) {
+        return this.db.readConcern;
+      }
+      return this.s.readConcern;
+    }
+    get readPreference() {
+      if (this.s.readPreference == null) {
+        return this.db.readPreference;
+      }
+      return this.s.readPreference;
     }
     get bsonOptions() {
       return this.s.bsonOptions;
     }
     get writeConcern() {
+      if (this.s.writeConcern == null) {
+        return this.db.writeConcern;
+      }
       return this.s.writeConcern;
     }
-    get batches() {
-      const batches = [...this.s.batches];
-      if (this.isOrdered) {
-        if (this.s.currentBatch)
-          batches.push(this.s.currentBatch);
+    get hint() {
+      return this.s.collectionHint;
+    }
+    set hint(v) {
+      this.s.collectionHint = (0, utils_1.normalizeHintField)(v);
+    }
+    get timeoutMS() {
+      return this.s.options.timeoutMS;
+    }
+    async insertOne(doc, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new insert_1.InsertOneOperation(this, doc, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async insertMany(docs, options) {
+      if (!Array.isArray(docs)) {
+        throw new error_1.MongoInvalidArgumentError('Argument "docs" must be an array of documents');
+      }
+      options = (0, utils_1.resolveOptions)(this, options ?? {});
+      const acknowledged = write_concern_1.WriteConcern.fromOptions(options)?.w !== 0;
+      try {
+        const res = await this.bulkWrite(docs.map((doc) => ({ insertOne: { document: doc } })), options);
+        return {
+          acknowledged,
+          insertedCount: res.insertedCount,
+          insertedIds: res.insertedIds
+        };
+      } catch (err) {
+        if (err && err.message === "Operation must be an object with an operation key") {
+          throw new error_1.MongoInvalidArgumentError("Collection.insertMany() cannot be called with an array that has null/undefined values");
+        }
+        throw err;
+      }
+    }
+    async bulkWrite(operations, options) {
+      if (!Array.isArray(operations)) {
+        throw new error_1.MongoInvalidArgumentError('Argument "operations" must be an array of documents');
+      }
+      options = (0, utils_1.resolveOptions)(this, options ?? {});
+      const isConnected = this.client.topology != null;
+      if (!isConnected) {
+        await (0, execute_operation_1.autoConnect)(this.client);
+      }
+      const bulk = options.ordered === false ? this.initializeUnorderedBulkOp(options) : this.initializeOrderedBulkOp(options);
+      for (const operation of operations) {
+        bulk.raw(operation);
+      }
+      return await bulk.execute({ ...options });
+    }
+    async updateOne(filter, update, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.UpdateOneOperation(this.s.namespace, filter, update, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async replaceOne(filter, replacement, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.ReplaceOneOperation(this.s.namespace, filter, replacement, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async updateMany(filter, update, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new update_2.UpdateManyOperation(this.s.namespace, filter, update, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async deleteOne(filter = {}, options = {}) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new delete_1.DeleteOneOperation(this.s.namespace, filter, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async deleteMany(filter = {}, options = {}) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new delete_1.DeleteManyOperation(this.s.namespace, filter, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async rename(newName, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new rename_1.RenameOperation(this, newName, (0, utils_1.resolveOptions)(undefined, {
+        ...options,
+        readPreference: read_preference_1.ReadPreference.PRIMARY
+      })));
+    }
+    async drop(options) {
+      return await this.db.dropCollection(this.collectionName, options);
+    }
+    async findOne(filter = {}, options = {}) {
+      const { batchSize: _batchSize, noCursorTimeout: _noCursorTimeout, ...opts } = options;
+      opts.singleBatch = true;
+      const cursor = this.find(filter, opts).limit(1);
+      const result = await cursor.next();
+      await cursor.close();
+      return result;
+    }
+    find(filter = {}, options = {}) {
+      return new find_cursor_1.FindCursor(this.client, this.s.namespace, filter, (0, utils_1.resolveOptions)(this, options));
+    }
+    async options(options) {
+      options = (0, utils_1.resolveOptions)(this, options);
+      const [collection] = await this.db.listCollections({ name: this.collectionName }, { ...options, nameOnly: false }).toArray();
+      if (collection == null || collection.options == null) {
+        throw new error_1.MongoAPIError(`collection ${this.namespace} not found`);
+      }
+      return collection.options;
+    }
+    async isCapped(options) {
+      const { capped } = await this.options(options);
+      return Boolean(capped);
+    }
+    async createIndex(indexSpec, options) {
+      const indexes = await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexSpecification(this, this.collectionName, indexSpec, (0, utils_1.resolveOptions)(this, options)));
+      return indexes[0];
+    }
+    async createIndexes(indexSpecs, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, indexes_1.CreateIndexesOperation.fromIndexDescriptionArray(this, this.collectionName, indexSpecs, (0, utils_1.resolveOptions)(this, { ...options, maxTimeMS: undefined })));
+    }
+    async dropIndex(indexName, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new indexes_1.DropIndexOperation(this, indexName, {
+        ...(0, utils_1.resolveOptions)(this, options),
+        readPreference: read_preference_1.ReadPreference.primary
+      }));
+    }
+    async dropIndexes(options) {
+      try {
+        await (0, execute_operation_1.executeOperation)(this.client, new indexes_1.DropIndexOperation(this, "*", (0, utils_1.resolveOptions)(this, options)));
+        return true;
+      } catch (error) {
+        if (error instanceof error_1.MongoOperationTimeoutError)
+          throw error;
+        return false;
+      }
+    }
+    listIndexes(options) {
+      return new list_indexes_cursor_1.ListIndexesCursor(this, (0, utils_1.resolveOptions)(this, options));
+    }
+    async indexExists(indexes, options) {
+      const indexNames = Array.isArray(indexes) ? indexes : [indexes];
+      const allIndexes = new Set(await this.listIndexes(options).map(({ name }) => name).toArray());
+      return indexNames.every((name) => allIndexes.has(name));
+    }
+    async indexInformation(options) {
+      return await this.indexes({
+        ...options,
+        full: options?.full ?? false
+      });
+    }
+    async estimatedDocumentCount(options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new estimated_document_count_1.EstimatedDocumentCountOperation(this, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async countDocuments(filter = {}, options = {}) {
+      const pipeline = [];
+      pipeline.push({ $match: filter });
+      if (typeof options.skip === "number") {
+        pipeline.push({ $skip: options.skip });
+      }
+      if (typeof options.limit === "number") {
+        pipeline.push({ $limit: options.limit });
+      }
+      pipeline.push({ $group: { _id: 1, n: { $sum: 1 } } });
+      const cursor = this.aggregate(pipeline, options);
+      const doc = await cursor.next();
+      await cursor.close();
+      return doc?.n ?? 0;
+    }
+    async distinct(key, filter = {}, options = {}) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new distinct_1.DistinctOperation(this, key, filter, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async indexes(options) {
+      const indexes = await this.listIndexes(options).toArray();
+      const full = options?.full ?? true;
+      if (full) {
+        return indexes;
+      }
+      const object = Object.fromEntries(indexes.map(({ name, key }) => [name, Object.entries(key)]));
+      return object;
+    }
+    async findOneAndDelete(filter, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndDeleteOperation(this, filter, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async findOneAndReplace(filter, replacement, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndReplaceOperation(this, filter, replacement, (0, utils_1.resolveOptions)(this, options)));
+    }
+    async findOneAndUpdate(filter, update, options) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new find_and_modify_1.FindOneAndUpdateOperation(this, filter, update, (0, utils_1.resolveOptions)(this, options)));
+    }
+    aggregate(pipeline = [], options) {
+      if (!Array.isArray(pipeline)) {
+        throw new error_1.MongoInvalidArgumentError('Argument "pipeline" must be an array of aggregation stages');
+      }
+      return new aggregation_cursor_1.AggregationCursor(this.client, this.s.namespace, pipeline, (0, utils_1.resolveOptions)(this, options));
+    }
+    watch(pipeline = [], options = {}) {
+      if (!Array.isArray(pipeline)) {
+        options = pipeline;
+        pipeline = [];
+      }
+      return new change_stream_1.ChangeStream(this, pipeline, (0, utils_1.resolveOptions)(this, options));
+    }
+    initializeUnorderedBulkOp(options) {
+      return new unordered_1.UnorderedBulkOperation(this, (0, utils_1.resolveOptions)(this, options));
+    }
+    initializeOrderedBulkOp(options) {
+      return new ordered_1.OrderedBulkOperation(this, (0, utils_1.resolveOptions)(this, options));
+    }
+    async count(filter = {}, options = {}) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new count_1.CountOperation(this.fullNamespace, filter, (0, utils_1.resolveOptions)(this, options)));
+    }
+    listSearchIndexes(indexNameOrOptions, options) {
+      options = typeof indexNameOrOptions === "object" ? indexNameOrOptions : options == null ? {} : options;
+      const indexName = indexNameOrOptions == null ? null : typeof indexNameOrOptions === "object" ? null : indexNameOrOptions;
+      return new list_search_indexes_cursor_1.ListSearchIndexesCursor(this, indexName, options);
+    }
+    async createSearchIndex(description) {
+      const [index] = await this.createSearchIndexes([description]);
+      return index;
+    }
+    async createSearchIndexes(descriptions) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new create_1.CreateSearchIndexesOperation(this, descriptions));
+    }
+    async dropSearchIndex(name) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new drop_1.DropSearchIndexOperation(this, name));
+    }
+    async updateSearchIndex(name, definition) {
+      return await (0, execute_operation_1.executeOperation)(this.client, new update_1.UpdateSearchIndexOperation(this, name, definition));
+    }
+  }
+  exports.Collection = Collection;
+});
+
+// node_modules/mongodb/lib/cursor/change_stream_cursor.js
+var require_change_stream_cursor = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ChangeStreamCursor = undefined;
+  var change_stream_1 = require_change_stream();
+  var constants_1 = require_constants2();
+  var aggregate_1 = require_aggregate();
+  var execute_operation_1 = require_execute_operation();
+  var utils_1 = require_utils();
+  var abstract_cursor_1 = require_abstract_cursor();
+
+  class ChangeStreamCursor extends abstract_cursor_1.AbstractCursor {
+    constructor(client, namespace, pipeline = [], options = {}) {
+      super(client, namespace, { ...options, tailable: true, awaitData: true });
+      this.pipeline = pipeline;
+      this.changeStreamCursorOptions = options;
+      this._resumeToken = null;
+      this.startAtOperationTime = options.startAtOperationTime ?? null;
+      if (options.startAfter) {
+        this.resumeToken = options.startAfter;
+      } else if (options.resumeAfter) {
+        this.resumeToken = options.resumeAfter;
+      }
+    }
+    set resumeToken(token) {
+      this._resumeToken = token;
+      this.emit(change_stream_1.ChangeStream.RESUME_TOKEN_CHANGED, token);
+    }
+    get resumeToken() {
+      return this._resumeToken;
+    }
+    get resumeOptions() {
+      const options = {
+        ...this.changeStreamCursorOptions
+      };
+      for (const key of ["resumeAfter", "startAfter", "startAtOperationTime"]) {
+        delete options[key];
+      }
+      if (this.resumeToken != null) {
+        if (this.changeStreamCursorOptions.startAfter && !this.hasReceived) {
+          options.startAfter = this.resumeToken;
+        } else {
+          options.resumeAfter = this.resumeToken;
+        }
+      } else if (this.startAtOperationTime != null) {
+        options.startAtOperationTime = this.startAtOperationTime;
+      }
+      return options;
+    }
+    cacheResumeToken(resumeToken) {
+      if (this.bufferedCount() === 0 && this.postBatchResumeToken) {
+        this.resumeToken = this.postBatchResumeToken;
       } else {
-        if (this.s.currentInsertBatch)
-          batches.push(this.s.currentInsertBatch);
-        if (this.s.currentUpdateBatch)
-          batches.push(this.s.currentUpdateBatch);
-        if (this.s.currentRemoveBatch)
-          batches.push(this.s.currentRemoveBatch);
+        this.resumeToken = resumeToken;
       }
-      return batches;
+      this.hasReceived = true;
     }
-    async execute(options = {}) {
-      if (this.s.executed) {
-        throw new error_1.MongoBatchReExecutionError;
+    _processBatch(response) {
+      const { postBatchResumeToken } = response;
+      if (postBatchResumeToken) {
+        this.postBatchResumeToken = postBatchResumeToken;
+        if (response.batchSize === 0) {
+          this.resumeToken = postBatchResumeToken;
+        }
       }
-      const writeConcern = write_concern_1.WriteConcern.fromOptions(options);
-      if (writeConcern) {
-        this.s.writeConcern = writeConcern;
+    }
+    clone() {
+      return new ChangeStreamCursor(this.client, this.namespace, this.pipeline, {
+        ...this.cursorOptions
+      });
+    }
+    async _initialize(session) {
+      const aggregateOperation = new aggregate_1.AggregateOperation(this.namespace, this.pipeline, {
+        ...this.cursorOptions,
+        ...this.changeStreamCursorOptions,
+        session
+      });
+      const response = await (0, execute_operation_1.executeOperation)(session.client, aggregateOperation, this.timeoutContext);
+      const server = aggregateOperation.server;
+      this.maxWireVersion = (0, utils_1.maxWireVersion)(server);
+      if (this.startAtOperationTime == null && this.changeStreamCursorOptions.resumeAfter == null && this.changeStreamCursorOptions.startAfter == null) {
+        this.startAtOperationTime = response.operationTime;
       }
-      if (this.isOrdered) {
-        if (this.s.currentBatch)
-          this.s.batches.push(this.s.currentBatch);
+      this._processBatch(response);
+      this.emit(constants_1.INIT, response);
+      this.emit(constants_1.RESPONSE);
+      return { server, session, response };
+    }
+    async getMore(batchSize) {
+      const response = await super.getMore(batchSize);
+      this.maxWireVersion = (0, utils_1.maxWireVersion)(this.server);
+      this._processBatch(response);
+      this.emit(change_stream_1.ChangeStream.MORE, response);
+      this.emit(change_stream_1.ChangeStream.RESPONSE);
+      return response;
+    }
+  }
+  exports.ChangeStreamCursor = ChangeStreamCursor;
+});
+
+// node_modules/mongodb/lib/change_stream.js
+var require_change_stream = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ChangeStream = undefined;
+  var collection_1 = require_collection2();
+  var constants_1 = require_constants2();
+  var abstract_cursor_1 = require_abstract_cursor();
+  var change_stream_cursor_1 = require_change_stream_cursor();
+  var db_1 = require_db();
+  var error_1 = require_error();
+  var mongo_client_1 = require_mongo_client();
+  var mongo_types_1 = require_mongo_types();
+  var resource_management_1 = require_resource_management();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var CHANGE_STREAM_OPTIONS = [
+    "resumeAfter",
+    "startAfter",
+    "startAtOperationTime",
+    "fullDocument",
+    "fullDocumentBeforeChange",
+    "showExpandedEvents"
+  ];
+  var CHANGE_DOMAIN_TYPES = {
+    COLLECTION: Symbol("Collection"),
+    DATABASE: Symbol("Database"),
+    CLUSTER: Symbol("Cluster")
+  };
+  var CHANGE_STREAM_EVENTS = [constants_1.RESUME_TOKEN_CHANGED, constants_1.END, constants_1.CLOSE];
+  var NO_RESUME_TOKEN_ERROR = "A change stream document has been received that lacks a resume token (_id).";
+  var CHANGESTREAM_CLOSED_ERROR = "ChangeStream is closed";
+
+  class ChangeStream extends mongo_types_1.TypedEventEmitter {
+    async asyncDispose() {
+      await this.close();
+    }
+    constructor(parent, pipeline = [], options = {}) {
+      super();
+      this.pipeline = pipeline;
+      this.options = { ...options };
+      let serverSelectionTimeoutMS;
+      delete this.options.writeConcern;
+      if (parent instanceof collection_1.Collection) {
+        this.type = CHANGE_DOMAIN_TYPES.COLLECTION;
+        serverSelectionTimeoutMS = parent.s.db.client.options.serverSelectionTimeoutMS;
+      } else if (parent instanceof db_1.Db) {
+        this.type = CHANGE_DOMAIN_TYPES.DATABASE;
+        serverSelectionTimeoutMS = parent.client.options.serverSelectionTimeoutMS;
+      } else if (parent instanceof mongo_client_1.MongoClient) {
+        this.type = CHANGE_DOMAIN_TYPES.CLUSTER;
+        serverSelectionTimeoutMS = parent.options.serverSelectionTimeoutMS;
       } else {
-        if (this.s.currentInsertBatch)
-          this.s.batches.push(this.s.currentInsertBatch);
-        if (this.s.currentUpdateBatch)
-          this.s.batches.push(this.s.currentUpdateBatch);
-        if (this.s.currentRemoveBatch)
-          this.s.batches.push(this.s.currentRemoveBatch);
+        throw new error_1.MongoChangeStreamError("Parent provided to ChangeStream constructor must be an instance of Collection, Db, or MongoClient");
       }
-      if (this.s.batches.length === 0) {
-        throw new error_1.MongoInvalidArgumentError("Invalid BulkOperation, Batch cannot be empty");
+      this.contextOwner = Symbol();
+      this.parent = parent;
+      this.namespace = parent.s.namespace;
+      if (!this.options.readPreference && parent.readPreference) {
+        this.options.readPreference = parent.readPreference;
       }
-      this.s.executed = true;
-      const finalOptions = { ...this.s.options, ...options };
-      const operation = new BulkWriteShimOperation(this, finalOptions);
-      return await (0, execute_operation_1.executeOperation)(this.s.collection.client, operation, finalOptions.timeoutContext);
-    }
-    handleWriteError(writeResult) {
-      if (this.s.bulkResult.writeErrors.length > 0) {
-        const msg = this.s.bulkResult.writeErrors[0].errmsg ? this.s.bulkResult.writeErrors[0].errmsg : "write operation failed";
-        throw new MongoBulkWriteError({
-          message: msg,
-          code: this.s.bulkResult.writeErrors[0].code,
-          writeErrors: this.s.bulkResult.writeErrors
-        }, writeResult);
+      this.cursor = this._createChangeStreamCursor(options);
+      this.isClosed = false;
+      this.mode = false;
+      this.on("newListener", (eventName) => {
+        if (eventName === "change" && this.cursor && this.listenerCount("change") === 0) {
+          this._streamEvents(this.cursor);
+        }
+      });
+      this.on("removeListener", (eventName) => {
+        if (eventName === "change" && this.listenerCount("change") === 0 && this.cursor) {
+          this.cursorStream?.removeAllListeners("data");
+        }
+      });
+      if (this.options.timeoutMS != null) {
+        this.timeoutContext = new timeout_1.CSOTTimeoutContext({
+          timeoutMS: this.options.timeoutMS,
+          serverSelectionTimeoutMS
+        });
       }
-      const writeConcernError = writeResult.getWriteConcernError();
-      if (writeConcernError) {
-        throw new MongoBulkWriteError(writeConcernError, writeResult);
+    }
+    get resumeToken() {
+      return this.cursor?.resumeToken;
+    }
+    async hasNext() {
+      this._setIsIterator();
+      this.timeoutContext?.refresh();
+      try {
+        while (true) {
+          try {
+            const hasNext = await this.cursor.hasNext();
+            return hasNext;
+          } catch (error) {
+            try {
+              await this._processErrorIteratorMode(error, this.cursor.id != null);
+            } catch (error2) {
+              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null) {
+                throw error2;
+              }
+              try {
+                await this.close();
+              } catch (error3) {
+                (0, utils_1.squashError)(error3);
+              }
+              throw error2;
+            }
+          }
+        }
+      } finally {
+        this.timeoutContext?.clear();
       }
     }
-    shouldForceServerObjectId() {
-      return this.s.options.forceServerObjectId === true || this.s.collection.s.db.options?.forceServerObjectId === true;
+    async next() {
+      this._setIsIterator();
+      this.timeoutContext?.refresh();
+      try {
+        while (true) {
+          try {
+            const change = await this.cursor.next();
+            const processedChange = this._processChange(change ?? null);
+            return processedChange;
+          } catch (error) {
+            try {
+              await this._processErrorIteratorMode(error, this.cursor.id != null);
+            } catch (error2) {
+              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null) {
+                throw error2;
+              }
+              try {
+                await this.close();
+              } catch (error3) {
+                (0, utils_1.squashError)(error3);
+              }
+              throw error2;
+            }
+          }
+        }
+      } finally {
+        this.timeoutContext?.clear();
+      }
     }
-  }
-  exports.BulkOperationBase = BulkOperationBase;
-  function isInsertBatch(batch) {
-    return batch.batchType === exports.BatchType.INSERT;
-  }
-  function isUpdateBatch(batch) {
-    return batch.batchType === exports.BatchType.UPDATE;
-  }
-  function isDeleteBatch(batch) {
-    return batch.batchType === exports.BatchType.DELETE;
-  }
-  function buildCurrentOp(bulkOp) {
-    let { currentOp } = bulkOp.s;
-    bulkOp.s.currentOp = undefined;
-    if (!currentOp)
-      currentOp = {};
-    return currentOp;
-  }
-});
-
-// node_modules/mongoose/lib/drivers/node-mongodb-native/bulkWriteResult.js
-var require_bulkWriteResult = __commonJS((exports, module) => {
-  var BulkWriteResult = require_common2().BulkWriteResult;
-  module.exports = BulkWriteResult;
-});
-
-// node_modules/mongoose/lib/connectionState.js
-var require_connectionState = __commonJS((exports, module) => {
-  /*!
-   * Connection states
-   */
-  var STATES = module.exports = exports = Object.create(null);
-  var disconnected = "disconnected";
-  var connected = "connected";
-  var connecting = "connecting";
-  var disconnecting = "disconnecting";
-  var uninitialized = "uninitialized";
-  STATES[0] = disconnected;
-  STATES[1] = connected;
-  STATES[2] = connecting;
-  STATES[3] = disconnecting;
-  STATES[99] = uninitialized;
-  STATES[disconnected] = 0;
-  STATES[connected] = 1;
-  STATES[connecting] = 2;
-  STATES[disconnecting] = 3;
-  STATES[uninitialized] = 99;
-});
-
-// node_modules/mongoose/lib/helpers/immediate.js
-var require_immediate = __commonJS((exports, module) => {
-  /*!
-   * Centralize this so we can more easily work around issues with people
-   * stubbing out `process.nextTick()` in tests using sinon:
-   * https://github.com/sinonjs/lolex#automatically-incrementing-mocked-time
-   * See gh-6074
-   */
-  var nextTick = typeof process !== "undefined" && typeof process.nextTick === "function" ? process.nextTick.bind(process) : (cb) => setTimeout(cb, 0);
-  module.exports = function immediate(cb) {
-    return nextTick(cb);
-  };
-});
-
-// node_modules/mongoose/lib/collection.js
-var require_collection2 = __commonJS((exports, module) => {
-  /*!
-   * Module dependencies.
-   */
-  var EventEmitter = __require("events").EventEmitter;
-  var STATES = require_connectionState();
-  var immediate = require_immediate();
-  function Collection(name, conn, opts) {
-    if (opts === undefined) {
-      opts = {};
+    async tryNext() {
+      this._setIsIterator();
+      this.timeoutContext?.refresh();
+      try {
+        while (true) {
+          try {
+            const change = await this.cursor.tryNext();
+            if (!change) {
+              return null;
+            }
+            const processedChange = this._processChange(change);
+            return processedChange;
+          } catch (error) {
+            try {
+              await this._processErrorIteratorMode(error, this.cursor.id != null);
+            } catch (error2) {
+              if (error2 instanceof error_1.MongoOperationTimeoutError && this.cursor.id == null)
+                throw error2;
+              try {
+                await this.close();
+              } catch (error3) {
+                (0, utils_1.squashError)(error3);
+              }
+              throw error2;
+            }
+          }
+        }
+      } finally {
+        this.timeoutContext?.clear();
+      }
     }
-    this.opts = opts;
-    this.name = name;
-    this.collectionName = name;
-    this.conn = conn;
-    this.queue = [];
-    this.buffer = !conn?._hasOpened;
-    this.emitter = new EventEmitter;
-    if (STATES.connected === this.conn.readyState) {
-      this.onOpen();
+    async* [Symbol.asyncIterator]() {
+      if (this.closed) {
+        return;
+      }
+      try {
+        while (true) {
+          yield await this.next();
+        }
+      } finally {
+        try {
+          await this.close();
+        } catch (error) {
+          (0, utils_1.squashError)(error);
+        }
+      }
     }
-  }
-  Collection.prototype.name;
-  Collection.prototype.collectionName;
-  Collection.prototype.conn;
-  Collection.prototype.onOpen = function() {
-    this.buffer = false;
-    immediate(() => this.doQueue());
-  };
-  Collection.prototype.onClose = function() {};
-  Collection.prototype.addQueue = function(name, args) {
-    this.queue.push([name, args]);
-    return this;
-  };
-  Collection.prototype.removeQueue = function(name, args) {
-    const index = this.queue.findIndex((v) => v[0] === name && v[1] === args);
-    if (index === -1) {
-      return false;
+    get closed() {
+      return this.isClosed || this.cursor.closed;
     }
-    this.queue.splice(index, 1);
-    return true;
-  };
-  Collection.prototype.doQueue = function() {
-    for (const method of this.queue) {
-      if (typeof method[0] === "function") {
-        method[0].apply(this, method[1]);
+    async close() {
+      this.timeoutContext?.clear();
+      this.timeoutContext = undefined;
+      this.isClosed = true;
+      const cursor = this.cursor;
+      try {
+        await cursor.close();
+      } finally {
+        this._endStream();
+      }
+    }
+    stream(options) {
+      if (this.closed) {
+        throw new error_1.MongoChangeStreamError(CHANGESTREAM_CLOSED_ERROR);
+      }
+      this.streamOptions = options;
+      return this.cursor.stream(options);
+    }
+    _setIsEmitter() {
+      if (this.mode === "iterator") {
+        throw new error_1.MongoAPIError("ChangeStream cannot be used as an EventEmitter after being used as an iterator");
+      }
+      this.mode = "emitter";
+    }
+    _setIsIterator() {
+      if (this.mode === "emitter") {
+        throw new error_1.MongoAPIError("ChangeStream cannot be used as an iterator after being used as an EventEmitter");
+      }
+      this.mode = "iterator";
+    }
+    _createChangeStreamCursor(options) {
+      const changeStreamStageOptions = (0, utils_1.filterOptions)(options, CHANGE_STREAM_OPTIONS);
+      if (this.type === CHANGE_DOMAIN_TYPES.CLUSTER) {
+        changeStreamStageOptions.allChangesForCluster = true;
+      }
+      const pipeline = [{ $changeStream: changeStreamStageOptions }, ...this.pipeline];
+      const client = this.type === CHANGE_DOMAIN_TYPES.CLUSTER ? this.parent : this.type === CHANGE_DOMAIN_TYPES.DATABASE ? this.parent.client : this.type === CHANGE_DOMAIN_TYPES.COLLECTION ? this.parent.client : null;
+      if (client == null) {
+        throw new error_1.MongoRuntimeError(`Changestream type should only be one of cluster, database, collection. Found ${this.type.toString()}`);
+      }
+      const changeStreamCursor = new change_stream_cursor_1.ChangeStreamCursor(client, this.namespace, pipeline, {
+        ...options,
+        timeoutContext: this.timeoutContext ? new abstract_cursor_1.CursorTimeoutContext(this.timeoutContext, this.contextOwner) : undefined
+      });
+      for (const event of CHANGE_STREAM_EVENTS) {
+        changeStreamCursor.on(event, (e) => this.emit(event, e));
+      }
+      if (this.listenerCount(ChangeStream.CHANGE) > 0) {
+        this._streamEvents(changeStreamCursor);
+      }
+      return changeStreamCursor;
+    }
+    _closeEmitterModeWithError(error) {
+      this.emit(ChangeStream.ERROR, error);
+      this.close().then(undefined, utils_1.squashError);
+    }
+    _streamEvents(cursor) {
+      this._setIsEmitter();
+      const stream = this.cursorStream ?? cursor.stream();
+      this.cursorStream = stream;
+      stream.on("data", (change) => {
+        try {
+          const processedChange = this._processChange(change);
+          this.emit(ChangeStream.CHANGE, processedChange);
+        } catch (error) {
+          this.emit(ChangeStream.ERROR, error);
+        }
+        this.timeoutContext?.refresh();
+      });
+      stream.on("error", (error) => this._processErrorStreamMode(error, this.cursor.id != null));
+    }
+    _endStream() {
+      this.cursorStream?.removeAllListeners("data");
+      this.cursorStream?.removeAllListeners("close");
+      this.cursorStream?.removeAllListeners("end");
+      this.cursorStream?.destroy();
+      this.cursorStream = undefined;
+    }
+    _processChange(change) {
+      if (this.isClosed) {
+        throw new error_1.MongoAPIError(CHANGESTREAM_CLOSED_ERROR);
+      }
+      if (change == null) {
+        throw new error_1.MongoRuntimeError(CHANGESTREAM_CLOSED_ERROR);
+      }
+      if (change && !change._id) {
+        throw new error_1.MongoChangeStreamError(NO_RESUME_TOKEN_ERROR);
+      }
+      this.cursor.cacheResumeToken(change._id);
+      this.options.startAtOperationTime = undefined;
+      return change;
+    }
+    _processErrorStreamMode(changeStreamError, cursorInitialized) {
+      if (this.isClosed)
+        return;
+      if (cursorInitialized && ((0, error_1.isResumableError)(changeStreamError, this.cursor.maxWireVersion) || changeStreamError instanceof error_1.MongoOperationTimeoutError)) {
+        this._endStream();
+        this.cursor.close().then(() => this._resume(changeStreamError), (e) => {
+          (0, utils_1.squashError)(e);
+          return this._resume(changeStreamError);
+        }).then(() => {
+          if (changeStreamError instanceof error_1.MongoOperationTimeoutError)
+            this.emit(ChangeStream.ERROR, changeStreamError);
+        }, () => this._closeEmitterModeWithError(changeStreamError));
       } else {
-        this[method[0]].apply(this, method[1]);
+        this._closeEmitterModeWithError(changeStreamError);
       }
     }
-    this.queue = [];
-    const _this = this;
-    immediate(function() {
-      _this.emitter.emit("queue");
+    async _processErrorIteratorMode(changeStreamError, cursorInitialized) {
+      if (this.isClosed) {
+        throw new error_1.MongoAPIError(CHANGESTREAM_CLOSED_ERROR);
+      }
+      if (cursorInitialized && ((0, error_1.isResumableError)(changeStreamError, this.cursor.maxWireVersion) || changeStreamError instanceof error_1.MongoOperationTimeoutError)) {
+        try {
+          await this.cursor.close();
+        } catch (error) {
+          (0, utils_1.squashError)(error);
+        }
+        await this._resume(changeStreamError);
+        if (changeStreamError instanceof error_1.MongoOperationTimeoutError)
+          throw changeStreamError;
+      } else {
+        try {
+          await this.close();
+        } catch (error) {
+          (0, utils_1.squashError)(error);
+        }
+        throw changeStreamError;
+      }
+    }
+    async _resume(changeStreamError) {
+      this.timeoutContext?.refresh();
+      const topology = (0, utils_1.getTopology)(this.parent);
+      try {
+        await topology.selectServer(this.cursor.readPreference, {
+          operationName: "reconnect topology in change stream",
+          timeoutContext: this.timeoutContext
+        });
+        this.cursor = this._createChangeStreamCursor(this.cursor.resumeOptions);
+      } catch {
+        await this.close();
+        throw changeStreamError;
+      }
+    }
+  }
+  exports.ChangeStream = ChangeStream;
+  ChangeStream.RESPONSE = constants_1.RESPONSE;
+  ChangeStream.MORE = constants_1.MORE;
+  ChangeStream.INIT = constants_1.INIT;
+  ChangeStream.CLOSE = constants_1.CLOSE;
+  ChangeStream.CHANGE = constants_1.CHANGE;
+  ChangeStream.END = constants_1.END;
+  ChangeStream.ERROR = constants_1.ERROR;
+  ChangeStream.RESUME_TOKEN_CHANGED = constants_1.RESUME_TOKEN_CHANGED;
+  (0, resource_management_1.configureResourceManagement)(ChangeStream.prototype);
+});
+
+// node_modules/mongodb/lib/gridfs/download.js
+var require_download = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.GridFSBucketReadStream = undefined;
+  var stream_1 = __require("stream");
+  var abstract_cursor_1 = require_abstract_cursor();
+  var error_1 = require_error();
+  var timeout_1 = require_timeout();
+
+  class GridFSBucketReadStream extends stream_1.Readable {
+    constructor(chunks, files, readPreference, filter, options) {
+      super({ emitClose: true });
+      this.s = {
+        bytesToTrim: 0,
+        bytesToSkip: 0,
+        bytesRead: 0,
+        chunks,
+        expected: 0,
+        files,
+        filter,
+        init: false,
+        expectedEnd: 0,
+        options: {
+          start: 0,
+          end: 0,
+          ...options
+        },
+        readPreference,
+        timeoutContext: options?.timeoutMS != null ? new timeout_1.CSOTTimeoutContext({ timeoutMS: options.timeoutMS, serverSelectionTimeoutMS: 0 }) : undefined
+      };
+    }
+    _read() {
+      if (this.destroyed)
+        return;
+      waitForFile(this, () => doRead(this));
+    }
+    start(start = 0) {
+      throwIfInitialized(this);
+      this.s.options.start = start;
+      return this;
+    }
+    end(end = 0) {
+      throwIfInitialized(this);
+      this.s.options.end = end;
+      return this;
+    }
+    async abort() {
+      this.push(null);
+      this.destroy();
+      const remainingTimeMS = this.s.timeoutContext?.getRemainingTimeMSOrThrow();
+      await this.s.cursor?.close({ timeoutMS: remainingTimeMS });
+    }
+  }
+  exports.GridFSBucketReadStream = GridFSBucketReadStream;
+  GridFSBucketReadStream.FILE = "file";
+  function throwIfInitialized(stream) {
+    if (stream.s.init) {
+      throw new error_1.MongoGridFSStreamError("Options cannot be changed after the stream is initialized");
+    }
+  }
+  function doRead(stream) {
+    if (stream.destroyed)
+      return;
+    if (!stream.s.cursor)
+      return;
+    if (!stream.s.file)
+      return;
+    const handleReadResult = (doc) => {
+      if (stream.destroyed)
+        return;
+      if (!doc) {
+        stream.push(null);
+        stream.s.cursor?.close().then(undefined, (error) => stream.destroy(error));
+        return;
+      }
+      if (!stream.s.file)
+        return;
+      const bytesRemaining = stream.s.file.length - stream.s.bytesRead;
+      const expectedN = stream.s.expected++;
+      const expectedLength = Math.min(stream.s.file.chunkSize, bytesRemaining);
+      if (doc.n > expectedN) {
+        return stream.destroy(new error_1.MongoGridFSChunkError(`ChunkIsMissing: Got unexpected n: ${doc.n}, expected: ${expectedN}`));
+      }
+      if (doc.n < expectedN) {
+        return stream.destroy(new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected: ${expectedN}`));
+      }
+      let buf = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
+      if (buf.byteLength !== expectedLength) {
+        if (bytesRemaining <= 0) {
+          return stream.destroy(new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected file length ${stream.s.file.length} bytes but already read ${stream.s.bytesRead} bytes`));
+        }
+        return stream.destroy(new error_1.MongoGridFSChunkError(`ChunkIsWrongSize: Got unexpected length: ${buf.byteLength}, expected: ${expectedLength}`));
+      }
+      stream.s.bytesRead += buf.byteLength;
+      if (buf.byteLength === 0) {
+        return stream.push(null);
+      }
+      let sliceStart = null;
+      let sliceEnd = null;
+      if (stream.s.bytesToSkip != null) {
+        sliceStart = stream.s.bytesToSkip;
+        stream.s.bytesToSkip = 0;
+      }
+      const atEndOfStream = expectedN === stream.s.expectedEnd - 1;
+      const bytesLeftToRead = stream.s.options.end - stream.s.bytesToSkip;
+      if (atEndOfStream && stream.s.bytesToTrim != null) {
+        sliceEnd = stream.s.file.chunkSize - stream.s.bytesToTrim;
+      } else if (stream.s.options.end && bytesLeftToRead < doc.data.byteLength) {
+        sliceEnd = bytesLeftToRead;
+      }
+      if (sliceStart != null || sliceEnd != null) {
+        buf = buf.slice(sliceStart || 0, sliceEnd || buf.byteLength);
+      }
+      stream.push(buf);
+      return;
+    };
+    stream.s.cursor.next().then(handleReadResult, (error) => {
+      if (stream.destroyed)
+        return;
+      stream.destroy(error);
     });
-    return this;
-  };
-  Collection.prototype.ensureIndex = function() {
-    throw new Error("Collection#ensureIndex unimplemented by driver");
-  };
-  Collection.prototype.createIndex = function() {
-    throw new Error("Collection#createIndex unimplemented by driver");
-  };
-  Collection.prototype.findAndModify = function() {
-    throw new Error("Collection#findAndModify unimplemented by driver");
-  };
-  Collection.prototype.findOneAndUpdate = function() {
-    throw new Error("Collection#findOneAndUpdate unimplemented by driver");
-  };
-  Collection.prototype.findOneAndDelete = function() {
-    throw new Error("Collection#findOneAndDelete unimplemented by driver");
-  };
-  Collection.prototype.findOneAndReplace = function() {
-    throw new Error("Collection#findOneAndReplace unimplemented by driver");
-  };
-  Collection.prototype.findOne = function() {
-    throw new Error("Collection#findOne unimplemented by driver");
-  };
-  Collection.prototype.find = function() {
-    throw new Error("Collection#find unimplemented by driver");
-  };
-  Collection.prototype.insert = function() {
-    throw new Error("Collection#insert unimplemented by driver");
-  };
-  Collection.prototype.insertOne = function() {
-    throw new Error("Collection#insertOne unimplemented by driver");
-  };
-  Collection.prototype.insertMany = function() {
-    throw new Error("Collection#insertMany unimplemented by driver");
-  };
-  Collection.prototype.save = function() {
-    throw new Error("Collection#save unimplemented by driver");
-  };
-  Collection.prototype.updateOne = function() {
-    throw new Error("Collection#updateOne unimplemented by driver");
-  };
-  Collection.prototype.updateMany = function() {
-    throw new Error("Collection#updateMany unimplemented by driver");
-  };
-  Collection.prototype.deleteOne = function() {
-    throw new Error("Collection#deleteOne unimplemented by driver");
-  };
-  Collection.prototype.deleteMany = function() {
-    throw new Error("Collection#deleteMany unimplemented by driver");
-  };
-  Collection.prototype.getIndexes = function() {
-    throw new Error("Collection#getIndexes unimplemented by driver");
-  };
-  Collection.prototype.watch = function() {
-    throw new Error("Collection#watch unimplemented by driver");
-  };
-  /*!
-   * ignore
-   */
-  Collection.prototype._shouldBufferCommands = function _shouldBufferCommands() {
-    const opts = this.opts;
-    if (opts.bufferCommands != null) {
-      return opts.bufferCommands;
+  }
+  function init(stream) {
+    const findOneOptions = {};
+    if (stream.s.readPreference) {
+      findOneOptions.readPreference = stream.s.readPreference;
     }
-    if (opts && opts.schemaUserProvidedOptions != null && opts.schemaUserProvidedOptions.bufferCommands != null) {
-      return opts.schemaUserProvidedOptions.bufferCommands;
+    if (stream.s.options && stream.s.options.sort) {
+      findOneOptions.sort = stream.s.options.sort;
     }
-    return this.conn._shouldBufferCommands();
-  };
-  /*!
-   * ignore
-   */
-  Collection.prototype._getBufferTimeoutMS = function _getBufferTimeoutMS() {
-    const conn = this.conn;
-    const opts = this.opts;
-    if (opts.bufferTimeoutMS != null) {
-      return opts.bufferTimeoutMS;
+    if (stream.s.options && stream.s.options.skip) {
+      findOneOptions.skip = stream.s.options.skip;
     }
-    if (opts && opts.schemaUserProvidedOptions != null && opts.schemaUserProvidedOptions.bufferTimeoutMS != null) {
-      return opts.schemaUserProvidedOptions.bufferTimeoutMS;
+    const handleReadResult = (doc) => {
+      if (stream.destroyed)
+        return;
+      if (!doc) {
+        const identifier = stream.s.filter._id ? stream.s.filter._id.toString() : stream.s.filter.filename;
+        const errmsg = `FileNotFound: file ${identifier} was not found`;
+        const err = new error_1.MongoRuntimeError(errmsg);
+        err.code = "ENOENT";
+        return stream.destroy(err);
+      }
+      if (doc.length <= 0) {
+        stream.push(null);
+        return;
+      }
+      if (stream.destroyed) {
+        stream.destroy();
+        return;
+      }
+      try {
+        stream.s.bytesToSkip = handleStartOption(stream, doc, stream.s.options);
+      } catch (error) {
+        return stream.destroy(error);
+      }
+      const filter = { files_id: doc._id };
+      if (stream.s.options && stream.s.options.start != null) {
+        const skip = Math.floor(stream.s.options.start / doc.chunkSize);
+        if (skip > 0) {
+          filter["n"] = { $gte: skip };
+        }
+      }
+      let remainingTimeMS2;
+      try {
+        remainingTimeMS2 = stream.s.timeoutContext?.getRemainingTimeMSOrThrow(`Download timed out after ${stream.s.timeoutContext?.timeoutMS}ms`);
+      } catch (error) {
+        return stream.destroy(error);
+      }
+      stream.s.cursor = stream.s.chunks.find(filter, {
+        timeoutMode: stream.s.options.timeoutMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
+        timeoutMS: remainingTimeMS2
+      }).sort({ n: 1 });
+      if (stream.s.readPreference) {
+        stream.s.cursor.withReadPreference(stream.s.readPreference);
+      }
+      stream.s.expectedEnd = Math.ceil(doc.length / doc.chunkSize);
+      stream.s.file = doc;
+      try {
+        stream.s.bytesToTrim = handleEndOption(stream, doc, stream.s.cursor, stream.s.options);
+      } catch (error) {
+        return stream.destroy(error);
+      }
+      stream.emit(GridFSBucketReadStream.FILE, doc);
+      return;
+    };
+    let remainingTimeMS;
+    try {
+      remainingTimeMS = stream.s.timeoutContext?.getRemainingTimeMSOrThrow(`Download timed out after ${stream.s.timeoutContext?.timeoutMS}ms`);
+    } catch (error) {
+      if (!stream.destroyed)
+        stream.destroy(error);
+      return;
     }
-    return conn._getBufferTimeoutMS();
-  };
-  /*!
-   * Module exports.
-   */
-  module.exports = Collection;
+    findOneOptions.timeoutMS = remainingTimeMS;
+    stream.s.files.findOne(stream.s.filter, findOneOptions).then(handleReadResult, (error) => {
+      if (stream.destroyed)
+        return;
+      stream.destroy(error);
+    });
+  }
+  function waitForFile(stream, callback) {
+    if (stream.s.file) {
+      return callback();
+    }
+    if (!stream.s.init) {
+      init(stream);
+      stream.s.init = true;
+    }
+    stream.once("file", () => {
+      callback();
+    });
+  }
+  function handleStartOption(stream, doc, options) {
+    if (options && options.start != null) {
+      if (options.start > doc.length) {
+        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be more than the length of the file (${doc.length})`);
+      }
+      if (options.start < 0) {
+        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be negative`);
+      }
+      if (options.end != null && options.end < options.start) {
+        throw new error_1.MongoInvalidArgumentError(`Stream start (${options.start}) must not be greater than stream end (${options.end})`);
+      }
+      stream.s.bytesRead = Math.floor(options.start / doc.chunkSize) * doc.chunkSize;
+      stream.s.expected = Math.floor(options.start / doc.chunkSize);
+      return options.start - stream.s.bytesRead;
+    }
+    throw new error_1.MongoInvalidArgumentError("Start option must be defined");
+  }
+  function handleEndOption(stream, doc, cursor, options) {
+    if (options && options.end != null) {
+      if (options.end > doc.length) {
+        throw new error_1.MongoInvalidArgumentError(`Stream end (${options.end}) must not be more than the length of the file (${doc.length})`);
+      }
+      if (options.start == null || options.start < 0) {
+        throw new error_1.MongoInvalidArgumentError(`Stream end (${options.end}) must not be negative`);
+      }
+      const start = options.start != null ? Math.floor(options.start / doc.chunkSize) : 0;
+      cursor.limit(Math.ceil(options.end / doc.chunkSize) - start);
+      stream.s.expectedEnd = Math.ceil(options.end / doc.chunkSize);
+      return Math.ceil(options.end / doc.chunkSize) * doc.chunkSize - options.end;
+    }
+    throw new error_1.MongoInvalidArgumentError("End option must be defined");
+  }
 });
 
-// node_modules/mongoose/lib/error/mongooseError.js
-var require_mongooseError = __commonJS((exports, module) => {
-  /*!
-   * ignore
-   */
+// node_modules/mongodb/lib/gridfs/upload.js
+var require_upload = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.GridFSBucketWriteStream = undefined;
+  var stream_1 = __require("stream");
+  var bson_1 = require_bson2();
+  var abstract_cursor_1 = require_abstract_cursor();
+  var error_1 = require_error();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
 
-  class MongooseError extends Error {
+  class GridFSBucketWriteStream extends stream_1.Writable {
+    constructor(bucket, filename, options) {
+      super();
+      this.gridFSFile = null;
+      options = options ?? {};
+      this.bucket = bucket;
+      this.chunks = bucket.s._chunksCollection;
+      this.filename = filename;
+      this.files = bucket.s._filesCollection;
+      this.options = options;
+      this.writeConcern = write_concern_1.WriteConcern.fromOptions(options) || bucket.s.options.writeConcern;
+      this.done = false;
+      this.id = options.id ? options.id : new bson_1.ObjectId;
+      this.chunkSizeBytes = options.chunkSizeBytes || this.bucket.s.options.chunkSizeBytes;
+      this.bufToStore = Buffer.alloc(this.chunkSizeBytes);
+      this.length = 0;
+      this.n = 0;
+      this.pos = 0;
+      this.state = {
+        streamEnd: false,
+        outstandingRequests: 0,
+        errored: false,
+        aborted: false
+      };
+      if (options.timeoutMS != null)
+        this.timeoutContext = new timeout_1.CSOTTimeoutContext({
+          timeoutMS: options.timeoutMS,
+          serverSelectionTimeoutMS: (0, utils_1.resolveTimeoutOptions)(this.bucket.s.db.client, {}).serverSelectionTimeoutMS
+        });
+    }
+    _construct(callback) {
+      if (!this.bucket.s.calledOpenUploadStream) {
+        this.bucket.s.calledOpenUploadStream = true;
+        checkIndexes(this).then(() => {
+          this.bucket.s.checkedIndexes = true;
+          this.bucket.emit("index");
+          callback();
+        }, (error) => {
+          if (error instanceof error_1.MongoOperationTimeoutError) {
+            return handleError(this, error, callback);
+          }
+          (0, utils_1.squashError)(error);
+          callback();
+        });
+      } else {
+        return process.nextTick(callback);
+      }
+    }
+    _write(chunk, encoding, callback) {
+      doWrite(this, chunk, encoding, callback);
+    }
+    _final(callback) {
+      if (this.state.streamEnd) {
+        return process.nextTick(callback);
+      }
+      this.state.streamEnd = true;
+      writeRemnant(this, callback);
+    }
+    async abort() {
+      if (this.state.streamEnd) {
+        throw new error_1.MongoAPIError("Cannot abort a stream that has already completed");
+      }
+      if (this.state.aborted) {
+        throw new error_1.MongoAPIError("Cannot call abort() on a stream twice");
+      }
+      this.state.aborted = true;
+      const remainingTimeMS = this.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${this.timeoutContext?.timeoutMS}ms`);
+      await this.chunks.deleteMany({ files_id: this.id }, { timeoutMS: remainingTimeMS });
+    }
   }
-  Object.defineProperty(MongooseError.prototype, "name", {
-    value: "MongooseError"
-  });
-  module.exports = MongooseError;
+  exports.GridFSBucketWriteStream = GridFSBucketWriteStream;
+  function handleError(stream, error, callback) {
+    if (stream.state.errored) {
+      process.nextTick(callback);
+      return;
+    }
+    stream.state.errored = true;
+    process.nextTick(callback, error);
+  }
+  function createChunkDoc(filesId, n, data) {
+    return {
+      _id: new bson_1.ObjectId,
+      files_id: filesId,
+      n,
+      data
+    };
+  }
+  async function checkChunksIndex(stream) {
+    const index = { files_id: 1, n: 1 };
+    let remainingTimeMS;
+    remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
+    let indexes;
+    try {
+      indexes = await stream.chunks.listIndexes({
+        timeoutMode: remainingTimeMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
+        timeoutMS: remainingTimeMS
+      }).toArray();
+    } catch (error) {
+      if (error instanceof error_1.MongoError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
+        indexes = [];
+      } else {
+        throw error;
+      }
+    }
+    const hasChunksIndex = !!indexes.find((index2) => {
+      const keys = Object.keys(index2.key);
+      if (keys.length === 2 && index2.key.files_id === 1 && index2.key.n === 1) {
+        return true;
+      }
+      return false;
+    });
+    if (!hasChunksIndex) {
+      remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
+      await stream.chunks.createIndex(index, {
+        ...stream.writeConcern,
+        background: true,
+        unique: true,
+        timeoutMS: remainingTimeMS
+      });
+    }
+  }
+  function checkDone(stream, callback) {
+    if (stream.done) {
+      return process.nextTick(callback);
+    }
+    if (stream.state.streamEnd && stream.state.outstandingRequests === 0 && !stream.state.errored) {
+      stream.done = true;
+      const gridFSFile = createFilesDoc(stream.id, stream.length, stream.chunkSizeBytes, stream.filename, stream.options.contentType, stream.options.aliases, stream.options.metadata);
+      if (isAborted(stream, callback)) {
+        return;
+      }
+      const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
+      if (remainingTimeMS != null && remainingTimeMS <= 0) {
+        return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
+      }
+      stream.files.insertOne(gridFSFile, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
+        stream.gridFSFile = gridFSFile;
+        callback();
+      }, (error) => {
+        return handleError(stream, error, callback);
+      });
+      return;
+    }
+    process.nextTick(callback);
+  }
+  async function checkIndexes(stream) {
+    let remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
+    const doc = await stream.files.findOne({}, {
+      projection: { _id: 1 },
+      timeoutMS: remainingTimeMS
+    });
+    if (doc != null) {
+      return;
+    }
+    const index = { filename: 1, uploadDate: 1 };
+    let indexes;
+    remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
+    const listIndexesOptions = {
+      timeoutMode: remainingTimeMS != null ? abstract_cursor_1.CursorTimeoutMode.LIFETIME : undefined,
+      timeoutMS: remainingTimeMS
+    };
+    try {
+      indexes = await stream.files.listIndexes(listIndexesOptions).toArray();
+    } catch (error) {
+      if (error instanceof error_1.MongoError && error.code === error_1.MONGODB_ERROR_CODES.NamespaceNotFound) {
+        indexes = [];
+      } else {
+        throw error;
+      }
+    }
+    const hasFileIndex = !!indexes.find((index2) => {
+      const keys = Object.keys(index2.key);
+      if (keys.length === 2 && index2.key.filename === 1 && index2.key.uploadDate === 1) {
+        return true;
+      }
+      return false;
+    });
+    if (!hasFileIndex) {
+      remainingTimeMS = stream.timeoutContext?.getRemainingTimeMSOrThrow(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`);
+      await stream.files.createIndex(index, { background: false, timeoutMS: remainingTimeMS });
+    }
+    await checkChunksIndex(stream);
+  }
+  function createFilesDoc(_id, length, chunkSize, filename, contentType, aliases, metadata) {
+    const ret = {
+      _id,
+      length,
+      chunkSize,
+      uploadDate: new Date,
+      filename
+    };
+    if (contentType) {
+      ret.contentType = contentType;
+    }
+    if (aliases) {
+      ret.aliases = aliases;
+    }
+    if (metadata) {
+      ret.metadata = metadata;
+    }
+    return ret;
+  }
+  function doWrite(stream, chunk, encoding, callback) {
+    if (isAborted(stream, callback)) {
+      return;
+    }
+    const inputBuf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    stream.length += inputBuf.length;
+    if (stream.pos + inputBuf.length < stream.chunkSizeBytes) {
+      inputBuf.copy(stream.bufToStore, stream.pos);
+      stream.pos += inputBuf.length;
+      process.nextTick(callback);
+      return;
+    }
+    let inputBufRemaining = inputBuf.length;
+    let spaceRemaining = stream.chunkSizeBytes - stream.pos;
+    let numToCopy = Math.min(spaceRemaining, inputBuf.length);
+    let outstandingRequests = 0;
+    while (inputBufRemaining > 0) {
+      const inputBufPos = inputBuf.length - inputBufRemaining;
+      inputBuf.copy(stream.bufToStore, stream.pos, inputBufPos, inputBufPos + numToCopy);
+      stream.pos += numToCopy;
+      spaceRemaining -= numToCopy;
+      let doc;
+      if (spaceRemaining === 0) {
+        doc = createChunkDoc(stream.id, stream.n, Buffer.from(stream.bufToStore));
+        const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
+        if (remainingTimeMS != null && remainingTimeMS <= 0) {
+          return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
+        }
+        ++stream.state.outstandingRequests;
+        ++outstandingRequests;
+        if (isAborted(stream, callback)) {
+          return;
+        }
+        stream.chunks.insertOne(doc, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
+          --stream.state.outstandingRequests;
+          --outstandingRequests;
+          if (!outstandingRequests) {
+            checkDone(stream, callback);
+          }
+        }, (error) => {
+          return handleError(stream, error, callback);
+        });
+        spaceRemaining = stream.chunkSizeBytes;
+        stream.pos = 0;
+        ++stream.n;
+      }
+      inputBufRemaining -= numToCopy;
+      numToCopy = Math.min(spaceRemaining, inputBufRemaining);
+    }
+  }
+  function writeRemnant(stream, callback) {
+    if (stream.pos === 0) {
+      return checkDone(stream, callback);
+    }
+    const remnant = Buffer.alloc(stream.pos);
+    stream.bufToStore.copy(remnant, 0, 0, stream.pos);
+    const doc = createChunkDoc(stream.id, stream.n, remnant);
+    if (isAborted(stream, callback)) {
+      return;
+    }
+    const remainingTimeMS = stream.timeoutContext?.remainingTimeMS;
+    if (remainingTimeMS != null && remainingTimeMS <= 0) {
+      return handleError(stream, new error_1.MongoOperationTimeoutError(`Upload timed out after ${stream.timeoutContext?.timeoutMS}ms`), callback);
+    }
+    ++stream.state.outstandingRequests;
+    stream.chunks.insertOne(doc, { writeConcern: stream.writeConcern, timeoutMS: remainingTimeMS }).then(() => {
+      --stream.state.outstandingRequests;
+      checkDone(stream, callback);
+    }, (error) => {
+      return handleError(stream, error, callback);
+    });
+  }
+  function isAborted(stream, callback) {
+    if (stream.state.aborted) {
+      process.nextTick(callback, new error_1.MongoAPIError("Stream has been aborted"));
+      return true;
+    }
+    return false;
+  }
+});
+
+// node_modules/mongodb/lib/gridfs/index.js
+var require_gridfs = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.GridFSBucket = undefined;
+  var error_1 = require_error();
+  var mongo_types_1 = require_mongo_types();
+  var timeout_1 = require_timeout();
+  var utils_1 = require_utils();
+  var write_concern_1 = require_write_concern();
+  var download_1 = require_download();
+  var upload_1 = require_upload();
+  var DEFAULT_GRIDFS_BUCKET_OPTIONS = {
+    bucketName: "fs",
+    chunkSizeBytes: 255 * 1024
+  };
+
+  class GridFSBucket extends mongo_types_1.TypedEventEmitter {
+    constructor(db, options) {
+      super();
+      this.on("error", utils_1.noop);
+      this.setMaxListeners(0);
+      const privateOptions = (0, utils_1.resolveOptions)(db, {
+        ...DEFAULT_GRIDFS_BUCKET_OPTIONS,
+        ...options,
+        writeConcern: write_concern_1.WriteConcern.fromOptions(options)
+      });
+      this.s = {
+        db,
+        options: privateOptions,
+        _chunksCollection: db.collection(privateOptions.bucketName + ".chunks"),
+        _filesCollection: db.collection(privateOptions.bucketName + ".files"),
+        checkedIndexes: false,
+        calledOpenUploadStream: false
+      };
+    }
+    openUploadStream(filename, options) {
+      return new upload_1.GridFSBucketWriteStream(this, filename, {
+        timeoutMS: this.s.options.timeoutMS,
+        ...options
+      });
+    }
+    openUploadStreamWithId(id, filename, options) {
+      return new upload_1.GridFSBucketWriteStream(this, filename, {
+        timeoutMS: this.s.options.timeoutMS,
+        ...options,
+        id
+      });
+    }
+    openDownloadStream(id, options) {
+      return new download_1.GridFSBucketReadStream(this.s._chunksCollection, this.s._filesCollection, this.s.options.readPreference, { _id: id }, { timeoutMS: this.s.options.timeoutMS, ...options });
+    }
+    async delete(id, options) {
+      const { timeoutMS } = (0, utils_1.resolveOptions)(this.s.db, options);
+      let timeoutContext = undefined;
+      if (timeoutMS) {
+        timeoutContext = new timeout_1.CSOTTimeoutContext({
+          timeoutMS,
+          serverSelectionTimeoutMS: this.s.db.client.s.options.serverSelectionTimeoutMS
+        });
+      }
+      const { deletedCount } = await this.s._filesCollection.deleteOne({ _id: id }, { timeoutMS: timeoutContext?.remainingTimeMS });
+      const remainingTimeMS = timeoutContext?.remainingTimeMS;
+      if (remainingTimeMS != null && remainingTimeMS <= 0)
+        throw new error_1.MongoOperationTimeoutError(`Timed out after ${timeoutMS}ms`);
+      await this.s._chunksCollection.deleteMany({ files_id: id }, { timeoutMS: remainingTimeMS });
+      if (deletedCount === 0) {
+        throw new error_1.MongoRuntimeError(`File not found for id ${id}`);
+      }
+    }
+    find(filter = {}, options = {}) {
+      return this.s._filesCollection.find(filter, options);
+    }
+    openDownloadStreamByName(filename, options) {
+      let sort = { uploadDate: -1 };
+      let skip = undefined;
+      if (options && options.revision != null) {
+        if (options.revision >= 0) {
+          sort = { uploadDate: 1 };
+          skip = options.revision;
+        } else {
+          skip = -options.revision - 1;
+        }
+      }
+      return new download_1.GridFSBucketReadStream(this.s._chunksCollection, this.s._filesCollection, this.s.options.readPreference, { filename }, { timeoutMS: this.s.options.timeoutMS, ...options, sort, skip });
+    }
+    async rename(id, filename, options) {
+      const filter = { _id: id };
+      const update = { $set: { filename } };
+      const { matchedCount } = await this.s._filesCollection.updateOne(filter, update, options);
+      if (matchedCount === 0) {
+        throw new error_1.MongoRuntimeError(`File with id ${id} not found`);
+      }
+    }
+    async drop(options) {
+      const { timeoutMS } = (0, utils_1.resolveOptions)(this.s.db, options);
+      let timeoutContext = undefined;
+      if (timeoutMS) {
+        timeoutContext = new timeout_1.CSOTTimeoutContext({
+          timeoutMS,
+          serverSelectionTimeoutMS: this.s.db.client.s.options.serverSelectionTimeoutMS
+        });
+      }
+      if (timeoutContext) {
+        await this.s._filesCollection.drop({ timeoutMS: timeoutContext.remainingTimeMS });
+        const remainingTimeMS = timeoutContext.getRemainingTimeMSOrThrow(`Timed out after ${timeoutMS}ms`);
+        await this.s._chunksCollection.drop({ timeoutMS: remainingTimeMS });
+      } else {
+        await this.s._filesCollection.drop();
+        await this.s._chunksCollection.drop();
+      }
+    }
+  }
+  exports.GridFSBucket = GridFSBucket;
+  GridFSBucket.INDEX = "index";
+});
+
+// node_modules/mongodb/lib/index.js
+var require_lib3 = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.MongoRuntimeError = exports.MongoParseError = exports.MongoOperationTimeoutError = exports.MongoOIDCError = exports.MongoNotConnectedError = exports.MongoNetworkTimeoutError = exports.MongoNetworkError = exports.MongoMissingDependencyError = exports.MongoMissingCredentialsError = exports.MongoKerberosError = exports.MongoInvalidArgumentError = exports.MongoGridFSStreamError = exports.MongoGridFSChunkError = exports.MongoGCPError = exports.MongoExpiredSessionError = exports.MongoError = exports.MongoDriverError = exports.MongoDecompressionError = exports.MongoCursorInUseError = exports.MongoCursorExhaustedError = exports.MongoCompatibilityError = exports.MongoClientClosedError = exports.MongoClientBulkWriteExecutionError = exports.MongoClientBulkWriteError = exports.MongoClientBulkWriteCursorError = exports.MongoChangeStreamError = exports.MongoBatchReExecutionError = exports.MongoAzureError = exports.MongoAWSError = exports.MongoAPIError = exports.ExplainableCursor = exports.ChangeStreamCursor = exports.ClientEncryption = exports.MongoBulkWriteError = exports.UUID = exports.Timestamp = exports.ObjectId = exports.MinKey = exports.MaxKey = exports.Long = exports.Int32 = exports.Double = exports.Decimal128 = exports.DBRef = exports.Code = exports.BSONType = exports.BSONSymbol = exports.BSONRegExp = exports.Binary = exports.BSON = undefined;
+  exports.CommandFailedEvent = exports.WriteConcern = exports.ReadPreference = exports.ReadConcern = exports.TopologyType = exports.ServerType = exports.ReadPreferenceMode = exports.ReadConcernLevel = exports.ProfilingLevel = exports.ReturnDocument = exports.SeverityLevel = exports.MongoLoggableComponent = exports.ServerApiVersion = exports.ExplainVerbosity = exports.MongoErrorLabel = exports.CursorTimeoutMode = exports.CURSOR_FLAGS = exports.Compressor = exports.AuthMechanism = exports.GSSAPICanonicalizationValue = exports.AutoEncryptionLoggerLevel = exports.BatchType = exports.UnorderedBulkOperation = exports.OrderedBulkOperation = exports.MongoClient = exports.ListIndexesCursor = exports.ListCollectionsCursor = exports.GridFSBucketWriteStream = exports.GridFSBucketReadStream = exports.GridFSBucket = exports.FindCursor = exports.Db = exports.Collection = exports.ClientSession = exports.ChangeStream = exports.CancellationToken = exports.AggregationCursor = exports.Admin = exports.AbstractCursor = exports.configureExplicitResourceManagement = exports.MongoWriteConcernError = exports.MongoUnexpectedServerResponseError = exports.MongoTransactionError = exports.MongoTopologyClosedError = exports.MongoTailableCursorError = exports.MongoSystemError = exports.MongoStalePrimaryError = exports.MongoServerSelectionError = exports.MongoServerError = exports.MongoServerClosedError = undefined;
+  exports.MongoClientAuthProviders = exports.MongoCryptKMSRequestNetworkTimeoutError = exports.MongoCryptInvalidArgumentError = exports.MongoCryptError = exports.MongoCryptCreateEncryptedCollectionError = exports.MongoCryptCreateDataKeyError = exports.MongoCryptAzureKMSRequestError = exports.SrvPollingEvent = exports.WaitingForSuitableServerEvent = exports.ServerSelectionSucceededEvent = exports.ServerSelectionStartedEvent = exports.ServerSelectionFailedEvent = exports.ServerSelectionEvent = exports.TopologyOpeningEvent = exports.TopologyDescriptionChangedEvent = exports.TopologyClosedEvent = exports.ServerOpeningEvent = exports.ServerHeartbeatSucceededEvent = exports.ServerHeartbeatStartedEvent = exports.ServerHeartbeatFailedEvent = exports.ServerDescriptionChangedEvent = exports.ServerClosedEvent = exports.ConnectionReadyEvent = exports.ConnectionPoolReadyEvent = exports.ConnectionPoolMonitoringEvent = exports.ConnectionPoolCreatedEvent = exports.ConnectionPoolClosedEvent = exports.ConnectionPoolClearedEvent = exports.ConnectionCreatedEvent = exports.ConnectionClosedEvent = exports.ConnectionCheckOutStartedEvent = exports.ConnectionCheckOutFailedEvent = exports.ConnectionCheckedOutEvent = exports.ConnectionCheckedInEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = undefined;
+  var admin_1 = require_admin();
+  Object.defineProperty(exports, "Admin", { enumerable: true, get: function() {
+    return admin_1.Admin;
+  } });
+  var ordered_1 = require_ordered();
+  Object.defineProperty(exports, "OrderedBulkOperation", { enumerable: true, get: function() {
+    return ordered_1.OrderedBulkOperation;
+  } });
+  var unordered_1 = require_unordered();
+  Object.defineProperty(exports, "UnorderedBulkOperation", { enumerable: true, get: function() {
+    return unordered_1.UnorderedBulkOperation;
+  } });
+  var change_stream_1 = require_change_stream();
+  Object.defineProperty(exports, "ChangeStream", { enumerable: true, get: function() {
+    return change_stream_1.ChangeStream;
+  } });
+  var collection_1 = require_collection2();
+  Object.defineProperty(exports, "Collection", { enumerable: true, get: function() {
+    return collection_1.Collection;
+  } });
+  var abstract_cursor_1 = require_abstract_cursor();
+  Object.defineProperty(exports, "AbstractCursor", { enumerable: true, get: function() {
+    return abstract_cursor_1.AbstractCursor;
+  } });
+  var aggregation_cursor_1 = require_aggregation_cursor();
+  Object.defineProperty(exports, "AggregationCursor", { enumerable: true, get: function() {
+    return aggregation_cursor_1.AggregationCursor;
+  } });
+  var find_cursor_1 = require_find_cursor();
+  Object.defineProperty(exports, "FindCursor", { enumerable: true, get: function() {
+    return find_cursor_1.FindCursor;
+  } });
+  var list_collections_cursor_1 = require_list_collections_cursor();
+  Object.defineProperty(exports, "ListCollectionsCursor", { enumerable: true, get: function() {
+    return list_collections_cursor_1.ListCollectionsCursor;
+  } });
+  var list_indexes_cursor_1 = require_list_indexes_cursor();
+  Object.defineProperty(exports, "ListIndexesCursor", { enumerable: true, get: function() {
+    return list_indexes_cursor_1.ListIndexesCursor;
+  } });
+  var db_1 = require_db();
+  Object.defineProperty(exports, "Db", { enumerable: true, get: function() {
+    return db_1.Db;
+  } });
+  var gridfs_1 = require_gridfs();
+  Object.defineProperty(exports, "GridFSBucket", { enumerable: true, get: function() {
+    return gridfs_1.GridFSBucket;
+  } });
+  var download_1 = require_download();
+  Object.defineProperty(exports, "GridFSBucketReadStream", { enumerable: true, get: function() {
+    return download_1.GridFSBucketReadStream;
+  } });
+  var upload_1 = require_upload();
+  Object.defineProperty(exports, "GridFSBucketWriteStream", { enumerable: true, get: function() {
+    return upload_1.GridFSBucketWriteStream;
+  } });
+  var mongo_client_1 = require_mongo_client();
+  Object.defineProperty(exports, "MongoClient", { enumerable: true, get: function() {
+    return mongo_client_1.MongoClient;
+  } });
+  var mongo_types_1 = require_mongo_types();
+  Object.defineProperty(exports, "CancellationToken", { enumerable: true, get: function() {
+    return mongo_types_1.CancellationToken;
+  } });
+  var sessions_1 = require_sessions();
+  Object.defineProperty(exports, "ClientSession", { enumerable: true, get: function() {
+    return sessions_1.ClientSession;
+  } });
+  var bson_1 = require_bson2();
+  Object.defineProperty(exports, "BSON", { enumerable: true, get: function() {
+    return bson_1.BSON;
+  } });
+  var bson_2 = require_bson2();
+  Object.defineProperty(exports, "Binary", { enumerable: true, get: function() {
+    return bson_2.Binary;
+  } });
+  Object.defineProperty(exports, "BSONRegExp", { enumerable: true, get: function() {
+    return bson_2.BSONRegExp;
+  } });
+  Object.defineProperty(exports, "BSONSymbol", { enumerable: true, get: function() {
+    return bson_2.BSONSymbol;
+  } });
+  Object.defineProperty(exports, "BSONType", { enumerable: true, get: function() {
+    return bson_2.BSONType;
+  } });
+  Object.defineProperty(exports, "Code", { enumerable: true, get: function() {
+    return bson_2.Code;
+  } });
+  Object.defineProperty(exports, "DBRef", { enumerable: true, get: function() {
+    return bson_2.DBRef;
+  } });
+  Object.defineProperty(exports, "Decimal128", { enumerable: true, get: function() {
+    return bson_2.Decimal128;
+  } });
+  Object.defineProperty(exports, "Double", { enumerable: true, get: function() {
+    return bson_2.Double;
+  } });
+  Object.defineProperty(exports, "Int32", { enumerable: true, get: function() {
+    return bson_2.Int32;
+  } });
+  Object.defineProperty(exports, "Long", { enumerable: true, get: function() {
+    return bson_2.Long;
+  } });
+  Object.defineProperty(exports, "MaxKey", { enumerable: true, get: function() {
+    return bson_2.MaxKey;
+  } });
+  Object.defineProperty(exports, "MinKey", { enumerable: true, get: function() {
+    return bson_2.MinKey;
+  } });
+  Object.defineProperty(exports, "ObjectId", { enumerable: true, get: function() {
+    return bson_2.ObjectId;
+  } });
+  Object.defineProperty(exports, "Timestamp", { enumerable: true, get: function() {
+    return bson_2.Timestamp;
+  } });
+  Object.defineProperty(exports, "UUID", { enumerable: true, get: function() {
+    return bson_2.UUID;
+  } });
+  var common_1 = require_common2();
+  Object.defineProperty(exports, "MongoBulkWriteError", { enumerable: true, get: function() {
+    return common_1.MongoBulkWriteError;
+  } });
+  var client_encryption_1 = require_client_encryption();
+  Object.defineProperty(exports, "ClientEncryption", { enumerable: true, get: function() {
+    return client_encryption_1.ClientEncryption;
+  } });
+  var change_stream_cursor_1 = require_change_stream_cursor();
+  Object.defineProperty(exports, "ChangeStreamCursor", { enumerable: true, get: function() {
+    return change_stream_cursor_1.ChangeStreamCursor;
+  } });
+  var explainable_cursor_1 = require_explainable_cursor();
+  Object.defineProperty(exports, "ExplainableCursor", { enumerable: true, get: function() {
+    return explainable_cursor_1.ExplainableCursor;
+  } });
+  var error_1 = require_error();
+  Object.defineProperty(exports, "MongoAPIError", { enumerable: true, get: function() {
+    return error_1.MongoAPIError;
+  } });
+  Object.defineProperty(exports, "MongoAWSError", { enumerable: true, get: function() {
+    return error_1.MongoAWSError;
+  } });
+  Object.defineProperty(exports, "MongoAzureError", { enumerable: true, get: function() {
+    return error_1.MongoAzureError;
+  } });
+  Object.defineProperty(exports, "MongoBatchReExecutionError", { enumerable: true, get: function() {
+    return error_1.MongoBatchReExecutionError;
+  } });
+  Object.defineProperty(exports, "MongoChangeStreamError", { enumerable: true, get: function() {
+    return error_1.MongoChangeStreamError;
+  } });
+  Object.defineProperty(exports, "MongoClientBulkWriteCursorError", { enumerable: true, get: function() {
+    return error_1.MongoClientBulkWriteCursorError;
+  } });
+  Object.defineProperty(exports, "MongoClientBulkWriteError", { enumerable: true, get: function() {
+    return error_1.MongoClientBulkWriteError;
+  } });
+  Object.defineProperty(exports, "MongoClientBulkWriteExecutionError", { enumerable: true, get: function() {
+    return error_1.MongoClientBulkWriteExecutionError;
+  } });
+  Object.defineProperty(exports, "MongoClientClosedError", { enumerable: true, get: function() {
+    return error_1.MongoClientClosedError;
+  } });
+  Object.defineProperty(exports, "MongoCompatibilityError", { enumerable: true, get: function() {
+    return error_1.MongoCompatibilityError;
+  } });
+  Object.defineProperty(exports, "MongoCursorExhaustedError", { enumerable: true, get: function() {
+    return error_1.MongoCursorExhaustedError;
+  } });
+  Object.defineProperty(exports, "MongoCursorInUseError", { enumerable: true, get: function() {
+    return error_1.MongoCursorInUseError;
+  } });
+  Object.defineProperty(exports, "MongoDecompressionError", { enumerable: true, get: function() {
+    return error_1.MongoDecompressionError;
+  } });
+  Object.defineProperty(exports, "MongoDriverError", { enumerable: true, get: function() {
+    return error_1.MongoDriverError;
+  } });
+  Object.defineProperty(exports, "MongoError", { enumerable: true, get: function() {
+    return error_1.MongoError;
+  } });
+  Object.defineProperty(exports, "MongoExpiredSessionError", { enumerable: true, get: function() {
+    return error_1.MongoExpiredSessionError;
+  } });
+  Object.defineProperty(exports, "MongoGCPError", { enumerable: true, get: function() {
+    return error_1.MongoGCPError;
+  } });
+  Object.defineProperty(exports, "MongoGridFSChunkError", { enumerable: true, get: function() {
+    return error_1.MongoGridFSChunkError;
+  } });
+  Object.defineProperty(exports, "MongoGridFSStreamError", { enumerable: true, get: function() {
+    return error_1.MongoGridFSStreamError;
+  } });
+  Object.defineProperty(exports, "MongoInvalidArgumentError", { enumerable: true, get: function() {
+    return error_1.MongoInvalidArgumentError;
+  } });
+  Object.defineProperty(exports, "MongoKerberosError", { enumerable: true, get: function() {
+    return error_1.MongoKerberosError;
+  } });
+  Object.defineProperty(exports, "MongoMissingCredentialsError", { enumerable: true, get: function() {
+    return error_1.MongoMissingCredentialsError;
+  } });
+  Object.defineProperty(exports, "MongoMissingDependencyError", { enumerable: true, get: function() {
+    return error_1.MongoMissingDependencyError;
+  } });
+  Object.defineProperty(exports, "MongoNetworkError", { enumerable: true, get: function() {
+    return error_1.MongoNetworkError;
+  } });
+  Object.defineProperty(exports, "MongoNetworkTimeoutError", { enumerable: true, get: function() {
+    return error_1.MongoNetworkTimeoutError;
+  } });
+  Object.defineProperty(exports, "MongoNotConnectedError", { enumerable: true, get: function() {
+    return error_1.MongoNotConnectedError;
+  } });
+  Object.defineProperty(exports, "MongoOIDCError", { enumerable: true, get: function() {
+    return error_1.MongoOIDCError;
+  } });
+  Object.defineProperty(exports, "MongoOperationTimeoutError", { enumerable: true, get: function() {
+    return error_1.MongoOperationTimeoutError;
+  } });
+  Object.defineProperty(exports, "MongoParseError", { enumerable: true, get: function() {
+    return error_1.MongoParseError;
+  } });
+  Object.defineProperty(exports, "MongoRuntimeError", { enumerable: true, get: function() {
+    return error_1.MongoRuntimeError;
+  } });
+  Object.defineProperty(exports, "MongoServerClosedError", { enumerable: true, get: function() {
+    return error_1.MongoServerClosedError;
+  } });
+  Object.defineProperty(exports, "MongoServerError", { enumerable: true, get: function() {
+    return error_1.MongoServerError;
+  } });
+  Object.defineProperty(exports, "MongoServerSelectionError", { enumerable: true, get: function() {
+    return error_1.MongoServerSelectionError;
+  } });
+  Object.defineProperty(exports, "MongoStalePrimaryError", { enumerable: true, get: function() {
+    return error_1.MongoStalePrimaryError;
+  } });
+  Object.defineProperty(exports, "MongoSystemError", { enumerable: true, get: function() {
+    return error_1.MongoSystemError;
+  } });
+  Object.defineProperty(exports, "MongoTailableCursorError", { enumerable: true, get: function() {
+    return error_1.MongoTailableCursorError;
+  } });
+  Object.defineProperty(exports, "MongoTopologyClosedError", { enumerable: true, get: function() {
+    return error_1.MongoTopologyClosedError;
+  } });
+  Object.defineProperty(exports, "MongoTransactionError", { enumerable: true, get: function() {
+    return error_1.MongoTransactionError;
+  } });
+  Object.defineProperty(exports, "MongoUnexpectedServerResponseError", { enumerable: true, get: function() {
+    return error_1.MongoUnexpectedServerResponseError;
+  } });
+  Object.defineProperty(exports, "MongoWriteConcernError", { enumerable: true, get: function() {
+    return error_1.MongoWriteConcernError;
+  } });
+  var resource_management_1 = require_resource_management();
+  Object.defineProperty(exports, "configureExplicitResourceManagement", { enumerable: true, get: function() {
+    return resource_management_1.configureExplicitResourceManagement;
+  } });
+  var common_2 = require_common2();
+  Object.defineProperty(exports, "BatchType", { enumerable: true, get: function() {
+    return common_2.BatchType;
+  } });
+  var auto_encrypter_1 = require_auto_encrypter();
+  Object.defineProperty(exports, "AutoEncryptionLoggerLevel", { enumerable: true, get: function() {
+    return auto_encrypter_1.AutoEncryptionLoggerLevel;
+  } });
+  var gssapi_1 = require_gssapi();
+  Object.defineProperty(exports, "GSSAPICanonicalizationValue", { enumerable: true, get: function() {
+    return gssapi_1.GSSAPICanonicalizationValue;
+  } });
+  var providers_1 = require_providers();
+  Object.defineProperty(exports, "AuthMechanism", { enumerable: true, get: function() {
+    return providers_1.AuthMechanism;
+  } });
+  var compression_1 = require_compression();
+  Object.defineProperty(exports, "Compressor", { enumerable: true, get: function() {
+    return compression_1.Compressor;
+  } });
+  var abstract_cursor_2 = require_abstract_cursor();
+  Object.defineProperty(exports, "CURSOR_FLAGS", { enumerable: true, get: function() {
+    return abstract_cursor_2.CURSOR_FLAGS;
+  } });
+  Object.defineProperty(exports, "CursorTimeoutMode", { enumerable: true, get: function() {
+    return abstract_cursor_2.CursorTimeoutMode;
+  } });
+  var error_2 = require_error();
+  Object.defineProperty(exports, "MongoErrorLabel", { enumerable: true, get: function() {
+    return error_2.MongoErrorLabel;
+  } });
+  var explain_1 = require_explain();
+  Object.defineProperty(exports, "ExplainVerbosity", { enumerable: true, get: function() {
+    return explain_1.ExplainVerbosity;
+  } });
+  var mongo_client_2 = require_mongo_client();
+  Object.defineProperty(exports, "ServerApiVersion", { enumerable: true, get: function() {
+    return mongo_client_2.ServerApiVersion;
+  } });
+  var mongo_logger_1 = require_mongo_logger();
+  Object.defineProperty(exports, "MongoLoggableComponent", { enumerable: true, get: function() {
+    return mongo_logger_1.MongoLoggableComponent;
+  } });
+  Object.defineProperty(exports, "SeverityLevel", { enumerable: true, get: function() {
+    return mongo_logger_1.SeverityLevel;
+  } });
+  var find_and_modify_1 = require_find_and_modify();
+  Object.defineProperty(exports, "ReturnDocument", { enumerable: true, get: function() {
+    return find_and_modify_1.ReturnDocument;
+  } });
+  var set_profiling_level_1 = require_set_profiling_level();
+  Object.defineProperty(exports, "ProfilingLevel", { enumerable: true, get: function() {
+    return set_profiling_level_1.ProfilingLevel;
+  } });
+  var read_concern_1 = require_read_concern();
+  Object.defineProperty(exports, "ReadConcernLevel", { enumerable: true, get: function() {
+    return read_concern_1.ReadConcernLevel;
+  } });
+  var read_preference_1 = require_read_preference();
+  Object.defineProperty(exports, "ReadPreferenceMode", { enumerable: true, get: function() {
+    return read_preference_1.ReadPreferenceMode;
+  } });
+  var common_3 = require_common();
+  Object.defineProperty(exports, "ServerType", { enumerable: true, get: function() {
+    return common_3.ServerType;
+  } });
+  Object.defineProperty(exports, "TopologyType", { enumerable: true, get: function() {
+    return common_3.TopologyType;
+  } });
+  var read_concern_2 = require_read_concern();
+  Object.defineProperty(exports, "ReadConcern", { enumerable: true, get: function() {
+    return read_concern_2.ReadConcern;
+  } });
+  var read_preference_2 = require_read_preference();
+  Object.defineProperty(exports, "ReadPreference", { enumerable: true, get: function() {
+    return read_preference_2.ReadPreference;
+  } });
+  var write_concern_1 = require_write_concern();
+  Object.defineProperty(exports, "WriteConcern", { enumerable: true, get: function() {
+    return write_concern_1.WriteConcern;
+  } });
+  var command_monitoring_events_1 = require_command_monitoring_events();
+  Object.defineProperty(exports, "CommandFailedEvent", { enumerable: true, get: function() {
+    return command_monitoring_events_1.CommandFailedEvent;
+  } });
+  Object.defineProperty(exports, "CommandStartedEvent", { enumerable: true, get: function() {
+    return command_monitoring_events_1.CommandStartedEvent;
+  } });
+  Object.defineProperty(exports, "CommandSucceededEvent", { enumerable: true, get: function() {
+    return command_monitoring_events_1.CommandSucceededEvent;
+  } });
+  var connection_pool_events_1 = require_connection_pool_events();
+  Object.defineProperty(exports, "ConnectionCheckedInEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionCheckedInEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionCheckedOutEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionCheckedOutEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionCheckOutFailedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionCheckOutFailedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionCheckOutStartedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionCheckOutStartedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionClosedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionClosedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionCreatedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionCreatedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionPoolClearedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionPoolClearedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionPoolClosedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionPoolClosedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionPoolCreatedEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionPoolCreatedEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionPoolMonitoringEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionPoolMonitoringEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionPoolReadyEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionPoolReadyEvent;
+  } });
+  Object.defineProperty(exports, "ConnectionReadyEvent", { enumerable: true, get: function() {
+    return connection_pool_events_1.ConnectionReadyEvent;
+  } });
+  var events_1 = require_events();
+  Object.defineProperty(exports, "ServerClosedEvent", { enumerable: true, get: function() {
+    return events_1.ServerClosedEvent;
+  } });
+  Object.defineProperty(exports, "ServerDescriptionChangedEvent", { enumerable: true, get: function() {
+    return events_1.ServerDescriptionChangedEvent;
+  } });
+  Object.defineProperty(exports, "ServerHeartbeatFailedEvent", { enumerable: true, get: function() {
+    return events_1.ServerHeartbeatFailedEvent;
+  } });
+  Object.defineProperty(exports, "ServerHeartbeatStartedEvent", { enumerable: true, get: function() {
+    return events_1.ServerHeartbeatStartedEvent;
+  } });
+  Object.defineProperty(exports, "ServerHeartbeatSucceededEvent", { enumerable: true, get: function() {
+    return events_1.ServerHeartbeatSucceededEvent;
+  } });
+  Object.defineProperty(exports, "ServerOpeningEvent", { enumerable: true, get: function() {
+    return events_1.ServerOpeningEvent;
+  } });
+  Object.defineProperty(exports, "TopologyClosedEvent", { enumerable: true, get: function() {
+    return events_1.TopologyClosedEvent;
+  } });
+  Object.defineProperty(exports, "TopologyDescriptionChangedEvent", { enumerable: true, get: function() {
+    return events_1.TopologyDescriptionChangedEvent;
+  } });
+  Object.defineProperty(exports, "TopologyOpeningEvent", { enumerable: true, get: function() {
+    return events_1.TopologyOpeningEvent;
+  } });
+  var server_selection_events_1 = require_server_selection_events();
+  Object.defineProperty(exports, "ServerSelectionEvent", { enumerable: true, get: function() {
+    return server_selection_events_1.ServerSelectionEvent;
+  } });
+  Object.defineProperty(exports, "ServerSelectionFailedEvent", { enumerable: true, get: function() {
+    return server_selection_events_1.ServerSelectionFailedEvent;
+  } });
+  Object.defineProperty(exports, "ServerSelectionStartedEvent", { enumerable: true, get: function() {
+    return server_selection_events_1.ServerSelectionStartedEvent;
+  } });
+  Object.defineProperty(exports, "ServerSelectionSucceededEvent", { enumerable: true, get: function() {
+    return server_selection_events_1.ServerSelectionSucceededEvent;
+  } });
+  Object.defineProperty(exports, "WaitingForSuitableServerEvent", { enumerable: true, get: function() {
+    return server_selection_events_1.WaitingForSuitableServerEvent;
+  } });
+  var srv_polling_1 = require_srv_polling();
+  Object.defineProperty(exports, "SrvPollingEvent", { enumerable: true, get: function() {
+    return srv_polling_1.SrvPollingEvent;
+  } });
+  var errors_1 = require_errors();
+  Object.defineProperty(exports, "MongoCryptAzureKMSRequestError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptAzureKMSRequestError;
+  } });
+  Object.defineProperty(exports, "MongoCryptCreateDataKeyError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptCreateDataKeyError;
+  } });
+  Object.defineProperty(exports, "MongoCryptCreateEncryptedCollectionError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptCreateEncryptedCollectionError;
+  } });
+  Object.defineProperty(exports, "MongoCryptError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptError;
+  } });
+  Object.defineProperty(exports, "MongoCryptInvalidArgumentError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptInvalidArgumentError;
+  } });
+  Object.defineProperty(exports, "MongoCryptKMSRequestNetworkTimeoutError", { enumerable: true, get: function() {
+    return errors_1.MongoCryptKMSRequestNetworkTimeoutError;
+  } });
+  var mongo_client_auth_providers_1 = require_mongo_client_auth_providers();
+  Object.defineProperty(exports, "MongoClientAuthProviders", { enumerable: true, get: function() {
+    return mongo_client_auth_providers_1.MongoClientAuthProviders;
+  } });
 });
 
 // node_modules/mongoose/lib/helpers/symbols.js
@@ -28939,7 +28947,7 @@ var require_collection3 = __commonJS((exports, module) => {
   /*!
    * Module dependencies.
    */
-  var MongooseCollection = require_collection2();
+  var MongooseCollection = require_collection();
   var MongooseError = require_mongooseError();
   var Collection = require_lib3().Collection;
   var ObjectId2 = require_objectid();
@@ -34524,12 +34532,16 @@ var require_document2 = __commonJS((exports, module) => {
           doc[i] = {};
           if (!strict && !(i in docSchema.tree) && !(i in docSchema.methods) && !(i in docSchema.virtuals)) {
             self2[i] = doc[i];
+          } else if (opts?.virtuals && i in docSchema.virtuals) {
+            self2[i] = doc[i];
           }
         }
         init(self2, value, doc[i], opts, path + ".");
       } else if (!schemaType) {
         doc[i] = value;
         if (!strict && !prefix) {
+          self2[i] = value;
+        } else if (opts?.virtuals && i in docSchema.virtuals) {
           self2[i] = value;
         }
       } else {
@@ -34544,9 +34556,9 @@ var require_document2 = __commonJS((exports, module) => {
             try {
               if (opts && opts.setters) {
                 const overrideInit = false;
-                doc[i] = schemaType.applySetters(value, self2, overrideInit);
+                doc[i] = schemaType.applySetters(value, self2, overrideInit, null, opts);
               } else {
-                doc[i] = schemaType.cast(value, self2, true);
+                doc[i] = schemaType.cast(value, self2, true, undefined, opts);
               }
             } catch (e) {
               self2.invalidate(e.path, new ValidatorError({
@@ -37851,6 +37863,7 @@ var require_schemaType = __commonJS((exports, module) => {
     this[schemaTypeSymbol] = true;
     this.path = path;
     this.instance = instance;
+    this.schemaName = this.constructor.schemaName;
     this.validators = [];
     this.getters = this.constructor.hasOwnProperty("getters") ? this.constructor.getters.slice() : [];
     this.setters = this.constructor.hasOwnProperty("setters") ? this.constructor.setters.slice() : [];
@@ -42975,7 +42988,7 @@ var require_subdocument2 = __commonJS((exports, module) => {
     if (init) {
       subdoc = new Constructor(undefined, selected, doc, false, { defaults: false });
       delete subdoc.$__.defaults;
-      subdoc.$init(val);
+      subdoc.$init(val, options);
       const exclude = isExclusive(selected);
       applyDefaults(subdoc, selected, exclude);
     } else {
@@ -43455,7 +43468,7 @@ var require_documentArray2 = __commonJS((exports, module) => {
             selected = true;
           }
           subdoc = new Constructor(null, value, initDocumentOptions, selected, i);
-          rawArray[i] = subdoc.$init(rawArray[i]);
+          rawArray[i] = subdoc.$init(rawArray[i], options);
         } else {
           if (prev && typeof prev.id === "function") {
             subdoc = prev.id(rawArray[i]._id);
@@ -43898,7 +43911,7 @@ var require_map2 = __commonJS((exports, module) => {
             if (_val == null) {
               _val = map.$__schemaType._castNullish(_val);
             } else {
-              _val = map.$__schemaType.cast(_val, doc, true, null, { path: path + "." + key });
+              _val = map.$__schemaType.cast(_val, doc, true, null, { ...options, path: path + "." + key });
             }
             map.$init(key, _val);
           }
@@ -43908,7 +43921,7 @@ var require_map2 = __commonJS((exports, module) => {
             if (_val == null) {
               _val = map.$__schemaType._castNullish(_val);
             } else {
-              _val = map.$__schemaType.cast(_val, doc, true, null, { path: path + "." + key });
+              _val = map.$__schemaType.cast(_val, doc, true, null, { ...options, path: path + "." + key });
             }
             map.$init(key, _val);
           }
@@ -46979,9 +46992,9 @@ var require_castUpdate = __commonJS((exports, module) => {
     }
     throw new MongooseError('Invalid update pipeline operator: "' + op + '"');
   }
-  function walkUpdatePath(schema, obj, op, options, context, filter, pref) {
+  function walkUpdatePath(schema, obj, op, options, context, filter, prefix) {
     const strict = options.strict;
-    const prefix = pref ? pref + "." : "";
+    prefix = prefix ? prefix + "." : "";
     const keys = Object.keys(obj);
     let i = keys.length;
     let hasKeys = false;
@@ -47110,7 +47123,7 @@ var require_castUpdate = __commonJS((exports, module) => {
           hasKeys |= walkUpdatePath(schema, val, op, options, context, filter, prefix + key) || utils.isObject(val) && Object.keys(val).length === 0;
         }
       } else {
-        const checkPath = key === "$each" || key === "$or" || key === "$and" || key === "$in" ? pref : prefix + key;
+        const checkPath = key === "$each" || key === "$or" || key === "$and" || key === "$in" ? prefix : prefix + key;
         schematype = schema._getSchema(checkPath);
         if (op !== "$setOnInsert" && handleImmutable(schematype, strict, obj, key, prefix + key, options, context)) {
           continue;
@@ -48463,7 +48476,7 @@ var require_package2 = __commonJS((exports, module) => {
   module.exports = {
     name: "mongoose",
     description: "Mongoose MongoDB ODM",
-    version: "8.18.2",
+    version: "8.19.0",
     author: "Guillermo Rauch <guillermo@learnboost.com>",
     keywords: [
       "mongodb",
@@ -48484,13 +48497,14 @@ var require_package2 = __commonJS((exports, module) => {
     dependencies: {
       bson: "^6.10.4",
       kareem: "2.6.3",
-      mongodb: "~6.18.0",
+      mongodb: "~6.20.0",
       mpath: "0.9.0",
       mquery: "5.0.0",
       ms: "2.1.3",
       sift: "17.1.3"
     },
     devDependencies: {
+      "@ark/attest": "0.48.2",
       "@babel/core": "7.28.3",
       "@babel/preset-env": "7.28.3",
       "@mongodb-js/mongodb-downloader": "^0.4.2",
@@ -48573,7 +48587,8 @@ var require_package2 = __commonJS((exports, module) => {
       "test-encryption": "mocha --exit ./test/encryption/*.test.js",
       tdd: "mocha ./test/*.test.js --inspect --watch --recursive --watch-files ./**/*.{js,ts}",
       "test-coverage": "nyc --reporter=html --reporter=text npm test",
-      "ts-benchmark": "cd ./benchmarks/typescript/simple && npm install && npm run benchmark | node ../../../scripts/tsc-diagnostics-check"
+      "ts-benchmark": "cd ./benchmarks/typescript/simple && npm install && npm run benchmark | node ../../../scripts/tsc-diagnostics-check",
+      "attest-benchmark": "node ./benchmarks/typescript/infer.bench.mts"
     },
     main: "./index.js",
     types: "./types/index.d.ts",
@@ -49111,8 +49126,8 @@ var require_eachAsync = __commonJS((exports, module) => {
       function createFetch() {
         let documentsBatch = [];
         let drained = false;
-        return fetch;
-        function fetch(done) {
+        return fetch2;
+        function fetch2(done) {
           if (drained || aborted) {
             return done();
           } else if (error) {
@@ -49149,7 +49164,7 @@ var require_eachAsync = __commonJS((exports, module) => {
               documentsBatch.push(doc);
             }
             if (batchSize && documentsBatch.length !== batchSize) {
-              immediate(() => enqueue(fetch));
+              immediate(() => enqueue(fetch2));
               return;
             }
             const docsToProcess = batchSize ? documentsBatch : doc;
@@ -49172,7 +49187,7 @@ var require_eachAsync = __commonJS((exports, module) => {
                 const finalErr = continueOnError ? createEachAsyncMultiError(aggregatedErrors) : error;
                 return finalCallback(finalErr);
               }
-              immediate(() => enqueue(fetch));
+              immediate(() => enqueue(fetch2));
             }
             handleNextResult(docsToProcess, currentDocumentIndex++, handleNextResultCallBack);
           });
@@ -49702,7 +49717,7 @@ var require_getPath = __commonJS((exports, module) => {
       }
       cur = cur.length === 0 ? piece : cur + "." + piece;
       schematype = schema.path(cur);
-      if (schematype != null && schematype.schema) {
+      if (schematype?.schema) {
         schema = schematype.schema;
         if (!isArray && schematype.$isMongooseDocumentArray) {
           isArray = true;
@@ -49711,6 +49726,8 @@ var require_getPath = __commonJS((exports, module) => {
           schema = schema.discriminators[discriminatorValueMap[cur]] ?? schema;
         }
         cur = "";
+      } else if (schematype?.instance === "Mixed") {
+        break;
       }
     }
     return schematype;
@@ -59800,6 +59817,9 @@ var require_model = __commonJS((exports, module) => {
   };
   Model.hydrate = function(obj, projection, options) {
     _checkContext(this, "hydrate");
+    if (options?.virtuals && options?.hydratedPopulatedDocs === false) {
+      throw new MongooseError("Cannot set `hydratedPopulatedDocs` option to false if `virtuals` option is truthy because `virtuals: true` also sets populated virtuals");
+    }
     if (projection != null) {
       if (obj != null && obj.$__ != null) {
         obj = obj.toObject(internalToObjectOptions);
@@ -60093,11 +60113,17 @@ var require_model = __commonJS((exports, module) => {
    */
   function _execPopulateQuery(mod, match, select) {
     let subPopulate = clone(mod.options.populate);
-    const queryOptions = Object.assign({
-      skip: mod.options.skip,
-      limit: mod.options.limit,
-      perDocumentLimit: mod.options.perDocumentLimit
-    }, mod.options.options);
+    const queryOptions = {};
+    if (mod.options.skip !== undefined) {
+      queryOptions.skip = mod.options.skip;
+    }
+    if (mod.options.limit !== undefined) {
+      queryOptions.limit = mod.options.limit;
+    }
+    if (mod.options.perDocumentLimit !== undefined) {
+      queryOptions.perDocumentLimit = mod.options.perDocumentLimit;
+    }
+    Object.assign(queryOptions, mod.options.options);
     if (mod.count) {
       delete queryOptions.skip;
     }
@@ -61056,7 +61082,7 @@ var require_mongoose = __commonJS((exports, module) => {
   Mongoose.prototype.connections;
   Mongoose.prototype.nextConnectionId;
   Mongoose.prototype.Aggregate = Aggregate;
-  Mongoose.prototype.BaseCollection = require_collection2();
+  Mongoose.prototype.BaseCollection = require_collection();
   Object.defineProperty(Mongoose.prototype, "Collection", {
     get: function() {
       return this.__driver.Collection;
@@ -62640,7 +62666,7 @@ var Hono2 = class extends Hono {
 
 // server/db/connection.ts
 var import_mongoose = __toESM(require_mongoose2(), 1);
-var uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/test";
+var uri = Bun.env.MONGODB_URI || "mongodb://127.0.0.1:27017/test";
 async function connectDB() {
   try {
     if (import_mongoose.default.connection.readyState === 0) {
@@ -62655,1676 +62681,401 @@ async function connectDB() {
   }
 }
 
-// node_modules/bcryptjs/index.js
-import nodeCrypto from "crypto";
-var randomFallback = null;
-function randomBytes(len) {
+// server/models/contest.model.ts
+var import_mongoose2 = __toESM(require_mongoose2(), 1);
+var ContestSchema = new import_mongoose2.default.Schema({
+  name: { type: String, required: true, trim: true, unique: true },
+  conductedBy: { type: String, default: "IDCC" },
+  numberOfProblems: { type: Number, required: true },
+  durationMinutes: { type: Number, required: true },
+  bannerImage: { type: String },
+  iconImage: { type: String },
+  isRunning: { type: Boolean, default: false },
+  languages: {
+    type: [String],
+    default: []
+  },
+  instructions: {
+    type: [String],
+    default: []
+  },
+  questions: [
+    {
+      type: import_mongoose2.default.Schema.Types.ObjectId,
+      ref: "Problem"
+    }
+  ]
+}, { timestamps: true });
+var Contest = import_mongoose2.default.model("Contest", ContestSchema);
+var contest_model_default = Contest;
+
+// server/controllers/contest/create.controller.ts
+import * as fs from "fs";
+import * as path from "path";
+
+// server/utils/response.ts
+var SuccessResponse = (c, message, status, data) => {
+  return c.json({
+    success: true,
+    message,
+    data: data || null
+  }, status);
+};
+var ErrorResponse = (c, message, status = 400, errors) => {
+  return c.json({
+    success: false,
+    message,
+    errors: errors || null
+  }, status);
+};
+
+// server/controllers/contest/create.controller.ts
+var PUBLIC_UPLOADS_BASE = path.join(process.cwd(), "public", "uploads");
+var createContest = async (c) => {
+  const uploadedFilePaths = [];
+  let contest = null;
   try {
-    return crypto.getRandomValues(new Uint8Array(len));
-  } catch {}
-  try {
-    return nodeCrypto.randomBytes(len);
-  } catch {}
-  if (!randomFallback) {
-    throw Error("Neither WebCryptoAPI nor a crypto module is available. Use bcrypt.setRandomFallback to set an alternative");
-  }
-  return randomFallback(len);
-}
-function genSaltSync(rounds, seed_length) {
-  rounds = rounds || GENSALT_DEFAULT_LOG2_ROUNDS;
-  if (typeof rounds !== "number")
-    throw Error("Illegal arguments: " + typeof rounds + ", " + typeof seed_length);
-  if (rounds < 4)
-    rounds = 4;
-  else if (rounds > 31)
-    rounds = 31;
-  var salt = [];
-  salt.push("$2b$");
-  if (rounds < 10)
-    salt.push("0");
-  salt.push(rounds.toString());
-  salt.push("$");
-  salt.push(base64_encode(randomBytes(BCRYPT_SALT_LEN), BCRYPT_SALT_LEN));
-  return salt.join("");
-}
-function genSalt(rounds, seed_length, callback) {
-  if (typeof seed_length === "function")
-    callback = seed_length, seed_length = undefined;
-  if (typeof rounds === "function")
-    callback = rounds, rounds = undefined;
-  if (typeof rounds === "undefined")
-    rounds = GENSALT_DEFAULT_LOG2_ROUNDS;
-  else if (typeof rounds !== "number")
-    throw Error("illegal arguments: " + typeof rounds);
-  function _async(callback2) {
-    nextTick(function() {
+    const formData = await c.req.formData();
+    const name = formData.get("name");
+    const conductedBy = formData.get("conductedBy") || "IDCC";
+    const numberOfProblems = formData.get("numberOfProblems");
+    const durationMinutes = formData.get("durationMinutes");
+    if (!name || !numberOfProblems || !durationMinutes) {
+      return ErrorResponse(c, "Missing required fields", 400);
+    }
+    const existingContest = await contest_model_default.findOne({
+      name: { $regex: `^${name}$`, $options: "i" }
+    });
+    if (existingContest) {
+      return ErrorResponse(c, "Contest name already exists", 409);
+    }
+    const rawLanguages = formData.get("languages");
+    let parsedLanguages = [];
+    if (rawLanguages) {
       try {
-        callback2(null, genSaltSync(rounds));
-      } catch (err) {
-        callback2(err);
+        const arr = JSON.parse(String(rawLanguages));
+        parsedLanguages = Array.isArray(arr) ? arr.map(String) : [String(rawLanguages)];
+      } catch {
+        parsedLanguages = [String(rawLanguages)];
       }
+    }
+    const allowedLanguages = ["python", "c", "cpp", "java"];
+    parsedLanguages = parsedLanguages.map((l) => l.toLowerCase()).filter((l) => allowedLanguages.includes(l));
+    if (!fs.existsSync(PUBLIC_UPLOADS_BASE)) {
+      fs.mkdirSync(PUBLIC_UPLOADS_BASE, { recursive: true });
+    }
+    contest = new contest_model_default({
+      name: name.trim(),
+      conductedBy,
+      numberOfProblems: Number(numberOfProblems),
+      durationMinutes: Number(durationMinutes),
+      bannerImage: null,
+      iconImage: null,
+      languages: parsedLanguages
     });
-  }
-  if (callback) {
-    if (typeof callback !== "function")
-      throw Error("Illegal callback: " + typeof callback);
-    _async(callback);
-  } else
-    return new Promise(function(resolve, reject) {
-      _async(function(err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(res);
-      });
-    });
-}
-function hash(password, salt, callback, progressCallback) {
-  function _async(callback2) {
-    if (typeof password === "string" && typeof salt === "number")
-      genSalt(salt, function(err, salt2) {
-        _hash(password, salt2, callback2, progressCallback);
-      });
-    else if (typeof password === "string" && typeof salt === "string")
-      _hash(password, salt, callback2, progressCallback);
-    else
-      nextTick(callback2.bind(this, Error("Illegal arguments: " + typeof password + ", " + typeof salt)));
-  }
-  if (callback) {
-    if (typeof callback !== "function")
-      throw Error("Illegal callback: " + typeof callback);
-    _async(callback);
-  } else
-    return new Promise(function(resolve, reject) {
-      _async(function(err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(res);
-      });
-    });
-}
-function safeStringCompare(known, unknown) {
-  var diff = known.length ^ unknown.length;
-  for (var i = 0;i < known.length; ++i) {
-    diff |= known.charCodeAt(i) ^ unknown.charCodeAt(i);
-  }
-  return diff === 0;
-}
-function compare(password, hashValue, callback, progressCallback) {
-  function _async(callback2) {
-    if (typeof password !== "string" || typeof hashValue !== "string") {
-      nextTick(callback2.bind(this, Error("Illegal arguments: " + typeof password + ", " + typeof hashValue)));
-      return;
+    await contest.save();
+    const contestId = contest._id.toString();
+    const contestDir = path.join(PUBLIC_UPLOADS_BASE, contestId);
+    if (!fs.existsSync(contestDir)) {
+      fs.mkdirSync(contestDir, { recursive: true });
     }
-    if (hashValue.length !== 60) {
-      nextTick(callback2.bind(this, null, false));
-      return;
-    }
-    hash(password, hashValue.substring(0, 29), function(err, comp) {
-      if (err)
-        callback2(err);
-      else
-        callback2(null, safeStringCompare(comp, hashValue));
-    }, progressCallback);
-  }
-  if (callback) {
-    if (typeof callback !== "function")
-      throw Error("Illegal callback: " + typeof callback);
-    _async(callback);
-  } else
-    return new Promise(function(resolve, reject) {
-      _async(function(err, res) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(res);
-      });
-    });
-}
-var nextTick = typeof process !== "undefined" && process && typeof process.nextTick === "function" ? typeof setImmediate === "function" ? setImmediate : process.nextTick : setTimeout;
-function utf8Length(string) {
-  var len = 0, c = 0;
-  for (var i = 0;i < string.length; ++i) {
-    c = string.charCodeAt(i);
-    if (c < 128)
-      len += 1;
-    else if (c < 2048)
-      len += 2;
-    else if ((c & 64512) === 55296 && (string.charCodeAt(i + 1) & 64512) === 56320) {
-      ++i;
-      len += 4;
-    } else
-      len += 3;
-  }
-  return len;
-}
-function utf8Array(string) {
-  var offset = 0, c1, c2;
-  var buffer = new Array(utf8Length(string));
-  for (var i = 0, k = string.length;i < k; ++i) {
-    c1 = string.charCodeAt(i);
-    if (c1 < 128) {
-      buffer[offset++] = c1;
-    } else if (c1 < 2048) {
-      buffer[offset++] = c1 >> 6 | 192;
-      buffer[offset++] = c1 & 63 | 128;
-    } else if ((c1 & 64512) === 55296 && ((c2 = string.charCodeAt(i + 1)) & 64512) === 56320) {
-      c1 = 65536 + ((c1 & 1023) << 10) + (c2 & 1023);
-      ++i;
-      buffer[offset++] = c1 >> 18 | 240;
-      buffer[offset++] = c1 >> 12 & 63 | 128;
-      buffer[offset++] = c1 >> 6 & 63 | 128;
-      buffer[offset++] = c1 & 63 | 128;
-    } else {
-      buffer[offset++] = c1 >> 12 | 224;
-      buffer[offset++] = c1 >> 6 & 63 | 128;
-      buffer[offset++] = c1 & 63 | 128;
-    }
-  }
-  return buffer;
-}
-var BASE64_CODE = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split("");
-var BASE64_INDEX = [
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  0,
-  1,
-  54,
-  55,
-  56,
-  57,
-  58,
-  59,
-  60,
-  61,
-  62,
-  63,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  2,
-  3,
-  4,
-  5,
-  6,
-  7,
-  8,
-  9,
-  10,
-  11,
-  12,
-  13,
-  14,
-  15,
-  16,
-  17,
-  18,
-  19,
-  20,
-  21,
-  22,
-  23,
-  24,
-  25,
-  26,
-  27,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1,
-  28,
-  29,
-  30,
-  31,
-  32,
-  33,
-  34,
-  35,
-  36,
-  37,
-  38,
-  39,
-  40,
-  41,
-  42,
-  43,
-  44,
-  45,
-  46,
-  47,
-  48,
-  49,
-  50,
-  51,
-  52,
-  53,
-  -1,
-  -1,
-  -1,
-  -1,
-  -1
-];
-function base64_encode(b, len) {
-  var off = 0, rs2 = [], c1, c2;
-  if (len <= 0 || len > b.length)
-    throw Error("Illegal len: " + len);
-  while (off < len) {
-    c1 = b[off++] & 255;
-    rs2.push(BASE64_CODE[c1 >> 2 & 63]);
-    c1 = (c1 & 3) << 4;
-    if (off >= len) {
-      rs2.push(BASE64_CODE[c1 & 63]);
-      break;
-    }
-    c2 = b[off++] & 255;
-    c1 |= c2 >> 4 & 15;
-    rs2.push(BASE64_CODE[c1 & 63]);
-    c1 = (c2 & 15) << 2;
-    if (off >= len) {
-      rs2.push(BASE64_CODE[c1 & 63]);
-      break;
-    }
-    c2 = b[off++] & 255;
-    c1 |= c2 >> 6 & 3;
-    rs2.push(BASE64_CODE[c1 & 63]);
-    rs2.push(BASE64_CODE[c2 & 63]);
-  }
-  return rs2.join("");
-}
-function base64_decode(s, len) {
-  var off = 0, slen = s.length, olen = 0, rs2 = [], c1, c2, c3, c4, o, code;
-  if (len <= 0)
-    throw Error("Illegal len: " + len);
-  while (off < slen - 1 && olen < len) {
-    code = s.charCodeAt(off++);
-    c1 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
-    code = s.charCodeAt(off++);
-    c2 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
-    if (c1 == -1 || c2 == -1)
-      break;
-    o = c1 << 2 >>> 0;
-    o |= (c2 & 48) >> 4;
-    rs2.push(String.fromCharCode(o));
-    if (++olen >= len || off >= slen)
-      break;
-    code = s.charCodeAt(off++);
-    c3 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
-    if (c3 == -1)
-      break;
-    o = (c2 & 15) << 4 >>> 0;
-    o |= (c3 & 60) >> 2;
-    rs2.push(String.fromCharCode(o));
-    if (++olen >= len || off >= slen)
-      break;
-    code = s.charCodeAt(off++);
-    c4 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
-    o = (c3 & 3) << 6 >>> 0;
-    o |= c4;
-    rs2.push(String.fromCharCode(o));
-    ++olen;
-  }
-  var res = [];
-  for (off = 0;off < olen; off++)
-    res.push(rs2[off].charCodeAt(0));
-  return res;
-}
-var BCRYPT_SALT_LEN = 16;
-var GENSALT_DEFAULT_LOG2_ROUNDS = 10;
-var BLOWFISH_NUM_ROUNDS = 16;
-var MAX_EXECUTION_TIME = 100;
-var P_ORIG = [
-  608135816,
-  2242054355,
-  320440878,
-  57701188,
-  2752067618,
-  698298832,
-  137296536,
-  3964562569,
-  1160258022,
-  953160567,
-  3193202383,
-  887688300,
-  3232508343,
-  3380367581,
-  1065670069,
-  3041331479,
-  2450970073,
-  2306472731
-];
-var S_ORIG = [
-  3509652390,
-  2564797868,
-  805139163,
-  3491422135,
-  3101798381,
-  1780907670,
-  3128725573,
-  4046225305,
-  614570311,
-  3012652279,
-  134345442,
-  2240740374,
-  1667834072,
-  1901547113,
-  2757295779,
-  4103290238,
-  227898511,
-  1921955416,
-  1904987480,
-  2182433518,
-  2069144605,
-  3260701109,
-  2620446009,
-  720527379,
-  3318853667,
-  677414384,
-  3393288472,
-  3101374703,
-  2390351024,
-  1614419982,
-  1822297739,
-  2954791486,
-  3608508353,
-  3174124327,
-  2024746970,
-  1432378464,
-  3864339955,
-  2857741204,
-  1464375394,
-  1676153920,
-  1439316330,
-  715854006,
-  3033291828,
-  289532110,
-  2706671279,
-  2087905683,
-  3018724369,
-  1668267050,
-  732546397,
-  1947742710,
-  3462151702,
-  2609353502,
-  2950085171,
-  1814351708,
-  2050118529,
-  680887927,
-  999245976,
-  1800124847,
-  3300911131,
-  1713906067,
-  1641548236,
-  4213287313,
-  1216130144,
-  1575780402,
-  4018429277,
-  3917837745,
-  3693486850,
-  3949271944,
-  596196993,
-  3549867205,
-  258830323,
-  2213823033,
-  772490370,
-  2760122372,
-  1774776394,
-  2652871518,
-  566650946,
-  4142492826,
-  1728879713,
-  2882767088,
-  1783734482,
-  3629395816,
-  2517608232,
-  2874225571,
-  1861159788,
-  326777828,
-  3124490320,
-  2130389656,
-  2716951837,
-  967770486,
-  1724537150,
-  2185432712,
-  2364442137,
-  1164943284,
-  2105845187,
-  998989502,
-  3765401048,
-  2244026483,
-  1075463327,
-  1455516326,
-  1322494562,
-  910128902,
-  469688178,
-  1117454909,
-  936433444,
-  3490320968,
-  3675253459,
-  1240580251,
-  122909385,
-  2157517691,
-  634681816,
-  4142456567,
-  3825094682,
-  3061402683,
-  2540495037,
-  79693498,
-  3249098678,
-  1084186820,
-  1583128258,
-  426386531,
-  1761308591,
-  1047286709,
-  322548459,
-  995290223,
-  1845252383,
-  2603652396,
-  3431023940,
-  2942221577,
-  3202600964,
-  3727903485,
-  1712269319,
-  422464435,
-  3234572375,
-  1170764815,
-  3523960633,
-  3117677531,
-  1434042557,
-  442511882,
-  3600875718,
-  1076654713,
-  1738483198,
-  4213154764,
-  2393238008,
-  3677496056,
-  1014306527,
-  4251020053,
-  793779912,
-  2902807211,
-  842905082,
-  4246964064,
-  1395751752,
-  1040244610,
-  2656851899,
-  3396308128,
-  445077038,
-  3742853595,
-  3577915638,
-  679411651,
-  2892444358,
-  2354009459,
-  1767581616,
-  3150600392,
-  3791627101,
-  3102740896,
-  284835224,
-  4246832056,
-  1258075500,
-  768725851,
-  2589189241,
-  3069724005,
-  3532540348,
-  1274779536,
-  3789419226,
-  2764799539,
-  1660621633,
-  3471099624,
-  4011903706,
-  913787905,
-  3497959166,
-  737222580,
-  2514213453,
-  2928710040,
-  3937242737,
-  1804850592,
-  3499020752,
-  2949064160,
-  2386320175,
-  2390070455,
-  2415321851,
-  4061277028,
-  2290661394,
-  2416832540,
-  1336762016,
-  1754252060,
-  3520065937,
-  3014181293,
-  791618072,
-  3188594551,
-  3933548030,
-  2332172193,
-  3852520463,
-  3043980520,
-  413987798,
-  3465142937,
-  3030929376,
-  4245938359,
-  2093235073,
-  3534596313,
-  375366246,
-  2157278981,
-  2479649556,
-  555357303,
-  3870105701,
-  2008414854,
-  3344188149,
-  4221384143,
-  3956125452,
-  2067696032,
-  3594591187,
-  2921233993,
-  2428461,
-  544322398,
-  577241275,
-  1471733935,
-  610547355,
-  4027169054,
-  1432588573,
-  1507829418,
-  2025931657,
-  3646575487,
-  545086370,
-  48609733,
-  2200306550,
-  1653985193,
-  298326376,
-  1316178497,
-  3007786442,
-  2064951626,
-  458293330,
-  2589141269,
-  3591329599,
-  3164325604,
-  727753846,
-  2179363840,
-  146436021,
-  1461446943,
-  4069977195,
-  705550613,
-  3059967265,
-  3887724982,
-  4281599278,
-  3313849956,
-  1404054877,
-  2845806497,
-  146425753,
-  1854211946,
-  1266315497,
-  3048417604,
-  3681880366,
-  3289982499,
-  2909710000,
-  1235738493,
-  2632868024,
-  2414719590,
-  3970600049,
-  1771706367,
-  1449415276,
-  3266420449,
-  422970021,
-  1963543593,
-  2690192192,
-  3826793022,
-  1062508698,
-  1531092325,
-  1804592342,
-  2583117782,
-  2714934279,
-  4024971509,
-  1294809318,
-  4028980673,
-  1289560198,
-  2221992742,
-  1669523910,
-  35572830,
-  157838143,
-  1052438473,
-  1016535060,
-  1802137761,
-  1753167236,
-  1386275462,
-  3080475397,
-  2857371447,
-  1040679964,
-  2145300060,
-  2390574316,
-  1461121720,
-  2956646967,
-  4031777805,
-  4028374788,
-  33600511,
-  2920084762,
-  1018524850,
-  629373528,
-  3691585981,
-  3515945977,
-  2091462646,
-  2486323059,
-  586499841,
-  988145025,
-  935516892,
-  3367335476,
-  2599673255,
-  2839830854,
-  265290510,
-  3972581182,
-  2759138881,
-  3795373465,
-  1005194799,
-  847297441,
-  406762289,
-  1314163512,
-  1332590856,
-  1866599683,
-  4127851711,
-  750260880,
-  613907577,
-  1450815602,
-  3165620655,
-  3734664991,
-  3650291728,
-  3012275730,
-  3704569646,
-  1427272223,
-  778793252,
-  1343938022,
-  2676280711,
-  2052605720,
-  1946737175,
-  3164576444,
-  3914038668,
-  3967478842,
-  3682934266,
-  1661551462,
-  3294938066,
-  4011595847,
-  840292616,
-  3712170807,
-  616741398,
-  312560963,
-  711312465,
-  1351876610,
-  322626781,
-  1910503582,
-  271666773,
-  2175563734,
-  1594956187,
-  70604529,
-  3617834859,
-  1007753275,
-  1495573769,
-  4069517037,
-  2549218298,
-  2663038764,
-  504708206,
-  2263041392,
-  3941167025,
-  2249088522,
-  1514023603,
-  1998579484,
-  1312622330,
-  694541497,
-  2582060303,
-  2151582166,
-  1382467621,
-  776784248,
-  2618340202,
-  3323268794,
-  2497899128,
-  2784771155,
-  503983604,
-  4076293799,
-  907881277,
-  423175695,
-  432175456,
-  1378068232,
-  4145222326,
-  3954048622,
-  3938656102,
-  3820766613,
-  2793130115,
-  2977904593,
-  26017576,
-  3274890735,
-  3194772133,
-  1700274565,
-  1756076034,
-  4006520079,
-  3677328699,
-  720338349,
-  1533947780,
-  354530856,
-  688349552,
-  3973924725,
-  1637815568,
-  332179504,
-  3949051286,
-  53804574,
-  2852348879,
-  3044236432,
-  1282449977,
-  3583942155,
-  3416972820,
-  4006381244,
-  1617046695,
-  2628476075,
-  3002303598,
-  1686838959,
-  431878346,
-  2686675385,
-  1700445008,
-  1080580658,
-  1009431731,
-  832498133,
-  3223435511,
-  2605976345,
-  2271191193,
-  2516031870,
-  1648197032,
-  4164389018,
-  2548247927,
-  300782431,
-  375919233,
-  238389289,
-  3353747414,
-  2531188641,
-  2019080857,
-  1475708069,
-  455242339,
-  2609103871,
-  448939670,
-  3451063019,
-  1395535956,
-  2413381860,
-  1841049896,
-  1491858159,
-  885456874,
-  4264095073,
-  4001119347,
-  1565136089,
-  3898914787,
-  1108368660,
-  540939232,
-  1173283510,
-  2745871338,
-  3681308437,
-  4207628240,
-  3343053890,
-  4016749493,
-  1699691293,
-  1103962373,
-  3625875870,
-  2256883143,
-  3830138730,
-  1031889488,
-  3479347698,
-  1535977030,
-  4236805024,
-  3251091107,
-  2132092099,
-  1774941330,
-  1199868427,
-  1452454533,
-  157007616,
-  2904115357,
-  342012276,
-  595725824,
-  1480756522,
-  206960106,
-  497939518,
-  591360097,
-  863170706,
-  2375253569,
-  3596610801,
-  1814182875,
-  2094937945,
-  3421402208,
-  1082520231,
-  3463918190,
-  2785509508,
-  435703966,
-  3908032597,
-  1641649973,
-  2842273706,
-  3305899714,
-  1510255612,
-  2148256476,
-  2655287854,
-  3276092548,
-  4258621189,
-  236887753,
-  3681803219,
-  274041037,
-  1734335097,
-  3815195456,
-  3317970021,
-  1899903192,
-  1026095262,
-  4050517792,
-  356393447,
-  2410691914,
-  3873677099,
-  3682840055,
-  3913112168,
-  2491498743,
-  4132185628,
-  2489919796,
-  1091903735,
-  1979897079,
-  3170134830,
-  3567386728,
-  3557303409,
-  857797738,
-  1136121015,
-  1342202287,
-  507115054,
-  2535736646,
-  337727348,
-  3213592640,
-  1301675037,
-  2528481711,
-  1895095763,
-  1721773893,
-  3216771564,
-  62756741,
-  2142006736,
-  835421444,
-  2531993523,
-  1442658625,
-  3659876326,
-  2882144922,
-  676362277,
-  1392781812,
-  170690266,
-  3921047035,
-  1759253602,
-  3611846912,
-  1745797284,
-  664899054,
-  1329594018,
-  3901205900,
-  3045908486,
-  2062866102,
-  2865634940,
-  3543621612,
-  3464012697,
-  1080764994,
-  553557557,
-  3656615353,
-  3996768171,
-  991055499,
-  499776247,
-  1265440854,
-  648242737,
-  3940784050,
-  980351604,
-  3713745714,
-  1749149687,
-  3396870395,
-  4211799374,
-  3640570775,
-  1161844396,
-  3125318951,
-  1431517754,
-  545492359,
-  4268468663,
-  3499529547,
-  1437099964,
-  2702547544,
-  3433638243,
-  2581715763,
-  2787789398,
-  1060185593,
-  1593081372,
-  2418618748,
-  4260947970,
-  69676912,
-  2159744348,
-  86519011,
-  2512459080,
-  3838209314,
-  1220612927,
-  3339683548,
-  133810670,
-  1090789135,
-  1078426020,
-  1569222167,
-  845107691,
-  3583754449,
-  4072456591,
-  1091646820,
-  628848692,
-  1613405280,
-  3757631651,
-  526609435,
-  236106946,
-  48312990,
-  2942717905,
-  3402727701,
-  1797494240,
-  859738849,
-  992217954,
-  4005476642,
-  2243076622,
-  3870952857,
-  3732016268,
-  765654824,
-  3490871365,
-  2511836413,
-  1685915746,
-  3888969200,
-  1414112111,
-  2273134842,
-  3281911079,
-  4080962846,
-  172450625,
-  2569994100,
-  980381355,
-  4109958455,
-  2819808352,
-  2716589560,
-  2568741196,
-  3681446669,
-  3329971472,
-  1835478071,
-  660984891,
-  3704678404,
-  4045999559,
-  3422617507,
-  3040415634,
-  1762651403,
-  1719377915,
-  3470491036,
-  2693910283,
-  3642056355,
-  3138596744,
-  1364962596,
-  2073328063,
-  1983633131,
-  926494387,
-  3423689081,
-  2150032023,
-  4096667949,
-  1749200295,
-  3328846651,
-  309677260,
-  2016342300,
-  1779581495,
-  3079819751,
-  111262694,
-  1274766160,
-  443224088,
-  298511866,
-  1025883608,
-  3806446537,
-  1145181785,
-  168956806,
-  3641502830,
-  3584813610,
-  1689216846,
-  3666258015,
-  3200248200,
-  1692713982,
-  2646376535,
-  4042768518,
-  1618508792,
-  1610833997,
-  3523052358,
-  4130873264,
-  2001055236,
-  3610705100,
-  2202168115,
-  4028541809,
-  2961195399,
-  1006657119,
-  2006996926,
-  3186142756,
-  1430667929,
-  3210227297,
-  1314452623,
-  4074634658,
-  4101304120,
-  2273951170,
-  1399257539,
-  3367210612,
-  3027628629,
-  1190975929,
-  2062231137,
-  2333990788,
-  2221543033,
-  2438960610,
-  1181637006,
-  548689776,
-  2362791313,
-  3372408396,
-  3104550113,
-  3145860560,
-  296247880,
-  1970579870,
-  3078560182,
-  3769228297,
-  1714227617,
-  3291629107,
-  3898220290,
-  166772364,
-  1251581989,
-  493813264,
-  448347421,
-  195405023,
-  2709975567,
-  677966185,
-  3703036547,
-  1463355134,
-  2715995803,
-  1338867538,
-  1343315457,
-  2802222074,
-  2684532164,
-  233230375,
-  2599980071,
-  2000651841,
-  3277868038,
-  1638401717,
-  4028070440,
-  3237316320,
-  6314154,
-  819756386,
-  300326615,
-  590932579,
-  1405279636,
-  3267499572,
-  3150704214,
-  2428286686,
-  3959192993,
-  3461946742,
-  1862657033,
-  1266418056,
-  963775037,
-  2089974820,
-  2263052895,
-  1917689273,
-  448879540,
-  3550394620,
-  3981727096,
-  150775221,
-  3627908307,
-  1303187396,
-  508620638,
-  2975983352,
-  2726630617,
-  1817252668,
-  1876281319,
-  1457606340,
-  908771278,
-  3720792119,
-  3617206836,
-  2455994898,
-  1729034894,
-  1080033504,
-  976866871,
-  3556439503,
-  2881648439,
-  1522871579,
-  1555064734,
-  1336096578,
-  3548522304,
-  2579274686,
-  3574697629,
-  3205460757,
-  3593280638,
-  3338716283,
-  3079412587,
-  564236357,
-  2993598910,
-  1781952180,
-  1464380207,
-  3163844217,
-  3332601554,
-  1699332808,
-  1393555694,
-  1183702653,
-  3581086237,
-  1288719814,
-  691649499,
-  2847557200,
-  2895455976,
-  3193889540,
-  2717570544,
-  1781354906,
-  1676643554,
-  2592534050,
-  3230253752,
-  1126444790,
-  2770207658,
-  2633158820,
-  2210423226,
-  2615765581,
-  2414155088,
-  3127139286,
-  673620729,
-  2805611233,
-  1269405062,
-  4015350505,
-  3341807571,
-  4149409754,
-  1057255273,
-  2012875353,
-  2162469141,
-  2276492801,
-  2601117357,
-  993977747,
-  3918593370,
-  2654263191,
-  753973209,
-  36408145,
-  2530585658,
-  25011837,
-  3520020182,
-  2088578344,
-  530523599,
-  2918365339,
-  1524020338,
-  1518925132,
-  3760827505,
-  3759777254,
-  1202760957,
-  3985898139,
-  3906192525,
-  674977740,
-  4174734889,
-  2031300136,
-  2019492241,
-  3983892565,
-  4153806404,
-  3822280332,
-  352677332,
-  2297720250,
-  60907813,
-  90501309,
-  3286998549,
-  1016092578,
-  2535922412,
-  2839152426,
-  457141659,
-  509813237,
-  4120667899,
-  652014361,
-  1966332200,
-  2975202805,
-  55981186,
-  2327461051,
-  676427537,
-  3255491064,
-  2882294119,
-  3433927263,
-  1307055953,
-  942726286,
-  933058658,
-  2468411793,
-  3933900994,
-  4215176142,
-  1361170020,
-  2001714738,
-  2830558078,
-  3274259782,
-  1222529897,
-  1679025792,
-  2729314320,
-  3714953764,
-  1770335741,
-  151462246,
-  3013232138,
-  1682292957,
-  1483529935,
-  471910574,
-  1539241949,
-  458788160,
-  3436315007,
-  1807016891,
-  3718408830,
-  978976581,
-  1043663428,
-  3165965781,
-  1927990952,
-  4200891579,
-  2372276910,
-  3208408903,
-  3533431907,
-  1412390302,
-  2931980059,
-  4132332400,
-  1947078029,
-  3881505623,
-  4168226417,
-  2941484381,
-  1077988104,
-  1320477388,
-  886195818,
-  18198404,
-  3786409000,
-  2509781533,
-  112762804,
-  3463356488,
-  1866414978,
-  891333506,
-  18488651,
-  661792760,
-  1628790961,
-  3885187036,
-  3141171499,
-  876946877,
-  2693282273,
-  1372485963,
-  791857591,
-  2686433993,
-  3759982718,
-  3167212022,
-  3472953795,
-  2716379847,
-  445679433,
-  3561995674,
-  3504004811,
-  3574258232,
-  54117162,
-  3331405415,
-  2381918588,
-  3769707343,
-  4154350007,
-  1140177722,
-  4074052095,
-  668550556,
-  3214352940,
-  367459370,
-  261225585,
-  2610173221,
-  4209349473,
-  3468074219,
-  3265815641,
-  314222801,
-  3066103646,
-  3808782860,
-  282218597,
-  3406013506,
-  3773591054,
-  379116347,
-  1285071038,
-  846784868,
-  2669647154,
-  3771962079,
-  3550491691,
-  2305946142,
-  453669953,
-  1268987020,
-  3317592352,
-  3279303384,
-  3744833421,
-  2610507566,
-  3859509063,
-  266596637,
-  3847019092,
-  517658769,
-  3462560207,
-  3443424879,
-  370717030,
-  4247526661,
-  2224018117,
-  4143653529,
-  4112773975,
-  2788324899,
-  2477274417,
-  1456262402,
-  2901442914,
-  1517677493,
-  1846949527,
-  2295493580,
-  3734397586,
-  2176403920,
-  1280348187,
-  1908823572,
-  3871786941,
-  846861322,
-  1172426758,
-  3287448474,
-  3383383037,
-  1655181056,
-  3139813346,
-  901632758,
-  1897031941,
-  2986607138,
-  3066810236,
-  3447102507,
-  1393639104,
-  373351379,
-  950779232,
-  625454576,
-  3124240540,
-  4148612726,
-  2007998917,
-  544563296,
-  2244738638,
-  2330496472,
-  2058025392,
-  1291430526,
-  424198748,
-  50039436,
-  29584100,
-  3605783033,
-  2429876329,
-  2791104160,
-  1057563949,
-  3255363231,
-  3075367218,
-  3463963227,
-  1469046755,
-  985887462
-];
-var C_ORIG = [
-  1332899944,
-  1700884034,
-  1701343084,
-  1684370003,
-  1668446532,
-  1869963892
-];
-function _encipher(lr, off, P, S) {
-  var n, l = lr[off], r = lr[off + 1];
-  l ^= P[0];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[1];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[2];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[3];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[4];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[5];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[6];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[7];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[8];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[9];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[10];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[11];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[12];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[13];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[14];
-  n = S[l >>> 24];
-  n += S[256 | l >> 16 & 255];
-  n ^= S[512 | l >> 8 & 255];
-  n += S[768 | l & 255];
-  r ^= n ^ P[15];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
-  l ^= n ^ P[16];
-  lr[off] = r ^ P[BLOWFISH_NUM_ROUNDS + 1];
-  lr[off + 1] = l;
-  return lr;
-}
-function _streamtoword(data, offp) {
-  for (var i = 0, word = 0;i < 4; ++i)
-    word = word << 8 | data[offp] & 255, offp = (offp + 1) % data.length;
-  return { key: word, offp };
-}
-function _key(key, P, S) {
-  var offset = 0, lr = [0, 0], plen = P.length, slen = S.length, sw;
-  for (var i = 0;i < plen; i++)
-    sw = _streamtoword(key, offset), offset = sw.offp, P[i] = P[i] ^ sw.key;
-  for (i = 0;i < plen; i += 2)
-    lr = _encipher(lr, 0, P, S), P[i] = lr[0], P[i + 1] = lr[1];
-  for (i = 0;i < slen; i += 2)
-    lr = _encipher(lr, 0, P, S), S[i] = lr[0], S[i + 1] = lr[1];
-}
-function _ekskey(data, key, P, S) {
-  var offp = 0, lr = [0, 0], plen = P.length, slen = S.length, sw;
-  for (var i = 0;i < plen; i++)
-    sw = _streamtoword(key, offp), offp = sw.offp, P[i] = P[i] ^ sw.key;
-  offp = 0;
-  for (i = 0;i < plen; i += 2)
-    sw = _streamtoword(data, offp), offp = sw.offp, lr[0] ^= sw.key, sw = _streamtoword(data, offp), offp = sw.offp, lr[1] ^= sw.key, lr = _encipher(lr, 0, P, S), P[i] = lr[0], P[i + 1] = lr[1];
-  for (i = 0;i < slen; i += 2)
-    sw = _streamtoword(data, offp), offp = sw.offp, lr[0] ^= sw.key, sw = _streamtoword(data, offp), offp = sw.offp, lr[1] ^= sw.key, lr = _encipher(lr, 0, P, S), S[i] = lr[0], S[i + 1] = lr[1];
-}
-function _crypt(b, salt, rounds, callback, progressCallback) {
-  var cdata = C_ORIG.slice(), clen = cdata.length, err;
-  if (rounds < 4 || rounds > 31) {
-    err = Error("Illegal number of rounds (4-31): " + rounds);
-    if (callback) {
-      nextTick(callback.bind(this, err));
-      return;
-    } else
-      throw err;
-  }
-  if (salt.length !== BCRYPT_SALT_LEN) {
-    err = Error("Illegal salt length: " + salt.length + " != " + BCRYPT_SALT_LEN);
-    if (callback) {
-      nextTick(callback.bind(this, err));
-      return;
-    } else
-      throw err;
-  }
-  rounds = 1 << rounds >>> 0;
-  var P, S, i = 0, j;
-  if (typeof Int32Array === "function") {
-    P = new Int32Array(P_ORIG);
-    S = new Int32Array(S_ORIG);
-  } else {
-    P = P_ORIG.slice();
-    S = S_ORIG.slice();
-  }
-  _ekskey(salt, b, P, S);
-  function next() {
-    if (progressCallback)
-      progressCallback(i / rounds);
-    if (i < rounds) {
-      var start = Date.now();
-      for (;i < rounds; ) {
-        i = i + 1;
-        _key(b, P, S);
-        _key(salt, P, S);
-        if (Date.now() - start > MAX_EXECUTION_TIME)
-          break;
+    const handleFileUpload = async (fieldName, prefix) => {
+      const entry = formData.get(fieldName);
+      if (entry && entry instanceof File) {
+        const ext = path.extname(entry.name);
+        const filename = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+        const filePath = path.join(contestDir, filename);
+        const buffer = Buffer.from(await entry.arrayBuffer());
+        fs.writeFileSync(filePath, buffer);
+        uploadedFilePaths.push(filePath);
+        return `/api/uploads/${contestId}/${filename}`;
       }
-    } else {
-      for (i = 0;i < 64; i++)
-        for (j = 0;j < clen >> 1; j++)
-          _encipher(cdata, j << 1, P, S);
-      var ret = [];
-      for (i = 0;i < clen; i++)
-        ret.push((cdata[i] >> 24 & 255) >>> 0), ret.push((cdata[i] >> 16 & 255) >>> 0), ret.push((cdata[i] >> 8 & 255) >>> 0), ret.push((cdata[i] & 255) >>> 0);
-      if (callback) {
-        callback(null, ret);
-        return;
-      } else
-        return ret;
+      return null;
+    };
+    const bannerImage = await handleFileUpload("bannerImage", "banner");
+    const iconImage = await handleFileUpload("iconImage", "icon");
+    if (bannerImage)
+      contest.bannerImage = bannerImage;
+    if (iconImage)
+      contest.iconImage = iconImage;
+    await contest.save();
+    return SuccessResponse(c, "Contest created successfully", 201, contest);
+  } catch (err) {
+    for (const filepath of uploadedFilePaths) {
+      try {
+        if (fs.existsSync(filepath))
+          fs.unlinkSync(filepath);
+      } catch {}
     }
-    if (callback)
-      nextTick(next);
+    if (contest?._id) {
+      await contest_model_default.findByIdAndDelete(contest._id).catch(() => {});
+    }
+    if (err.code === 11000) {
+      return ErrorResponse(c, "Contest name already exists", 409);
+    }
+    console.error("Contest creation failed:", err);
+    return ErrorResponse(c, err.message || "Failed to create contest", 500);
   }
-  if (typeof callback !== "undefined") {
-    next();
-  } else {
-    var res;
-    while (true)
-      if (typeof (res = next()) !== "undefined")
-        return res || [];
+};
+
+// server/controllers/contest/get.controller.ts
+var getContests = async (c) => {
+  try {
+    const contests = await contest_model_default.find().sort({ createdAt: -1 });
+    return SuccessResponse(c, "Contests fetched successfully", 200, contests);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch contests", 500);
+  }
+};
+var getContestsWithoutQuestions = async (c) => {
+  console.log("nothisone");
+  try {
+    const contests = await contest_model_default.find({}, { questions: 0 }).sort({
+      createdAt: -1
+    });
+    return SuccessResponse(c, "Contests fetched successfully", 200, contests);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch contests", 500);
+  }
+};
+var getRunningContestsWithoutQuestions = async (c) => {
+  try {
+    const contests = await contest_model_default.find({ isRunning: true }, { questions: 0 }).sort({ startTime: 1 });
+    console.log(contests);
+    return SuccessResponse(c, "Running contests fetched successfully", 200, contests);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch running contests", 500);
+  }
+};
+
+// server/controllers/contest/id.controller.ts
+var getContestById = async (c) => {
+  try {
+    const id = c.req.param("id");
+    if (!id) {
+      return ErrorResponse(c, "Contest ID is required", 400);
+    }
+    const contest = await contest_model_default.findById(id);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    return SuccessResponse(c, "Contest fetched successfully", 200, contest);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch contest", 500);
+  }
+};
+
+// server/controllers/contest/questionUpsert.controller.ts
+var REQUIRED_QUESTION_FIELDS = [
+  "arguments",
+  "codes",
+  "functionName",
+  "hiddenTests",
+  "visibleTests",
+  "returnType",
+  "statement"
+];
+var upsertQuestion = async (c) => {
+  try {
+    const contestId = c.req.param("id");
+    if (!contestId) {
+      return ErrorResponse(c, "Contest ID is required", 400);
+    }
+    const body = await c.req.json();
+    const { index, question } = body;
+    if (index === undefined || index < 0) {
+      return ErrorResponse(c, "Valid question index is required", 400);
+    }
+    if (!question || typeof question !== "object") {
+      return ErrorResponse(c, "Question data is required", 400);
+    }
+    const missingFields = REQUIRED_QUESTION_FIELDS.filter((field) => !(field in question));
+    if (missingFields.length > 0) {
+      return ErrorResponse(c, `Missing required question fields: ${missingFields.join(", ")}`, 400);
+    }
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    contest.questions[index] = question;
+    await contest.save();
+    return SuccessResponse(c, "Question saved successfully", 200, contest.questions[index]);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to save question", 500);
+  }
+};
+
+// server/controllers/contest/upload.controller.ts
+import * as fs2 from "fs";
+import * as path2 from "path";
+var UPLOADS_PATH = "uploads";
+var TEMP_FILE_DB = path2.join(UPLOADS_PATH, "uploads.json");
+function loadUploads() {
+  if (!fs2.existsSync(TEMP_FILE_DB))
+    return {};
+  try {
+    const content = fs2.readFileSync(TEMP_FILE_DB, "utf8");
+    return JSON.parse(content);
+  } catch {
+    return {};
   }
 }
-function _hash(password, salt, callback, progressCallback) {
-  var err;
-  if (typeof password !== "string" || typeof salt !== "string") {
-    err = Error("Invalid string / salt: Not a string");
-    if (callback) {
-      nextTick(callback.bind(this, err));
-      return;
-    } else
-      throw err;
-  }
-  var minor, offset;
-  if (salt.charAt(0) !== "$" || salt.charAt(1) !== "2") {
-    err = Error("Invalid salt version: " + salt.substring(0, 2));
-    if (callback) {
-      nextTick(callback.bind(this, err));
-      return;
-    } else
-      throw err;
-  }
-  if (salt.charAt(2) === "$")
-    minor = String.fromCharCode(0), offset = 3;
-  else {
-    minor = salt.charAt(2);
-    if (minor !== "a" && minor !== "b" && minor !== "y" || salt.charAt(3) !== "$") {
-      err = Error("Invalid salt revision: " + salt.substring(2, 4));
-      if (callback) {
-        nextTick(callback.bind(this, err));
-        return;
-      } else
-        throw err;
+function saveUploads(data) {
+  fs2.writeFileSync(TEMP_FILE_DB, JSON.stringify(data, null, 2), "utf8");
+}
+var uploadImage = async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body.file;
+    const contestId = body.contestId;
+    if (!file || typeof file.arrayBuffer !== "function") {
+      return ErrorResponse(c, "No valid file uploaded", 400);
     }
-    offset = 4;
+    if (!contestId) {
+      return ErrorResponse(c, "Contest ID is required", 400);
+    }
+    const contestFolder = path2.join(UPLOADS_PATH, contestId);
+    if (!fs2.existsSync(contestFolder)) {
+      fs2.mkdirSync(contestFolder, { recursive: true });
+    }
+    const filename = `${Date.now()}${path2.extname(file.name)}`;
+    const filepath = path2.join(contestFolder, filename);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    fs2.writeFileSync(filepath, buffer);
+    const baseUrl = Bun.env.IMAGE_URL || "";
+    const imageUrl = `${baseUrl}images/${contestId}/${filename}`;
+    const db = loadUploads();
+    db[filename] = {
+      path: filepath,
+      status: "pending",
+      createdAt: Date.now(),
+      contestId
+    };
+    saveUploads(db);
+    return SuccessResponse(c, "Image uploaded successfully", 201, { imageUrl });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Upload failed";
+    return ErrorResponse(c, message, 500);
   }
-  if (salt.charAt(offset + 2) > "$") {
-    err = Error("Missing salt rounds");
-    if (callback) {
-      nextTick(callback.bind(this, err));
-      return;
-    } else
-      throw err;
-  }
-  var r1 = parseInt(salt.substring(offset, offset + 1), 10) * 10, r2 = parseInt(salt.substring(offset + 1, offset + 2), 10), rounds = r1 + r2, real_salt = salt.substring(offset + 3, offset + 25);
-  password += minor >= "a" ? "\x00" : "";
-  var passwordb = utf8Array(password), saltb = base64_decode(real_salt, BCRYPT_SALT_LEN);
-  function finish(bytes) {
-    var res = [];
-    res.push("$2");
-    if (minor >= "a")
-      res.push(minor);
-    res.push("$");
-    if (rounds < 10)
-      res.push("0");
-    res.push(rounds.toString());
-    res.push("$");
-    res.push(base64_encode(saltb, saltb.length));
-    res.push(base64_encode(bytes, C_ORIG.length * 4 - 1));
-    return res.join("");
-  }
-  if (typeof callback == "undefined")
-    return finish(_crypt(passwordb, saltb, rounds));
-  else {
-    _crypt(passwordb, saltb, rounds, function(err2, bytes) {
-      if (err2)
-        callback(err2, null);
-      else
-        callback(null, finish(bytes));
-    }, progressCallback);
+};
+
+// server/controllers/contest/cleanup.controller.ts
+import * as fs3 from "fs";
+import * as path3 from "path";
+var UPLOADS_PATH2 = "C:/uploads";
+var TEMP_FILE_DB2 = path3.join(UPLOADS_PATH2, "uploads.json");
+function loadUploads2() {
+  if (!fs3.existsSync(TEMP_FILE_DB2))
+    return {};
+  try {
+    const content = fs3.readFileSync(TEMP_FILE_DB2, "utf8");
+    return JSON.parse(content);
+  } catch {
+    return {};
   }
 }
+function saveUploads2(data) {
+  fs3.writeFileSync(TEMP_FILE_DB2, JSON.stringify(data, null, 2), "utf8");
+}
+var cleanupUnusedImages = async (c) => {
+  try {
+    const body = await c.req.json();
+    const usedImages = body.usedImages ?? [];
+    const contestIdFilter = body.contestId;
+    const usedSet = new Set(usedImages.map((url) => path3.basename(url)));
+    const db = loadUploads2();
+    for (const [filename, meta] of Object.entries(db)) {
+      if (contestIdFilter && meta.contestId !== contestIdFilter)
+        continue;
+      if (!usedSet.has(filename) && fs3.existsSync(meta.path)) {
+        fs3.unlinkSync(meta.path);
+        delete db[filename];
+      } else {
+        db[filename].status = "used";
+      }
+    }
+    saveUploads2(db);
+    return SuccessResponse(c, "Cleaned up unused images", 200);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Cleanup failed";
+    return ErrorResponse(c, message, 500);
+  }
+};
+
+// server/models/user.model.ts
+var import_mongoose3 = __toESM(require_mongoose2(), 1);
+var userSchema = new import_mongoose3.default.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  hash: {
+    type: String,
+    required: true
+  },
+  contestId: {
+    type: import_mongoose3.default.Schema.Types.ObjectId,
+    required: true
+  }
+}, {
+  timestamps: true
+});
+var User = import_mongoose3.default.model("User", userSchema);
+var user_model_default = User;
+
+// server/controllers/contest/user.controller.ts
+import { createHash, randomBytes } from "crypto";
+var hashPassword = (password) => createHash("sha256").update(password).digest("hex");
+var generatePassword = (length = 10) => {
+  const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+  const randomBuffer = randomBytes(length);
+  let password = "";
+  for (let i = 0;i < length; i++) {
+    password += charset[randomBuffer[i] % charset.length];
+  }
+  return password;
+};
+var createUsers = async (c) => {
+  try {
+    const { number, contestId, contestName } = await c.req.json();
+    if (!contestId)
+      return ErrorResponse(c, "Contest ID is required", 400);
+    const num = parseInt(number);
+    if (isNaN(num) || num <= 0 || num > 1000) {
+      return ErrorResponse(c, "Invalid number (1-1000)", 400);
+    }
+    const contestCode = contestName?.slice(0, 3).toUpperCase() || contestId.slice(-3).toUpperCase();
+    const lastUser = await user_model_default.findOne({ contestId }).sort({ _id: -1 }).lean();
+    let lastIndex = 0;
+    if (lastUser?.username) {
+      const match = lastUser.username.match(/\d+$/);
+      if (match)
+        lastIndex = parseInt(match[0]);
+    }
+    const usersToInsert = [];
+    const responseUsers = [];
+    for (let i = 0;i < num; i++) {
+      const index = lastIndex + i + 1;
+      const username = `u${contestCode}${index}`;
+      const password = generatePassword();
+      const hash = hashPassword(password);
+      usersToInsert.push({ username, hash, contestId });
+      responseUsers.push({ username, password });
+    }
+    await user_model_default.insertMany(usersToInsert, { ordered: false });
+    return SuccessResponse(c, "Users created successfully", 200, {
+      users: responseUsers
+    });
+  } catch (err) {
+    console.error("\u274C createUsers error:", err);
+    if (err.code === 11000) {
+      return ErrorResponse(c, "Username conflict, please retry", 409);
+    }
+    return ErrorResponse(c, err.message || "Failed to create users", 500);
+  }
+};
 
 // node_modules/hono/dist/utils/cookie.js
 var algorithm = { name: "HMAC", hash: "SHA-256" };
@@ -64452,6 +63203,10 @@ var _serialize = (name, value, opt = {}) => {
   }
   return cookie;
 };
+var serialize = (name, value, opt) => {
+  value = encodeURIComponent(value);
+  return _serialize(name, value, opt);
+};
 var serializeSigned = async (name, value, secret, opt = {}) => {
   const signature = await makeSignature(value, secret);
   value = `${value}.${signature}`;
@@ -64460,6 +63215,27 @@ var serializeSigned = async (name, value, secret, opt = {}) => {
 };
 
 // node_modules/hono/dist/helper/cookie/index.js
+var getCookie = (c, key, prefix) => {
+  const cookie = c.req.raw.headers.get("Cookie");
+  if (typeof key === "string") {
+    if (!cookie) {
+      return;
+    }
+    let finalKey = key;
+    if (prefix === "secure") {
+      finalKey = "__Secure-" + key;
+    } else if (prefix === "host") {
+      finalKey = "__Host-" + key;
+    }
+    const obj2 = parse(cookie, finalKey);
+    return obj2[finalKey];
+  }
+  if (!cookie) {
+    return {};
+  }
+  const obj = parse(cookie);
+  return obj;
+};
 var getSignedCookie = async (c, secret, key, prefix) => {
   const cookie = c.req.raw.headers.get("Cookie");
   if (typeof key === "string") {
@@ -64480,6 +63256,26 @@ var getSignedCookie = async (c, secret, key, prefix) => {
   }
   const obj = await parseSigned(cookie, secret);
   return obj;
+};
+var generateCookie = (name, value, opt) => {
+  let cookie;
+  if (opt?.prefix === "secure") {
+    cookie = serialize("__Secure-" + name, value, { path: "/", ...opt, secure: true });
+  } else if (opt?.prefix === "host") {
+    cookie = serialize("__Host-" + name, value, {
+      ...opt,
+      path: "/",
+      secure: true,
+      domain: undefined
+    });
+  } else {
+    cookie = serialize(name, value, { path: "/", ...opt });
+  }
+  return cookie;
+};
+var setCookie = (c, name, value, opt) => {
+  const cookie = generateCookie(name, value, opt);
+  c.header("Set-Cookie", cookie, { append: true });
 };
 var generateSignedCookie = async (name, value, secret, opt) => {
   let cookie;
@@ -64505,93 +63301,3476 @@ var setSignedCookie = async (c, name, value, secret, opt) => {
   const cookie = await generateSignedCookie(name, value, secret, opt);
   c.header("set-cookie", cookie, { append: true });
 };
+var deleteCookie = (c, name, opt) => {
+  const deletedCookie = getCookie(c, name, opt?.prefix);
+  setCookie(c, name, "", { ...opt, maxAge: 0 });
+  return deletedCookie;
+};
+
+// server/middleware/admin.middleware.ts
+var COOKIE_SECRET = process.env.COOKIE_SECRET || "your_default_secret_here";
+var requireRole = (allowedRoles) => {
+  return async (c, next) => {
+    try {
+      const cookie = await getSignedCookie(c, "adminAuth", COOKIE_SECRET);
+      if (!cookie) {
+        return ErrorResponse(c, "Not authenticated", 401);
+      }
+      const user = JSON.parse(cookie);
+      if (!allowedRoles.includes(user.role)) {
+        return ErrorResponse(c, "Forbidden: Insufficient permissions", 403);
+      }
+      c.user = user;
+      await next();
+    } catch (err) {
+      console.error("Auth middleware error:", err);
+      return ErrorResponse(c, "Authentication failed", 500);
+    }
+  };
+};
+
+// server/models/problem.model.ts
+var import_mongoose4 = __toESM(require_mongoose2(), 1);
+var ProblemSchema = new import_mongoose4.default.Schema({
+  name: { type: String, required: true, trim: true },
+  arguments: { type: Array },
+  statement: { type: String, default: "" },
+  testcases: [
+    {
+      type: import_mongoose4.default.Schema.Types.ObjectId,
+      ref: "TestCase"
+    }
+  ],
+  submittedBy: {
+    type: import_mongoose4.default.Schema.Types.ObjectId,
+    ref: "Admin",
+    required: true
+  },
+  contestId: {
+    type: import_mongoose4.default.Schema.Types.ObjectId,
+    ref: "Contest",
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ["pending", "finalized"],
+    default: "pending"
+  },
+  isCompleted: {
+    type: Boolean,
+    default: false
+  }
+}, { timestamps: true });
+var Problem = import_mongoose4.default.model("Problem", ProblemSchema);
+var problem_model_default = Problem;
+
+// server/controllers/contest/getProblemsByAdminAndContest.controller.ts
+var import_mongoose5 = __toESM(require_mongoose2(), 1);
+var getProblemsByAdminAndContest = async (c) => {
+  try {
+    const adminId = c.req.query("adminId");
+    const contestId = c.req.query("contestId");
+    if (!adminId || !contestId) {
+      return ErrorResponse(c, "Both adminId and contestId are required", 400);
+    }
+    const adminObjectId = new import_mongoose5.default.Types.ObjectId(adminId);
+    const contestObjectId = new import_mongoose5.default.Types.ObjectId(contestId);
+    const problems = await problem_model_default.find({
+      submittedBy: adminObjectId,
+      contestId: contestObjectId
+    }).populate("contestId", "name conductedBy numberOfProblems durationMinutes").sort({ createdAt: -1 });
+    if (!problems || problems.length === 0) {
+      return SuccessResponse(c, "No problems found", 200, []);
+    }
+    return SuccessResponse(c, "Problems fetched successfully", 200, problems);
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch problems", 500);
+  }
+};
+
+// server/controllers/contest/getProblemsById.ts
+var import_mongoose6 = __toESM(require_mongoose2(), 1);
+var getProblemsByUser = async (c) => {
+  try {
+    const adminId = c.req.query("adminId");
+    console.log(adminId, "adminId received");
+    if (!adminId) {
+      return ErrorResponse(c, "adminId is required", 400);
+    }
+    const problems = await problem_model_default.find({ submittedBy: adminId }).select("-hiddenTests -visibleTests -status").lean().sort({ createdAt: -1 });
+    const problemsWithContest = await Promise.all(problems.map(async (problem) => {
+      let contestData = null;
+      if (problem.contestId) {
+        const contestObjectId = new import_mongoose6.default.Types.ObjectId(problem.contestId);
+        const contest = await contest_model_default.findById(contestObjectId).select("name conductedBy numberOfProblems durationMinutes");
+        if (contest) {
+          contestData = {
+            contestName: contest.name,
+            conductedBy: contest.conductedBy,
+            numberOfProblems: contest.numberOfProblems,
+            durationMinutes: contest.durationMinutes
+          };
+        }
+      }
+      return {
+        ...problem,
+        ...contestData || {}
+      };
+    }));
+    console.log(problemsWithContest, "problems with contest details");
+    return SuccessResponse(c, "Problems fetched successfully", 200, problemsWithContest);
+  } catch (err) {
+    console.error("Error fetching problems:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch problems", 500);
+  }
+};
+
+// server/controllers/admin/createProblem.controller.ts
+var import_mongoose7 = __toESM(require_mongoose2(), 1);
+var upsertProblem = async (c) => {
+  try {
+    const id = c.req.param("problemId");
+    const body = await c.req.json();
+    console.log(body, "body i recieved dude");
+    const {
+      name,
+      points,
+      arguments: args,
+      functionName,
+      returnType,
+      statement,
+      hiddenTests,
+      visibleTests,
+      submittedBy,
+      contestId,
+      status
+    } = body;
+    if (!name || points == null || !args || !functionName || !returnType) {
+      return ErrorResponse(c, "Missing required fields", 400);
+    }
+    if (!Array.isArray(args)) {
+      return ErrorResponse(c, "Arguments must be an array", 400);
+    }
+    if (hiddenTests && !Array.isArray(hiddenTests)) {
+      return ErrorResponse(c, "hiddenTests must be an array", 400);
+    }
+    if (visibleTests && !Array.isArray(visibleTests)) {
+      return ErrorResponse(c, "visibleTests must be an array", 400);
+    }
+    const problemData = {
+      name,
+      points: Number(points),
+      arguments: args,
+      functionName,
+      returnType,
+      statement: statement || "",
+      hiddenTests: hiddenTests || [],
+      visibleTests: visibleTests || [],
+      submittedBy: import_mongoose7.default.Types.ObjectId.createFromHexString(submittedBy) || null,
+      contestId: import_mongoose7.default.Types.ObjectId.createFromHexString(contestId) || null,
+      status: status || "pending"
+    };
+    if (id) {
+      const updatedProblem = await problem_model_default.findByIdAndUpdate(id, problemData, {
+        new: true
+      });
+      if (!updatedProblem) {
+        return ErrorResponse(c, "Problem not found", 404);
+      }
+      return SuccessResponse(c, "Problem updated successfully", 200, updatedProblem);
+    }
+    const newProblem = new problem_model_default(problemData);
+    await newProblem.save();
+    return SuccessResponse(c, "Problem created successfully", 201, newProblem);
+  } catch (err) {
+    console.error("Problem create/update failed:", err);
+    return ErrorResponse(c, err.message || "Failed to process problem", 500);
+  }
+};
+
+// server/controllers/contest/deleteProblem.controller.ts
+var import_mongoose8 = __toESM(require_mongoose2(), 1);
+var deleteProblem = async (c) => {
+  try {
+    const id = c.req.param("problemId");
+    if (!id) {
+      return ErrorResponse(c, "Problem ID is required", 400);
+    }
+    if (!import_mongoose8.default.Types.ObjectId.isValid(id)) {
+      return ErrorResponse(c, "Invalid Problem ID", 400);
+    }
+    const problem = await problem_model_default.findById(id);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    if (problem.contestId) {
+      const contest = await contest_model_default.findById(problem.contestId);
+      if (!contest) {
+        return ErrorResponse(c, "Contest not found", 404);
+      }
+      if (contest.isRunning) {
+        return ErrorResponse(c, "Cannot delete problem while contest is running", 400);
+      }
+    }
+    const deletedProblem = await problem_model_default.findByIdAndDelete(id);
+    return SuccessResponse(c, "Problem deleted successfully", 200, deletedProblem);
+  } catch (err) {
+    console.error("Problem deletion failed:", err);
+    return ErrorResponse(c, err.message || "Failed to delete problem", 500);
+  }
+};
+
+// server/controllers/contest/getProblemsOfContest.controller.ts
+var import_mongoose9 = __toESM(require_mongoose2(), 1);
+var getContestWithProblems = async (c) => {
+  try {
+    const contestId = c.req.query("contestId");
+    if (!contestId) {
+      return ErrorResponse(c, "contestId is required", 400);
+    }
+    if (!import_mongoose9.default.Types.ObjectId.isValid(contestId)) {
+      return ErrorResponse(c, "Invalid contestId format", 400);
+    }
+    const problems = await problem_model_default.find({ contestId }).populate({
+      path: "contestId",
+      select: "name conductedBy numberOfProblems durationMinutes teamSize bannerImage"
+    }).populate({
+      path: "submittedBy",
+      select: "username name role"
+    }).sort({ createdAt: -1 }).lean();
+    if (!problems.length) {
+      return SuccessResponse(c, "No problems found for this contest", 200, {
+        contestDetails: null,
+        problems: []
+      });
+    }
+    const contestDetails = problems[0].contestId;
+    return SuccessResponse(c, "Contest details and problems fetched successfully", 200, { contestDetails, problems });
+  } catch (err) {
+    console.error("Error fetching contest problems:", err);
+    return ErrorResponse(c, err instanceof Error ? err.message : "Failed to fetch contest data", 500);
+  }
+};
+
+// server/controllers/contest/getFinalizedProblemsByContest.ts
+var import_mongoose10 = __toESM(require_mongoose2(), 1);
+var getFinalizedProblemsByContest = async (c) => {
+  try {
+    const contestId = c.req.query("contestId");
+    if (!contestId) {
+      return ErrorResponse(c, "contestId is required", 400);
+    }
+    if (!import_mongoose10.default.Types.ObjectId.isValid(contestId)) {
+      return ErrorResponse(c, "Invalid contestId format", 400);
+    }
+    const problems = await problem_model_default.find({ contestId, status: "finalized" }, { name: 1, statement: 1, points: 1, _id: 0 }).sort({ createdAt: -1 });
+    if (problems.length === 0) {
+      return SuccessResponse(c, "No finalized problems found", 200, []);
+    }
+    return SuccessResponse(c, "Finalized problems fetched successfully", 200, problems);
+  } catch (err) {
+    console.error("Error fetching finalized problems:", err);
+    return ErrorResponse(c, err instanceof Error ? err.message : "Failed to fetch problems", 500);
+  }
+};
+
+// server/controllers/contest/AddProblemToContest.controller.ts
+var import_mongoose11 = __toESM(require_mongoose2(), 1);
+var finalizeProblem = async (c) => {
+  try {
+    const { contestId, problemId } = await c.req.json();
+    if (!contestId || !problemId) {
+      return ErrorResponse(c, "contestId and problemId are required", 400);
+    }
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    const problem = await problem_model_default.findById(problemId);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    const alreadyInContest = contest.questions.some((pId) => pId.toString() === problemId);
+    if (alreadyInContest && problem.status === "finalized" && problem.contestId?.toString() === contestId) {
+      return SuccessResponse(c, "Problem already finalized and added to this contest", 200, problem);
+    }
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Contest is currently running. You cannot add or modify problems.", 400);
+    }
+    const finalizedCount = await problem_model_default.countDocuments({
+      contestId: new import_mongoose11.default.Types.ObjectId(contestId),
+      status: "finalized"
+    });
+    console.log("Finalize check:", {
+      contestId,
+      numberOfProblems: contest.numberOfProblems,
+      finalizedCount,
+      questionsLength: contest.questions.length
+    });
+    const isAlreadyFinalizedForThisContest = problem.status === "finalized" && problem.contestId?.toString() === contestId;
+    if (!isAlreadyFinalizedForThisContest && finalizedCount >= contest.numberOfProblems) {
+      return ErrorResponse(c, `Contest already has the maximum number of problems (${contest.numberOfProblems})`, 400);
+    }
+    problem.status = "finalized";
+    problem.contestId = new import_mongoose11.default.Types.ObjectId(contestId);
+    await problem.save();
+    if (!alreadyInContest) {
+      contest.questions.push(problem._id);
+      await contest.save();
+    }
+    return SuccessResponse(c, "Problem finalized and added to contest successfully", 200, problem);
+  } catch (err) {
+    console.error("Error finalizing problem:", err);
+    return ErrorResponse(c, err instanceof Error ? err.message : "Failed to finalize problem", 500);
+  }
+};
+
+// server/controllers/contest/unFinalize.controller.ts
+var unfinalizeProblem = async (c) => {
+  try {
+    const { contestId, problemId } = await c.req.json();
+    if (!contestId || !problemId) {
+      return ErrorResponse(c, "contestId and problemId are required", 400);
+    }
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Contest is currently running. You cannot remove  problems.", 400);
+    }
+    const problem = await problem_model_default.findOne({ _id: problemId, contestId });
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found or does not belong to the contest", 404);
+    }
+    if (problem.status === "pending") {
+      return ErrorResponse(c, "Problem is already in pending state", 400);
+    }
+    problem.status = "pending";
+    await problem.save();
+    await contest_model_default.updateOne({ _id: contestId }, { $pull: { questions: problem._id } });
+    return SuccessResponse(c, "Problem marked as pending and removed from contest questions successfully", 200, problem);
+  } catch (err) {
+    console.error("Error unfinalizing problem:", err);
+    return ErrorResponse(c, err instanceof Error ? err.message : "Failed to unfinalize problem", 500);
+  }
+};
+
+// server/models/session.model.ts
+var import_mongoose12 = __toESM(require_mongoose2(), 1);
+var sessionSchema = new import_mongoose12.default.Schema({
+  userId: {
+    type: import_mongoose12.default.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  contestId: {
+    type: import_mongoose12.default.Schema.Types.ObjectId,
+    ref: "Contest",
+    required: true
+  },
+  sessionStart: { type: Date, default: Date.now },
+  elapsedTime: { type: Number, default: 0 },
+  lastActive: { type: Date, default: Date.now },
+  isFinished: { type: Boolean, default: false },
+  finishedAt: { type: Date, default: null },
+  email: String,
+  phone: String,
+  college: String,
+  dept: String,
+  participants: Array,
+  contestDetails: Object
+}, { timestamps: true });
+var Session = import_mongoose12.default.model("Session", sessionSchema);
+var session_model_default = Session;
+
+// server/models/submission.model.ts
+var import_mongoose13 = __toESM(require_mongoose2(), 1);
+var TestResultSchema = new import_mongoose13.default.Schema({
+  testcase: {
+    type: import_mongoose13.default.Schema.Types.ObjectId,
+    ref: "TestCase",
+    required: true
+  },
+  input: { type: String, default: "" },
+  output: { type: String, default: "" },
+  expected: { type: String, default: "" },
+  passed: { type: Boolean, default: false },
+  error: { type: String, default: null },
+  isHidden: { type: Boolean, default: false },
+  pointsAwarded: { type: Number, default: 0 }
+}, { _id: false });
+var SubmissionSchema = new import_mongoose13.default.Schema({
+  userId: {
+    type: import_mongoose13.default.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+  problemId: {
+    type: import_mongoose13.default.Schema.Types.ObjectId,
+    ref: "Problem",
+    required: true
+  },
+  contestId: {
+    type: import_mongoose13.default.Schema.Types.ObjectId,
+    ref: "Contest",
+    required: true
+  },
+  language: {
+    type: String,
+    enum: ["c", "cpp", "java", "python"],
+    required: true
+  },
+  code: {
+    type: String,
+    required: true
+  },
+  totalTests: { type: Number, required: true },
+  passedTests: { type: Number, required: true },
+  maxPoints: { type: Number, required: true },
+  pointsPerTest: { type: Number, required: true },
+  awardedPoints: { type: Number, required: true },
+  results: [TestResultSchema],
+  status: {
+    type: String,
+    enum: [
+      "Accepted",
+      "Wrong Answer",
+      "Runtime Error",
+      "Compile Error"
+    ],
+    required: true
+  }
+}, { timestamps: true });
+SubmissionSchema.index({ user: 1, contest: 1, problem: 1 }, { unique: true });
+var Submission = import_mongoose13.default.model("Submission", SubmissionSchema);
+var submission_model_default = Submission;
+
+// server/models/userDetails.model.ts
+var import_mongoose14 = __toESM(require_mongoose2(), 1);
+var participantSchema = new import_mongoose14.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  regNo: {
+    type: String,
+    required: true,
+    trim: true
+  }
+}, { _id: false });
+var userDetailsSchema = new import_mongoose14.Schema({
+  userId: {
+    type: import_mongoose14.Schema.Types.ObjectId,
+    required: true,
+    ref: "User"
+  },
+  contestId: {
+    type: import_mongoose14.Schema.Types.ObjectId,
+    required: true,
+    ref: "Contest"
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  phone: {
+    type: String,
+    required: true
+  },
+  college: {
+    type: String,
+    required: true
+  },
+  dept: {
+    type: String,
+    required: true
+  },
+  participants: {
+    type: [participantSchema],
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+var UserDetails = import_mongoose14.default.model("UserDetails", userDetailsSchema);
+var userDetails_model_default = UserDetails;
+
+// server/controllers/contest/delete.controller.ts
+var import_mongoose15 = __toESM(require_mongoose2(), 1);
+import * as fs4 from "fs";
+import * as path4 from "path";
+var UPLOADS_BASE = path4.join(process.cwd(), "uploads");
+var deleteContest = async (c) => {
+  try {
+    const contestId = c.req.param("contestId");
+    if (!contestId) {
+      return ErrorResponse(c, "Contest ID is required", 400);
+    }
+    if (!import_mongoose15.default.Types.ObjectId.isValid(contestId)) {
+      return ErrorResponse(c, "Invalid contest ID", 400);
+    }
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    const contestUploadDir = path4.join(UPLOADS_BASE, contestId);
+    if (fs4.existsSync(contestUploadDir)) {
+      try {
+        fs4.rmSync(contestUploadDir, { recursive: true, force: true });
+        console.log(`Deleted uploads directory: ${contestUploadDir}`);
+      } catch (err) {
+        console.error("Failed to delete uploads directory:", err);
+      }
+    } else {
+      console.log(`No uploads directory found for contest: ${contestUploadDir}`);
+    }
+    const deletedProblems = await problem_model_default.deleteMany({ contestId });
+    const deletedUsers = await user_model_default.deleteMany({ contestId });
+    const deletedSessions = await session_model_default.deleteMany({ contestId });
+    const deletedSubmissions = await submission_model_default.deleteMany({ contestId });
+    const deletedUserDetails = await userDetails_model_default.deleteMany({ contestId });
+    await contest_model_default.findByIdAndDelete(contestId);
+    console.log(`Contest deleted: ${contestId} | Problems: ${deletedProblems.deletedCount}, Users: ${deletedUsers.deletedCount}, Sessions: ${deletedSessions.deletedCount}, Submissions: ${deletedSubmissions.deletedCount}, UserDetails: ${deletedUserDetails.deletedCount}`);
+    return SuccessResponse(c, "Contest and all related data deleted successfully", 200, {
+      deletedId: contestId,
+      deletedProblems: deletedProblems.deletedCount,
+      deletedUsers: deletedUsers.deletedCount,
+      deletedSessions: deletedSessions.deletedCount,
+      deletedSubmissions: deletedSubmissions.deletedCount,
+      deletedUserDetails: deletedUserDetails.deletedCount
+    });
+  } catch (err) {
+    console.error("Contest deletion failed:", err);
+    return ErrorResponse(c, err.message || "Failed to delete contest", 500);
+  }
+};
+
+// server/controllers/contest/runCode.controller.ts
+import fs5 from "fs";
+import path5 from "path";
+var {spawnSync } = globalThis.Bun;
+var LANGUAGE_CONFIG = {
+  c: {
+    filename: "main.c",
+    workerName: "judge-gcc-worker",
+    hostWorkDir: "/judge/work/gcc",
+    containerWorkDir: "/workspace"
+  },
+  cpp: {
+    filename: "main.cpp",
+    workerName: "judge-cpp-worker",
+    hostWorkDir: "/judge/work/cpp",
+    containerWorkDir: "/workspace"
+  },
+  java: {
+    filename: "Main.java",
+    workerName: "judge-java-worker",
+    hostWorkDir: "/judge/work/java",
+    containerWorkDir: "/workspace"
+  },
+  python: {
+    filename: "main.py",
+    workerName: "judge-python-worker",
+    hostWorkDir: "/judge/work/python",
+    containerWorkDir: "/workspace"
+  }
+};
+function getJavaMainClassName(code) {
+  const match = code.match(/public\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/);
+  return match?.[1] ?? "Main";
+}
+function isContainerRunning(name) {
+  const result = spawnSync({
+    cmd: ["docker", "inspect", "-f", "{{.State.Running}}", name],
+    stdout: "pipe",
+    stderr: "pipe"
+  });
+  const stdout = result.stdout?.toString().trim() ?? "";
+  const stderr = result.stderr?.toString().trim() ?? "";
+  if (!result.success) {
+    return {
+      running: false,
+      error: stderr || `docker inspect failed for ${name}`
+    };
+  }
+  return {
+    running: stdout === "true",
+    error: ""
+  };
+}
+function execInWorker(worker, workdir, script) {
+  const cmd = [
+    "docker",
+    "exec",
+    "-e",
+    `WORKDIR=${workdir}`,
+    worker,
+    "sh",
+    "-c",
+    script
+  ];
+  const result = spawnSync({
+    cmd,
+    stdout: "pipe",
+    stderr: "pipe"
+  });
+  return {
+    success: result.success,
+    stdout: result.stdout?.toString() ?? "",
+    stderr: result.stderr?.toString() ?? ""
+  };
+}
+function buildScript(language, count, root, options) {
+  const loop = (run) => `
+BASE="${root}/$WORKDIR"
+i=0
+while [ "$i" -lt ${count} ]; do
+  ${run} < "$BASE/in_$i.txt" > "$BASE/out_$i.txt" 2> "$BASE/err_$i.txt"
+  i=$((i + 1))
+done
+`;
+  switch (language) {
+    case "c":
+      return `
+set -e
+BASE="${root}/$WORKDIR"
+
+# compile C, capture compile errors into a file inside the job dir
+gcc "$BASE/main.c" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt"
+
+${loop("$BASE/main")}
+`;
+    case "cpp":
+      return `
+set -e
+BASE="${root}/$WORKDIR"
+
+# compile C++, capture compile errors into a file inside the job dir
+g++ "$BASE/main.cpp" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt"
+
+${loop("$BASE/main")}
+`;
+    case "java": {
+      const mainClass = options?.javaMainClass || "Main";
+      return `
+set -e
+BASE="${root}/$WORKDIR"
+
+# compile Java, capture compile errors
+javac "$BASE/${mainClass}.java" 2> "$BASE/compile_err.txt"
+
+${loop(`java -cp "$BASE" ${mainClass}`)}
+`;
+    }
+    case "python":
+      return `
+set -e
+BASE="${root}/$WORKDIR"
+
+${loop('python3 "$BASE/main.py"')}
+`;
+  }
+}
+var runCode = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { language, code, problem, testcases, userTestcases = [] } = body;
+    console.log("s", language);
+    if (!language || !code) {
+      return ErrorResponse(c, "Language and code are required", 400);
+    }
+    if (!problem) {
+      return ErrorResponse(c, "Problem ID is required", 400);
+    }
+    const config = LANGUAGE_CONFIG[language];
+    if (!config) {
+      return ErrorResponse(c, "Unsupported language", 400);
+    }
+    const problemData = await problem_model_default.findById(problem).lean();
+    if (!problemData) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    const visible = Array.isArray(testcases) ? testcases : problemData.visibleTests || [];
+    const allTests = [
+      ...visible.map((t) => ({
+        ...t,
+        __source: "visible"
+      })),
+      ...userTestcases.map((t) => ({
+        rawInput: t.rawInput || "",
+        __source: "custom",
+        output: null
+      }))
+    ];
+    if (allTests.length === 0) {
+      return ErrorResponse(c, "No testcases found", 400);
+    }
+    fs5.mkdirSync(config.hostWorkDir, { recursive: true });
+    const tempDir = fs5.mkdtempSync(path5.join(config.hostWorkDir, "job_"));
+    const workdirName = path5.basename(tempDir);
+    fs5.chmodSync(tempDir, 511);
+    try {
+      let sourceFilename = config.filename;
+      let javaMainClass;
+      if (language === "java") {
+        javaMainClass = getJavaMainClassName(code);
+        sourceFilename = `${javaMainClass}.java`;
+      }
+      fs5.writeFileSync(path5.join(tempDir, sourceFilename), code);
+      allTests.forEach((tc, i) => {
+        fs5.writeFileSync(path5.join(tempDir, `in_${i}.txt`), tc.rawInput ?? "", "utf8");
+      });
+      const script = buildScript(language, allTests.length, config.containerWorkDir, language === "java" ? { javaMainClass } : undefined);
+      const status = isContainerRunning(config.workerName);
+      if (!status.running) {
+        console.error(`Worker container ${config.workerName} is not running`, status.error);
+        return ErrorResponse(c, `Something went worng!,Execution worker "${config.workerName}" is not running`, 500);
+      }
+      const { stderr } = execInWorker(config.workerName, workdirName, script);
+      const compileErrPath = path5.join(tempDir, "compile_err.txt");
+      const compileErr = fs5.existsSync(compileErrPath) ? fs5.readFileSync(compileErrPath, "utf8").trim() : "";
+      const rawResults = allTests.map((tc, i) => {
+        const outPath = path5.join(tempDir, `out_${i}.txt`);
+        const errPath = path5.join(tempDir, `err_${i}.txt`);
+        const outExists = fs5.existsSync(outPath);
+        const errExists = fs5.existsSync(errPath);
+        const out = outExists ? fs5.readFileSync(outPath, "utf8").trim() : "";
+        const runErr = errExists ? fs5.readFileSync(errPath, "utf8").trim() : "";
+        const err = (runErr || compileErr).trim();
+        const expected = typeof tc.output === "string" ? tc.output.trim() : null;
+        const passed = expected !== null && !err ? out === expected : null;
+        return {
+          input: tc.rawInput ?? "",
+          output: out,
+          expected,
+          passed,
+          error: err || null,
+          source: tc.__source
+        };
+      });
+      const firstErrorIndex = rawResults.findIndex((r) => !!r.error);
+      let results = rawResults;
+      let stoppedEarly = false;
+      let stoppedAt = null;
+      if (firstErrorIndex !== -1) {
+        results = [rawResults[firstErrorIndex]];
+        stoppedAt = firstErrorIndex;
+        stoppedEarly = firstErrorIndex < allTests.length - 1;
+      }
+      return SuccessResponse(c, "Success", 200, {
+        results,
+        total: results.length,
+        passed: results.filter((r) => r.passed).length,
+        stoppedEarly,
+        stoppedAt
+      });
+    } finally {
+      fs5.rmSync(tempDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error(err);
+    return ErrorResponse(c, "Internal Server Error", 500);
+  }
+};
+
+// server/controllers/contest/createSimpleProblem.controller.ts
+var import_mongoose16 = __toESM(require_mongoose2(), 1);
+var createSimpleProblem = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { name, contestId, submittedBy } = body;
+    console.log(name, contestId, submittedBy);
+    if (!name || !contestId || !submittedBy) {
+      return ErrorResponse(c, "name, contestId, submittedBy are required", 400);
+    }
+    const contestObjectId = import_mongoose16.default.Types.ObjectId.createFromHexString(contestId);
+    const contest = await contest_model_default.findById(contestObjectId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Cannot add problems to a running contest", 400);
+    }
+    const problemData = {
+      name,
+      contestId: contestObjectId,
+      submittedBy: import_mongoose16.default.Types.ObjectId.createFromHexString(submittedBy),
+      arguments: [],
+      functionName: "",
+      returnType: "",
+      statement: "",
+      hiddenTests: [],
+      visibleTests: [],
+      status: "pending"
+    };
+    const newProblem = new problem_model_default(problemData);
+    await newProblem.save();
+    return SuccessResponse(c, "Problem created successfully", 201, newProblem);
+  } catch (err) {
+    console.error("Problem creation failed:", err);
+    return ErrorResponse(c, err.message || "Failed to create problem", 500);
+  }
+};
+
+// server/controllers/contest/addstatement.controller.ts
+import fs6 from "fs";
+import path6 from "path";
+function extractImageUrls(html) {
+  const regex = /<img[^>]+src=["']([^"']+)["']/g;
+  return [...html.matchAll(regex)].map((m) => m[1]);
+}
+var updateProblemStatement = async (c) => {
+  try {
+    const body = await c.req.parseBody({ all: true });
+    const problemId = body["problemId"];
+    let statement = body["statement"];
+    const uploadedFilesRaw = body["images"];
+    if (!problemId || !statement) {
+      return ErrorResponse(c, "problemId and statement are required", 400);
+    }
+    const problem = await problem_model_default.findById(problemId);
+    if (!problem)
+      return ErrorResponse(c, "Problem not found", 404);
+    const contest = await contest_model_default.findById(problem.contestId);
+    if (!contest)
+      return ErrorResponse(c, "Contest not found", 404);
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Cannot update while contest is running", 400);
+    }
+    const contestIdStr = contest._id.toString();
+    const uploadsBase = path6.join(process.cwd(), "public", "uploads");
+    const uploadDir = path6.join(uploadsBase, contestIdStr, problemId);
+    if (!fs6.existsSync(uploadDir)) {
+      fs6.mkdirSync(uploadDir, { recursive: true });
+    }
+    const uploadedFiles = Array.isArray(uploadedFilesRaw) ? uploadedFilesRaw : uploadedFilesRaw ? [uploadedFilesRaw] : [];
+    const oldStatement = problem.statement || "";
+    const oldImages = extractImageUrls(oldStatement).filter((src) => src.startsWith("/api/uploads/"));
+    const imgTagRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+    const matches = [...statement.matchAll(imgTagRegex)];
+    let fileIndex = 0;
+    for (const match of matches) {
+      const originalSrc = match[1];
+      if (originalSrc.startsWith("/api/uploads/") || originalSrc.startsWith("http://") || originalSrc.startsWith("https://")) {
+        continue;
+      }
+      const file = uploadedFiles[fileIndex++];
+      if (!file)
+        continue;
+      let ext = path6.extname(file.name || "");
+      if (!ext) {
+        if (file.type.includes("jpeg"))
+          ext = ".jpg";
+        else if (file.type.includes("gif"))
+          ext = ".gif";
+        else if (file.type.includes("webp"))
+          ext = ".webp";
+        else if (file.type.includes("svg"))
+          ext = ".svg";
+        else
+          ext = ".png";
+      }
+      const fileName = `img-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+      const filePath = path6.join(uploadDir, fileName);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      fs6.writeFileSync(filePath, buffer);
+      const publicUrl = `/api/uploads/${contestIdStr}/${problemId}/${fileName}`;
+      statement = statement.replace(originalSrc, publicUrl);
+    }
+    const newImages = extractImageUrls(statement).filter((src) => src.startsWith("/api/uploads/"));
+    const removedImages = oldImages.filter((img) => !newImages.includes(img));
+    for (const imgUrl of removedImages) {
+      const relativePath = imgUrl.replace("/api/uploads/", "");
+      const filePath = path6.join(uploadsBase, relativePath);
+      if (!filePath.startsWith(uploadsBase))
+        continue;
+      if (fs6.existsSync(filePath)) {
+        fs6.unlinkSync(filePath);
+      }
+    }
+    problem.statement = statement;
+    await problem.save();
+    return SuccessResponse(c, "Problem statement updated successfully", 200, problem);
+  } catch (err) {
+    console.error("updateProblemStatement failed:", err);
+    return ErrorResponse(c, err.message || "Failed to update problem statement", 500);
+  }
+};
+
+// server/controllers/contest/arguments.controller.ts
+var import_mongoose17 = __toESM(require_mongoose2(), 1);
+var addProblemArguments = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { problemId, arguments: args } = body;
+    if (!problemId) {
+      return ErrorResponse(c, "problemId is required", 400);
+    }
+    if (!Array.isArray(args) || args.length === 0) {
+      return ErrorResponse(c, "arguments must be a non-empty array", 400);
+    }
+    for (const arg of args) {
+      if (!arg.name || !arg.type) {
+        return ErrorResponse(c, "Each argument must have 'name' and 'type'", 400);
+      }
+    }
+    if (!import_mongoose17.default.Types.ObjectId.isValid(problemId)) {
+      return ErrorResponse(c, "Invalid problemId", 400);
+    }
+    const updatedProblem = await problem_model_default.findByIdAndUpdate(problemId, { $set: { arguments: args } }, { new: true });
+    if (!updatedProblem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    return SuccessResponse(c, "Arguments added successfully", 200, updatedProblem);
+  } catch (err) {
+    console.error("Error adding arguments:", err);
+    return ErrorResponse(c, err.message || "Failed to add arguments", 500);
+  }
+};
+
+// server/controllers/contest/getProblem.controller.ts
+var import_mongoose18 = __toESM(require_mongoose2(), 1);
+var getProblemById = async (c) => {
+  try {
+    const problemId = c.req.param("problemId");
+    if (!problemId) {
+      return ErrorResponse(c, "problemId is required", 400);
+    }
+    if (!import_mongoose18.default.Types.ObjectId.isValid(problemId)) {
+      return ErrorResponse(c, "Invalid problemId", 400);
+    }
+    const problem = await problem_model_default.findById(problemId);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    return SuccessResponse(c, "Problem fetched successfully", 200, problem);
+  } catch (err) {
+    console.error("Error fetching problem:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch problem", 500);
+  }
+};
+
+// server/controllers/contest/addtestcase.controller.ts
+var import_mongoose20 = __toESM(require_mongoose2(), 1);
+
+// server/models/testcase.model.ts
+var import_mongoose19 = __toESM(require_mongoose2(), 1);
+var TestCaseSchema = new import_mongoose19.default.Schema({
+  problemId: {
+    type: import_mongoose19.default.Schema.Types.ObjectId,
+    ref: "Problem",
+    required: true
+  },
+  rawInput: {
+    type: String,
+    required: true
+  },
+  input: {
+    type: import_mongoose19.default.Schema.Types.Mixed,
+    required: false,
+    default: null
+  },
+  output: {
+    type: String,
+    required: true
+  },
+  points: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  isHidden: {
+    type: Boolean,
+    default: false
+  }
+}, { timestamps: true });
+var TestCase = import_mongoose19.default.model("TestCase", TestCaseSchema);
+var testcase_model_default = TestCase;
+
+// server/controllers/contest/addtestcase.controller.ts
+var addTestCase = async (c) => {
+  try {
+    const body = await c.req.json();
+    console.log("addTestCase body:", body);
+    const { problemId, input, output, isHidden, points } = body;
+    if (!problemId || !import_mongoose20.default.Types.ObjectId.isValid(problemId)) {
+      return ErrorResponse(c, "Invalid problemId", 400);
+    }
+    const problem = await problem_model_default.findById(problemId);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    const contest = await contest_model_default.findById(problem.contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Cannot add testcase while contest is running", 400);
+    }
+    if (points === undefined || points === null) {
+      return ErrorResponse(c, "points is required", 400);
+    }
+    const numericPoints = Number(points);
+    if (Number.isNaN(numericPoints) || numericPoints < 0 || numericPoints > 10) {
+      return ErrorResponse(c, "points must be a number between 0 and 10", 400);
+    }
+    if (typeof output !== "string") {
+      return ErrorResponse(c, "output must be a string", 400);
+    }
+    if (typeof input !== "object" || input === null || Array.isArray(input)) {
+      return ErrorResponse(c, "input must be an object", 400);
+    }
+    if (!Array.isArray(problem.arguments)) {
+      return ErrorResponse(c, "Problem arguments not defined", 400);
+    }
+    for (const argDef of problem.arguments) {
+      const { name, type } = argDef;
+      if (!(name in input)) {
+        return ErrorResponse(c, `Missing argument '${name}'`, 400);
+      }
+      const value = input[name];
+      if (type === "number" && typeof value !== "number") {
+        return ErrorResponse(c, `'${name}' must be a number`, 400);
+      }
+      if (type === "string" && typeof value !== "string") {
+        return ErrorResponse(c, `'${name}' must be a string`, 400);
+      }
+      if (type === "boolean" && typeof value !== "boolean") {
+        return ErrorResponse(c, `'${name}' must be a boolean`, 400);
+      }
+      if (type.endsWith("[]") && !Array.isArray(value)) {
+        return ErrorResponse(c, `'${name}' must be an array`, 400);
+      }
+    }
+    const lines = problem.arguments.map((argDef) => {
+      const { name } = argDef;
+      const value = input[name];
+      if (Array.isArray(value))
+        return value.join(" ");
+      if (typeof value === "object" && value !== null)
+        return JSON.stringify(value);
+      return String(value);
+    });
+    const rawInput = lines.join(`
+`) + `
+`;
+    const testCase = await testcase_model_default.create({
+      problemId,
+      input,
+      rawInput,
+      output,
+      isHidden: isHidden ?? false,
+      points: numericPoints
+    });
+    return SuccessResponse(c, "Testcase added successfully", 201, testCase);
+  } catch (err) {
+    console.error("Error adding testcase:", err);
+    return ErrorResponse(c, err.message || "Failed to add testcase", 500);
+  }
+};
+
+// server/controllers/contest/getTestCases.controller.ts
+var import_mongoose21 = __toESM(require_mongoose2(), 1);
+var getTestCases = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { problemId } = body;
+    if (!problemId) {
+      return ErrorResponse(c, "problemId is required", 400);
+    }
+    if (!import_mongoose21.default.Types.ObjectId.isValid(problemId)) {
+      return ErrorResponse(c, "Invalid problemId", 400);
+    }
+    const problem = await problem_model_default.findById(problemId);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    const testCases = await testcase_model_default.find({ problemId }).lean();
+    return SuccessResponse(c, "Testcases fetched successfully", 200, testCases);
+  } catch (err) {
+    console.error("Error fetching testcases:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch testcases", 500);
+  }
+};
+
+// server/controllers/contest/removeTestcase.controller.ts
+var import_mongoose22 = __toESM(require_mongoose2(), 1);
+var removeTestCase = async (c) => {
+  try {
+    const { testcaseId } = await c.req.json();
+    console.log("testcase", testcaseId);
+    if (!testcaseId) {
+      return ErrorResponse(c, "testcaseId is required", 400);
+    }
+    if (!import_mongoose22.default.Types.ObjectId.isValid(testcaseId)) {
+      return ErrorResponse(c, "Invalid testcaseId", 400);
+    }
+    const testCase = await testcase_model_default.findById(testcaseId);
+    console.log("e", testCase);
+    if (!testCase) {
+      return ErrorResponse(c, "Testcase not found", 404);
+    }
+    await testCase.deleteOne();
+    return SuccessResponse(c, "Testcase removed successfully", 200, {
+      _id: testcaseId
+    });
+  } catch (err) {
+    console.error("Error removing testcase:", err);
+    return ErrorResponse(c, err.message || "Failed to remove testcase", 500);
+  }
+};
+
+// server/controllers/contest/updateTestcase.controller.ts
+var import_mongoose23 = __toESM(require_mongoose2(), 1);
+var updateTestCase = async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    console.log("updateTestCase id:", id);
+    console.log("updateTestCase body:", body);
+    const { problemId, input, output, isHidden, points } = body;
+    if (!id) {
+      return ErrorResponse(c, "Testcase id is required", 400);
+    }
+    if (!import_mongoose23.default.Types.ObjectId.isValid(id)) {
+      return ErrorResponse(c, "Invalid testcase id", 400);
+    }
+    const testCase = await testcase_model_default.findById(id);
+    if (!testCase) {
+      return ErrorResponse(c, "Testcase not found", 404);
+    }
+    let problemIdToCheck = testCase.problemId;
+    if (problemId) {
+      if (!import_mongoose23.default.Types.ObjectId.isValid(problemId)) {
+        return ErrorResponse(c, "Invalid problemId", 400);
+      }
+      problemIdToCheck = problemId;
+    }
+    const problem = await problem_model_default.findById(problemIdToCheck);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    if (!problem.contestId) {
+      return ErrorResponse(c, "Problem is not linked to any contest", 400);
+    }
+    const contest = await contest_model_default.findById(problem.contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    if (contest.isRunning) {
+      return ErrorResponse(c, "Cannot update testcase while contest is running", 400);
+    }
+    if (points === undefined || points === null) {
+      return ErrorResponse(c, "points is required", 400);
+    }
+    const numericPoints = Number(points);
+    if (Number.isNaN(numericPoints) || numericPoints < 0 || numericPoints > 10) {
+      return ErrorResponse(c, "points must be a number between 0 and 10", 400);
+    }
+    if (problemId) {
+      testCase.problemId = problemId;
+    }
+    let effectiveInput = testCase.input;
+    if (input !== undefined) {
+      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        return ErrorResponse(c, "input must be an object", 400);
+      }
+      if (!Array.isArray(problem.arguments)) {
+        return ErrorResponse(c, "Problem arguments not defined", 400);
+      }
+      for (const argDef of problem.arguments) {
+        const { name, type } = argDef;
+        if (!(name in input)) {
+          return ErrorResponse(c, `Missing argument '${name}'`, 400);
+        }
+        const value = input[name];
+        if (type === "number" && typeof value !== "number") {
+          return ErrorResponse(c, `'${name}' must be a number`, 400);
+        }
+        if (type === "string" && typeof value !== "string") {
+          return ErrorResponse(c, `'${name}' must be a string`, 400);
+        }
+        if (type === "boolean" && typeof value !== "boolean") {
+          return ErrorResponse(c, `'${name}' must be a boolean`, 400);
+        }
+        if (type.endsWith("[]") && !Array.isArray(value)) {
+          return ErrorResponse(c, `'${name}' must be an array`, 400);
+        }
+      }
+      testCase.input = input;
+      effectiveInput = input;
+    }
+    if (output !== undefined) {
+      if (typeof output !== "string") {
+        return ErrorResponse(c, "output must be a string", 400);
+      }
+      testCase.output = output;
+    }
+    if (typeof isHidden === "boolean") {
+      testCase.isHidden = isHidden;
+    }
+    testCase.points = numericPoints;
+    if (!Array.isArray(problem.arguments)) {
+      return ErrorResponse(c, "Problem arguments not defined", 400);
+    }
+    if (typeof effectiveInput !== "object" || effectiveInput === null || Array.isArray(effectiveInput)) {
+      return ErrorResponse(c, "Stored testcase input is invalid", 400);
+    }
+    const lines = problem.arguments.map((argDef) => {
+      const { name } = argDef;
+      const value = effectiveInput[name];
+      if (Array.isArray(value)) {
+        return value.join(" ");
+      }
+      if (typeof value === "object" && value !== null) {
+        return JSON.stringify(value);
+      }
+      return String(value);
+    });
+    testCase.rawInput = lines.join(`
+`) + `
+`;
+    await testCase.save();
+    return SuccessResponse(c, "Testcase updated successfully", 200, testCase);
+  } catch (err) {
+    console.error("Error updating testcase:", err);
+    return ErrorResponse(c, err.message || "Failed to update testcase", 500);
+  }
+};
+
+// server/controllers/contest/makeCompleted.controller.ts
+var import_mongoose24 = __toESM(require_mongoose2(), 1);
+var addProblemCompleteStatus = async (c) => {
+  try {
+    const { id } = c.req.param();
+    console.log("addProblemCompleteStatus problem id:", id);
+    if (!id) {
+      return ErrorResponse(c, "Problem id is required", 400);
+    }
+    if (!import_mongoose24.default.Types.ObjectId.isValid(id)) {
+      return ErrorResponse(c, "Invalid problem id", 400);
+    }
+    const problem = await problem_model_default.findById(id);
+    if (!problem) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    const testcases = await testcase_model_default.find({ problemId: problem._id });
+    problem.testcases = testcases.map((tc) => tc._id);
+    const totalTestcases = testcases.length;
+    const visibleCount = testcases.filter((tc) => !tc.isHidden).length;
+    const hiddenCount = testcases.filter((tc) => tc.isHidden).length;
+    const hasAnyTestcases = totalTestcases > 0;
+    const hasVisible = visibleCount > 0;
+    const hasHidden = hiddenCount > 0;
+    const hasStatement = typeof problem.statement === "string" && problem.statement.trim().length > 0;
+    problem.isCompleted = hasStatement && hasAnyTestcases && hasVisible && hasHidden;
+    await problem.save();
+    const payload = {
+      problem,
+      isCompleted: problem.isCompleted,
+      hasStatement,
+      hasAnyTestcases,
+      hasVisible,
+      hasHidden,
+      totalTestcases,
+      visibleCount,
+      hiddenCount
+    };
+    return SuccessResponse(c, "Problem completion status updated successfully", 200, payload);
+  } catch (err) {
+    console.error("Error updating problem completion status:", err);
+    return ErrorResponse(c, err.message || "Failed to update problem completion status", 500);
+  }
+};
+
+// server/controllers/contest/makecontestrunning.controller.ts
+var makeContestRunning = async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body.isRunning !== "boolean") {
+      return ErrorResponse(c, "isRunning (boolean) is required", 400);
+    }
+    const contest = await contest_model_default.findById(id).populate("questions");
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    if (body.isRunning === true) {
+      const totalProblemsAdded = contest.questions.length;
+      if (totalProblemsAdded === 0) {
+        return ErrorResponse(c, "Contest cannot start. No problems added.", 400);
+      }
+      if (totalProblemsAdded !== contest.numberOfProblems) {
+        return ErrorResponse(c, `Contest incomplete. Expected ${contest.numberOfProblems} problems but found ${totalProblemsAdded}.`, 400);
+      }
+    }
+    contest.isRunning = body.isRunning;
+    await contest.save();
+    return SuccessResponse(c, body.isRunning ? "Contest started successfully!" : "Contest stopped successfully!", 200, contest);
+  } catch (err) {
+    console.error("Failed to update contest running:", err);
+    return ErrorResponse(c, err.message || "Failed to update contest running", 500);
+  }
+};
+
+// server/controllers/contest/submitcode.controller.ts
+import fs7 from "fs";
+import path7 from "path";
+var {spawnSync: spawnSync2 } = globalThis.Bun;
+var LANGUAGE_CONFIG2 = {
+  c: {
+    filename: "main.c",
+    workerName: "judge-gcc-worker",
+    hostWorkDir: "/judge/work/gcc",
+    containerWorkDir: "/workspace"
+  },
+  cpp: {
+    filename: "main.cpp",
+    workerName: "judge-cpp-worker",
+    hostWorkDir: "/judge/work/cpp",
+    containerWorkDir: "/workspace"
+  },
+  java: {
+    filename: "Main.java",
+    workerName: "judge-java-worker",
+    hostWorkDir: "/judge/work/java",
+    containerWorkDir: "/workspace"
+  },
+  python: {
+    filename: "main.py",
+    workerName: "judge-python-worker",
+    hostWorkDir: "/judge/work/python",
+    containerWorkDir: "/workspace"
+  }
+};
+function getJavaMainClassName2(code) {
+  const match = code.match(/public\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/);
+  return match?.[1] ?? "Main";
+}
+function isContainerRunning2(name) {
+  const result = spawnSync2({
+    cmd: ["docker", "inspect", "-f", "{{.State.Running}}", name],
+    stdout: "pipe",
+    stderr: "pipe"
+  });
+  const stdout = result.stdout?.toString().trim() ?? "";
+  const stderr = result.stderr?.toString().trim() ?? "";
+  if (!result.success) {
+    return {
+      running: false,
+      error: stderr || `docker inspect failed for ${name}`
+    };
+  }
+  return {
+    running: stdout === "true",
+    error: ""
+  };
+}
+function execInWorker2(worker, workdir, script) {
+  const cmd = [
+    "docker",
+    "exec",
+    "-e",
+    `WORKDIR=${workdir}`,
+    worker,
+    "sh",
+    "-c",
+    script
+  ];
+  const result = spawnSync2({
+    cmd,
+    stdout: "pipe",
+    stderr: "pipe"
+  });
+  return {
+    success: result.success,
+    stdout: result.stdout?.toString() ?? "",
+    stderr: result.stderr?.toString() ?? ""
+  };
+}
+function buildScript2(language, count, root, options) {
+  const loop = (run) => `
+BASE="${root}/$WORKDIR"
+i=0
+while [ "$i" -lt ${count} ]; do
+  ${run} < "$BASE/in_$i.txt" > "$BASE/out_$i.txt" 2> "$BASE/err_$i.txt" || true
+  i=$((i + 1))
+done
+`;
+  switch (language) {
+    case "c":
+      return `
+BASE="${root}/$WORKDIR"
+gcc "$BASE/main.c" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt" || true
+${loop("$BASE/main")}
+`;
+    case "cpp":
+      return `
+BASE="${root}/$WORKDIR"
+g++ "$BASE/main.cpp" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt" || true
+${loop("$BASE/main")}
+`;
+    case "java": {
+      const mainClass = options?.javaMainClass || "Main";
+      return `
+BASE="${root}/$WORKDIR"
+javac "$BASE/${mainClass}.java" 2> "$BASE/compile_err.txt" || true
+${loop(`java -cp "$BASE" ${mainClass}`)}
+`;
+    }
+    case "python":
+      return `
+BASE="${root}/$WORKDIR"
+${loop('python3 "$BASE/main.py"')}
+`;
+  }
+}
+var submitCode = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { userId, language, code, problem, contestId } = body;
+    console.log(userId, language, contestId);
+    if (!language || !code) {
+      return ErrorResponse(c, "Language and code are required", 400);
+    }
+    if (!problem) {
+      return ErrorResponse(c, "Problem ID is required", 400);
+    }
+    if (!userId) {
+      return ErrorResponse(c, "User is required for submission", 400);
+    }
+    if (!contestId) {
+      return ErrorResponse(c, "Contest ID is required", 400);
+    }
+    const config = LANGUAGE_CONFIG2[language];
+    if (!config) {
+      return ErrorResponse(c, "Unsupported language", 400);
+    }
+    const problemDoc = await problem_model_default.findById(problem).populate("testcases").lean();
+    if (!problemDoc) {
+      return ErrorResponse(c, "Problem not found", 404);
+    }
+    if (!problemDoc.testcases || problemDoc.testcases.length === 0) {
+      return ErrorResponse(c, "No testcases configured for this problem", 400);
+    }
+    const allTests = problemDoc.testcases.map((t) => ({
+      testcase: t._id,
+      rawInput: t.rawInput ?? t.input ?? "",
+      output: t.output ?? "",
+      isHidden: !!t.isHidden,
+      points: typeof t.points === "number" ? t.points : 0,
+      __source: "system"
+    }));
+    fs7.mkdirSync(config.hostWorkDir, { recursive: true });
+    const tempDir = fs7.mkdtempSync(path7.join(config.hostWorkDir, "job_"));
+    const workdirName = path7.basename(tempDir);
+    fs7.chmodSync(tempDir, 511);
+    let submissionStatus = "Accepted";
+    try {
+      let sourceFilename = config.filename;
+      let javaMainClass;
+      if (language === "java") {
+        javaMainClass = getJavaMainClassName2(code);
+        sourceFilename = `${javaMainClass}.java`;
+      }
+      fs7.writeFileSync(path7.join(tempDir, sourceFilename), code);
+      allTests.forEach((tc, i) => {
+        fs7.writeFileSync(path7.join(tempDir, `in_${i}.txt`), tc.rawInput ?? "", "utf8");
+      });
+      const script = buildScript2(language, allTests.length, config.containerWorkDir, language === "java" ? { javaMainClass } : undefined);
+      const status = isContainerRunning2(config.workerName);
+      if (!status.running) {
+        console.error(`Worker container ${config.workerName} is not running`, status.error);
+        return ErrorResponse(c, `Something went worng!,Execution worker "${config.workerName}" is not running`, 500);
+      }
+      const { stderr } = execInWorker2(config.workerName, workdirName, script);
+      const compileErrPath = path7.join(tempDir, "compile_err.txt");
+      const compileErr = fs7.existsSync(compileErrPath) ? fs7.readFileSync(compileErrPath, "utf8").trim() : "";
+      let hasRuntimeError = false;
+      const baseResults = allTests.map((tc, i) => {
+        const outPath = path7.join(tempDir, `out_${i}.txt`);
+        const errPath = path7.join(tempDir, `err_${i}.txt`);
+        const outExists = fs7.existsSync(outPath);
+        const errExists = fs7.existsSync(errPath);
+        const out = outExists ? fs7.readFileSync(outPath, "utf8").trim() : "";
+        const runErr = errExists ? fs7.readFileSync(errPath, "utf8").trim() : "";
+        if (runErr) {
+          hasRuntimeError = true;
+        }
+        const expected = typeof tc.output === "string" ? tc.output.trim() : null;
+        const passed = expected !== null && !runErr && !compileErr ? out === expected : false;
+        return {
+          testcase: tc.testcase,
+          input: tc.rawInput ?? "",
+          output: out,
+          expected,
+          passed,
+          isHidden: !!tc.isHidden
+        };
+      });
+      const totalTests = baseResults.length;
+      const passedTests = baseResults.filter((r) => r.passed).length;
+      const resultsWithPoints = baseResults.map((r, i) => {
+        const tcMeta = allTests[i];
+        const testPoints = tcMeta?.points ?? 0;
+        return {
+          ...r,
+          points: testPoints,
+          pointsAwarded: r.passed ? testPoints : 0
+        };
+      });
+      const maxPoints = resultsWithPoints.reduce((sum, r) => sum + (r.points ?? 0), 0);
+      const awardedPoints = resultsWithPoints.reduce((sum, r) => sum + (r.pointsAwarded ?? 0), 0);
+      const pointsPerTest = totalTests > 0 ? Math.round(maxPoints / totalTests * 100) / 100 : 0;
+      if (compileErr) {
+        submissionStatus = "Compile Error";
+      } else if (hasRuntimeError) {
+        submissionStatus = "Runtime Error";
+      } else if (passedTests !== totalTests) {
+        submissionStatus = "Wrong Answer";
+      } else {
+        submissionStatus = "Accepted";
+      }
+      const submissionDoc = await submission_model_default.findOneAndUpdate({
+        userId,
+        problemId: problem,
+        contestId
+      }, {
+        user: userId,
+        problem,
+        contest: contestId,
+        language,
+        code,
+        totalTests,
+        passedTests,
+        maxPoints,
+        pointsPerTest,
+        awardedPoints,
+        results: resultsWithPoints,
+        status: submissionStatus
+      }, {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      });
+      const responseResults = resultsWithPoints.map(({
+        points,
+        pointsAwarded,
+        input,
+        output,
+        expected,
+        ...rest
+      }) => {
+        if (rest.isHidden) {
+          return {
+            testcase: rest.testcase,
+            passed: rest.passed,
+            isHidden: rest.isHidden
+          };
+        }
+        return {
+          ...rest,
+          input,
+          output,
+          expected
+        };
+      });
+      return SuccessResponse(c, "Submission saved", 200, {
+        submissionId: submissionDoc._id,
+        contestId,
+        status: submissionStatus,
+        language,
+        totalTests,
+        passedTests,
+        results: responseResults
+      });
+    } finally {
+      fs7.rmSync(tempDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error(err);
+    return ErrorResponse(c, "Internal Server Error", 500);
+  }
+};
+
+// server/controllers/contest/update.controller.ts
+import * as fs8 from "fs";
+import * as path8 from "path";
+var UPLOADS_BASE2 = path8.join(process.cwd(), "public", "uploads");
+var updateContest = async (c) => {
+  let uploadedBannerPath = null;
+  let uploadedIconPath = null;
+  try {
+    const id = c.req.param("id");
+    const existing = await contest_model_default.findById(id);
+    if (!existing) {
+      return ErrorResponse(c, "Contest not found", 404);
+    }
+    const formData = await c.req.formData();
+    const name = formData.get("name");
+    const conductedBy = formData.get("conductedBy");
+    const numberOfProblems = formData.get("numberOfProblems");
+    const durationMinutes = formData.get("durationMinutes");
+    const contestId = existing._id.toString();
+    if (!fs8.existsSync(UPLOADS_BASE2)) {
+      fs8.mkdirSync(UPLOADS_BASE2, { recursive: true });
+    }
+    const contestDir = path8.join(UPLOADS_BASE2, contestId);
+    if (!fs8.existsSync(contestDir)) {
+      fs8.mkdirSync(contestDir, { recursive: true });
+    }
+    const deleteOldFileByUrl = (url) => {
+      if (!url)
+        return;
+      if (url.startsWith("/api/upload/")) {
+        const parts = url.split("/");
+        if (parts.length >= 5) {
+          const oldContestId = parts[3];
+          const filename = parts[4];
+          const filePath = path8.join(UPLOADS_BASE2, oldContestId, filename);
+          if (fs8.existsSync(filePath)) {
+            try {
+              fs8.unlinkSync(filePath);
+              console.log("Deleted old file:", filePath);
+            } catch (err) {
+              console.error("Failed to delete old file:", filePath, err);
+            }
+          }
+        }
+        return;
+      }
+      if (url.startsWith("/uploads/")) {
+        const parts = url.split("/");
+        if (parts.length >= 4) {
+          const oldContestId = parts[2];
+          const filename = parts[3];
+          const filePath = path8.join(UPLOADS_BASE2, oldContestId, filename);
+          if (fs8.existsSync(filePath)) {
+            try {
+              fs8.unlinkSync(filePath);
+              console.log("Deleted old legacy file:", filePath);
+            } catch (err) {
+              console.error("Failed to delete old legacy file:", filePath, err);
+            }
+          }
+        }
+        return;
+      }
+      console.warn("Unrecognized image URL format, skipping delete:", url);
+    };
+    let bannerImage = existing.bannerImage;
+    const bannerFile = formData.get("bannerImage");
+    if (bannerFile && bannerFile instanceof File) {
+      const file = bannerFile;
+      const filename = `${Date.now()}-banner${path8.extname(file.name)}`;
+      const filepath = path8.join(contestDir, filename);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      fs8.writeFileSync(filepath, buffer);
+      uploadedBannerPath = filepath;
+      bannerImage = `/api/uploads/${contestId}/${filename}`;
+      if (existing.bannerImage) {
+        deleteOldFileByUrl(existing.bannerImage);
+      }
+    }
+    let iconImage = existing.iconImage;
+    const iconFile = formData.get("iconImage");
+    if (iconFile && iconFile instanceof File) {
+      const file = iconFile;
+      const filename = `${Date.now()}-icon${path8.extname(file.name)}`;
+      const filepath = path8.join(contestDir, filename);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      fs8.writeFileSync(filepath, buffer);
+      uploadedIconPath = filepath;
+      iconImage = `/uploads/${contestId}/${filename}`;
+      if (existing.iconImage) {
+        deleteOldFileByUrl(existing.iconImage);
+      }
+    }
+    const rawLanguages = formData.get("languages");
+    let parsedLanguages = [];
+    if (rawLanguages) {
+      try {
+        const arr = JSON.parse(String(rawLanguages));
+        parsedLanguages = Array.isArray(arr) ? arr.map(String) : [String(rawLanguages)];
+      } catch (e) {
+        parsedLanguages = [String(rawLanguages)];
+      }
+    } else {
+      parsedLanguages = existing.languages;
+    }
+    const allowedLanguages = ["python", "c", "cpp", "java"];
+    parsedLanguages = parsedLanguages.map((l) => l.toLowerCase()).filter((l) => allowedLanguages.includes(l));
+    const rawInstructions = formData.get("instructions");
+    let parsedInstructions = [];
+    if (rawInstructions) {
+      try {
+        const arr = JSON.parse(String(rawInstructions));
+        parsedInstructions = Array.isArray(arr) ? arr.map(String) : [String(rawInstructions)];
+      } catch (e) {
+        console.error("Failed to parse instructions JSON:", e);
+        parsedInstructions = [String(rawInstructions)];
+      }
+      parsedInstructions = parsedInstructions.map((i) => String(i).trim()).filter((i) => i.length > 0);
+    } else {
+      parsedInstructions = existing.instructions;
+    }
+    existing.name = name ?? existing.name;
+    existing.conductedBy = conductedBy ?? existing.conductedBy;
+    existing.numberOfProblems = numberOfProblems ? Number(numberOfProblems) : existing.numberOfProblems;
+    existing.durationMinutes = durationMinutes ? Number(durationMinutes) : existing.durationMinutes;
+    existing.bannerImage = bannerImage;
+    existing.iconImage = iconImage;
+    existing.languages = parsedLanguages;
+    existing.instructions = parsedInstructions;
+    await existing.save();
+    return SuccessResponse(c, "Contest updated successfully", 200, existing);
+  } catch (err) {
+    if (uploadedBannerPath && fs8.existsSync(uploadedBannerPath)) {
+      try {
+        fs8.unlinkSync(uploadedBannerPath);
+      } catch (cleanupErr) {
+        console.error("Failed to remove uploaded banner file:", cleanupErr);
+      }
+    }
+    if (uploadedIconPath && fs8.existsSync(uploadedIconPath)) {
+      try {
+        fs8.unlinkSync(uploadedIconPath);
+      } catch (cleanupErr) {
+        console.error("Failed to remove uploaded icon file:", cleanupErr);
+      }
+    }
+    console.error("Contest update failed:", err);
+    return ErrorResponse(c, err.message || "Failed to update contest", 500);
+  }
+};
+
+// server/routes/contest.routes.ts
+var ContestRoutes = new Hono2;
+ContestRoutes.post("create", createContest);
+ContestRoutes.patch("update/:id", updateContest);
+ContestRoutes.patch(":id/running", makeContestRunning);
+ContestRoutes.post("add", requireRole(["volunteer"]), createContest);
+ContestRoutes.delete("delete/:contestId", deleteContest);
+ContestRoutes.get("list", getContests);
+ContestRoutes.get("list/without-questions", getContestsWithoutQuestions);
+ContestRoutes.get("list/running/without-questions", getRunningContestsWithoutQuestions);
+ContestRoutes.get(":id", getContestById);
+ContestRoutes.post(":id/upsert", upsertQuestion);
+ContestRoutes.post("images/upload", uploadImage);
+ContestRoutes.post("images/cleanup", cleanupUnusedImages);
+ContestRoutes.post("users/create", createUsers);
+ContestRoutes.get("admin/problems", getProblemsByAdminAndContest);
+ContestRoutes.get("admin/all/problems", getProblemsByUser);
+ContestRoutes.put("admin/problem/update/:problemId", upsertProblem);
+ContestRoutes.delete("admin/problem/delete/:problemId", deleteProblem);
+ContestRoutes.get("admin/getAllProblemsOfContest", getContestWithProblems);
+ContestRoutes.post("admin/problem/create", createSimpleProblem);
+ContestRoutes.post("admin/problem/add/statement", updateProblemStatement);
+ContestRoutes.post("admin/problem/add/arguments", addProblemArguments);
+ContestRoutes.post("admin/problem/add/testcase", addTestCase);
+ContestRoutes.post("admin/problem/get/testcases", getTestCases);
+ContestRoutes.post("admin/problem/complete/:id", addProblemCompleteStatus);
+ContestRoutes.delete("admin/problem/remove/testcase", removeTestCase);
+ContestRoutes.put("admin/testcase/update/:id", updateTestCase);
+ContestRoutes.get("admin/problem/get/:problemId", getProblemById);
+ContestRoutes.get("admin/getFinalizedProblemsByContest", getFinalizedProblemsByContest);
+ContestRoutes.post("admin/finalized", finalizeProblem);
+ContestRoutes.post("admin/unfinalized", unfinalizeProblem);
+ContestRoutes.post("/runcode", runCode);
+ContestRoutes.post("/submitcode", submitCode);
 
 // server/models/admin.model.ts
-var import_mongoose2 = __toESM(require_mongoose2(), 1);
-var adminSchema = new import_mongoose2.default.Schema({
-  username: { type: String, required: true },
-  password: { type: String, required: true }
+var import_mongoose25 = __toESM(require_mongoose2(), 1);
+var adminSchema = new import_mongoose25.default.Schema({
+  name: { type: String, required: true },
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: {
+    type: String,
+    enum: ["admin", "volunteer", "coordinator"],
+    required: true
+  }
+}, {
+  timestamps: true
 });
-var Admin = import_mongoose2.default.model("Admin", adminSchema, "Admin");
+var Admin = import_mongoose25.default.model("Admin", adminSchema, "Admin");
 
-// server/utils/response.ts
-var SuccessResponse = (c, message, status, data) => {
-  return c.json({
-    success: true,
-    message,
-    data: data || null
-  }, status);
-};
-var ErrorResponse = (c, message, status = 400, errors) => {
-  return c.json({
-    success: false,
-    message,
-    errors: errors || null
-  }, status);
-};
+// server/utils/hash.ts
+import { randomBytes as randomBytes2, subtle } from "crypto";
+async function hashPassword2(password) {
+  const salt = randomBytes2(16);
+  const enc = new TextEncoder;
+  const key = await subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]);
+  const derivedBits = await subtle.deriveBits({
+    name: "PBKDF2",
+    salt,
+    iterations: 1e5,
+    hash: "SHA-256"
+  }, key, 256);
+  const hash = Buffer.from(derivedBits);
+  return `${salt.toString("hex")}:${hash.toString("hex")}`;
+}
+async function verifyPassword(password, stored) {
+  const [saltHex, hashHex] = stored.split(":");
+  const salt = Buffer.from(saltHex, "hex");
+  const enc = new TextEncoder;
+  const key = await subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]);
+  const derivedBits = await subtle.deriveBits({
+    name: "PBKDF2",
+    salt,
+    iterations: 1e5,
+    hash: "SHA-256"
+  }, key, 256);
+  const hash = Buffer.from(derivedBits);
+  return hash.toString("hex") === hashHex;
+}
 
 // server/controllers/admin/login.controller.ts
-var COOKIE_SECRET = process.env.COOKIE_SECRET || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
+var COOKIE_SECRET2 = Bun.env.COOKIE_SECRET || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
 var loginAdmin = async (c) => {
-  const { username, password } = await c.req.json();
-  const adminDoc = await Admin.findOne({ username });
-  if (!adminDoc) {
-    return ErrorResponse(c, "Invalid credentials", 401);
+  const { username, password, role } = await c.req.json();
+  if (!role || !["admin", "volunteer", "coordinator"].includes(role)) {
+    return ErrorResponse(c, "Invalid or missing role", 400);
   }
-  const isValid = await compare(password, adminDoc.password);
+  const userDoc = await Admin.findOne({ username, role });
+  if (!userDoc) {
+    return ErrorResponse(c, "Invalid credentials or role", 401);
+  }
+  const isValid = await verifyPassword(password, userDoc.password);
   if (!isValid) {
     return ErrorResponse(c, "Invalid credentials", 401);
   }
-  await setSignedCookie(c, "adminAuth", adminDoc._id.toString(), COOKIE_SECRET, {
+  await setSignedCookie(c, userDoc.role === "admin" ? "adminAuth" : userDoc.role === "coordinator" ? "coordinatorAuth" : "volunteerAuth", JSON.stringify({
+    id: userDoc._id.toString(),
+    username: userDoc.username,
+    role: userDoc.role
+  }), COOKIE_SECRET2, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24
   });
   return SuccessResponse(c, "Login successful", 200, {
-    id: adminDoc._id,
-    username: adminDoc.username
+    id: userDoc._id,
+    username: userDoc.username,
+    role: userDoc.role
   });
 };
 
 // server/controllers/admin/me.controller.ts
-var COOKIE_SECRET2 = process.env.COOKIE_SECRET || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
+var import_mongoose26 = __toESM(require_mongoose2(), 1);
+var COOKIE_SECRET3 = process.env.COOKIE_SECRET || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
 var adminMe = async (c) => {
-  const adminId = await getSignedCookie(c, COOKIE_SECRET2, "adminAuth");
-  console.log("adminId:", adminId);
-  if (!adminId) {
+  const validCookies = ["adminAuth", "coordinatorAuth", "volunteerAuth"];
+  let cookieValue = null;
+  for (const cookieName of validCookies) {
+    cookieValue = await getSignedCookie(c, COOKIE_SECRET3, cookieName);
+    if (cookieValue) {
+      break;
+    }
+  }
+  if (!cookieValue) {
     return c.json({ message: "Not authenticated" }, 401);
   }
-  const adminDoc = await Admin.findById(adminId);
-  if (!adminDoc) {
-    return c.json({ message: "Admin not found" }, 404);
+  let user;
+  try {
+    user = JSON.parse(cookieValue);
+  } catch {
+    return c.json({ message: "Invalid cookie format" }, 400);
   }
-  const user = { id: adminDoc._id, username: adminDoc.username };
-  return SuccessResponse(c, "Fetched admin details", 200, user);
+  if (!user?.id) {
+    return c.json({ message: "Invalid user data in cookie" }, 400);
+  }
+  let objectId;
+  try {
+    objectId = import_mongoose26.default.Types.ObjectId.createFromHexString(user.id);
+  } catch {
+    return c.json({ message: "Invalid user ID" }, 400);
+  }
+  const userDoc = await Admin.findById(objectId);
+  if (!userDoc) {
+    return c.json({ message: "User not found" }, 404);
+  }
+  const responseUser = {
+    id: userDoc._id.toHexString(),
+    username: userDoc.username,
+    role: userDoc.role
+  };
+  return SuccessResponse(c, "Fetched user details", 200, responseUser);
+};
+
+// server/controllers/admin/createVolunteer.controller.ts
+var createVolunteer = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username, name, password, confirmPassword } = body;
+    if (!username || !name || !password || !confirmPassword) {
+      return ErrorResponse(c, "All fields are required", 400);
+    }
+    if (password !== confirmPassword) {
+      return ErrorResponse(c, "Passwords do not match", 400);
+    }
+    const existingUser = await Admin.findOne({ username, role: "volunteer" });
+    if (existingUser) {
+      return ErrorResponse(c, "Username already exists", 409);
+    }
+    const hashedPassword = await hashPassword2(password);
+    const newVolunteer = new Admin({
+      name,
+      username,
+      password: hashedPassword,
+      role: "volunteer"
+    });
+    await newVolunteer.save();
+    return SuccessResponse(c, "Volunteer created successfully", 201, {
+      id: newVolunteer._id,
+      name: newVolunteer.name,
+      username: newVolunteer.username,
+      role: newVolunteer.role
+    });
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Internal server error", 500);
+  }
+};
+
+// server/utils/auth.ts
+var COOKIE_SECRET4 = process.env.COOKIE_SECRET || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InByYWthc2giLCJpYXQiOjE3NTUxNDkwMzEsImV4cCI6MTc1NTE1MjYzMX0.rbv56hQPq4HDPpeTvuOFff36aJZaPRmwD3NpeSAX9v8";
+var getCookie2 = async (c, cookieName) => {
+  return await getSignedCookie(c, COOKIE_SECRET4, cookieName);
+};
+var getAuthUser = async (c, next) => {
+  try {
+    const cookieNames = ["adminAuth", "coordinatorAuth", "volunteerAuth"];
+    let cookie = null;
+    for (const cookieName of cookieNames) {
+      cookie = await getCookie2(c, cookieName);
+      if (cookie) {
+        break;
+      }
+    }
+    if (!cookie) {
+      return c.json({ success: false, message: "Unauthorized: No cookie found" }, 401);
+    }
+    const user = JSON.parse(cookie);
+    if (!user?.id || !user?.role) {
+      return c.json({ success: false, message: "Unauthorized: Invalid cookie" }, 401);
+    }
+    c.set("user", user);
+    await next();
+  } catch (err) {
+    console.error("Error verifying cookie:", err);
+    return c.json({ success: false, message: "Unauthorized: Invalid signature" }, 401);
+  }
+};
+var checkRole = (allowedRoles) => {
+  return async (c, next) => {
+    const user = c.get("user");
+    console.log(user, "coming ");
+    if (!user || !allowedRoles.includes(user.role)) {
+      return c.json({ success: false, message: `Forbidden: Requires role ${allowedRoles.join(" or ")}` }, 403);
+    }
+    await next();
+  };
+};
+var checkAdmin = checkRole(["admin"]);
+var checkAdminOrCoordinator = checkRole(["admin", "coordinator"]);
+var checkCoordinatorOrVolunteer = checkRole(["coordinator", "volunteer"]);
+
+// server/controllers/admin/getVolunteers.controller.ts
+var getVolunteers = async (c) => {
+  try {
+    const volunteers = await Admin.find({ role: "volunteer" }).select("_id name username role createdAt");
+    return SuccessResponse(c, "Volunteers fetched successfully", 200, volunteers);
+  } catch (err) {
+    console.error("Error fetching volunteers:", err);
+    return ErrorResponse(c, "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/updateVolunteer.controller.ts
+var updateVolunteer = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username, name, password, confirmPassword } = body;
+    if (!username) {
+      return ErrorResponse(c, "Username is required to identify volunteer", 400);
+    }
+    const volunteer = await Admin.findOne({ username, role: "volunteer" });
+    if (!volunteer) {
+      return ErrorResponse(c, "Volunteer not found", 404);
+    }
+    if (name)
+      volunteer.name = name;
+    if (password || confirmPassword) {
+      if (!password || !confirmPassword) {
+        return ErrorResponse(c, "Both password and confirmPassword are required", 400);
+      }
+      if (password !== confirmPassword) {
+        return ErrorResponse(c, "Passwords do not match", 400);
+      }
+      volunteer.password = await hashPassword2(password);
+    }
+    await volunteer.save();
+    return SuccessResponse(c, "Volunteer updated successfully", 200, {
+      id: volunteer._id,
+      name: volunteer.name,
+      username: volunteer.username,
+      role: volunteer.role
+    });
+  } catch (err) {
+    console.error(err);
+    return ErrorResponse(c, err.message || "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/deleteVolunteer.controller.ts
+var deleteVolunteer = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username } = body;
+    if (!username) {
+      return ErrorResponse(c, "Username is required to delete volunteer", 400);
+    }
+    const volunteer = await Admin.findOne({ username, role: "volunteer" });
+    if (!volunteer) {
+      return ErrorResponse(c, "Volunteer not found", 404);
+    }
+    const deletedProblems = await problem_model_default.deleteMany({
+      submittedBy: volunteer._id
+    });
+    await volunteer.deleteOne();
+    return SuccessResponse(c, "Volunteer and submitted problems deleted successfully", 200, {
+      username: volunteer.username,
+      id: volunteer._id,
+      deletedProblemsCount: deletedProblems.deletedCount
+    });
+  } catch (err) {
+    console.error("Error deleting volunteer:", err);
+    return ErrorResponse(c, "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/logout.controller.ts
+var logoutAdmin = async (c) => {
+  const { cookieName } = await c.req.json();
+  try {
+    const cookie = getCookie(c, cookieName);
+    console.log(cookie, "cookie");
+    if (!cookie) {
+      return ErrorResponse(c, "No active session found", 400);
+    }
+    deleteCookie(c, cookieName, {
+      path: "/"
+    });
+    return SuccessResponse(c, "Logout successful", 200);
+  } catch (error) {
+    console.error("Logout error:", error);
+    return ErrorResponse(c, "An error occurred during logout", 500);
+  }
+};
+
+// server/controllers/admin/createVorC.controller.ts
+var createUser = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username, name, password, confirmPassword, role } = body;
+    if (!username || !name || !password || !confirmPassword || !role) {
+      return ErrorResponse(c, "All fields are required", 400);
+    }
+    if (password !== confirmPassword) {
+      return ErrorResponse(c, "Passwords do not match", 400);
+    }
+    if (!["volunteer", "coordinator"].includes(role)) {
+      return ErrorResponse(c, "Invalid role", 400);
+    }
+    const existingUser = await Admin.findOne({ username, role });
+    if (existingUser) {
+      return ErrorResponse(c, `${role.charAt(0).toUpperCase() + role.slice(1)} username already exists`, 409);
+    }
+    const hashedPassword = await hashPassword2(password);
+    const newUser = new Admin({
+      name,
+      username,
+      password: hashedPassword,
+      role
+    });
+    await newUser.save();
+    return SuccessResponse(c, `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`, 201, {
+      id: newUser._id,
+      name: newUser.name,
+      username: newUser.username,
+      role: newUser.role
+    });
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/getVorC.controller.ts
+var getVorc = async (c) => {
+  try {
+    const users = await Admin.find({
+      role: { $in: ["volunteer", "coordinator"] }
+    }).select("_id name username role createdAt");
+    return SuccessResponse(c, "Users fetched successfully", 200, users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    return ErrorResponse(c, "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/deleteVorC.controller.ts
+var deleteVorc = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch (parseError) {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username } = body;
+    if (!username) {
+      return ErrorResponse(c, "Username is required to delete user", 400);
+    }
+    const user = await Admin.findOne({
+      username,
+      role: { $in: ["volunteer", "coordinator"] }
+    });
+    if (!user) {
+      return ErrorResponse(c, "User not found", 404);
+    }
+    const deletedProblems = await problem_model_default.deleteMany({ submittedBy: user._id });
+    await user.deleteOne();
+    return SuccessResponse(c, "User and submitted problems deleted successfully", 200, {
+      username: user.username,
+      id: user._id,
+      role: user.role,
+      deletedProblemsCount: deletedProblems.deletedCount
+    });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    return ErrorResponse(c, "Internal server error", 500);
+  }
+};
+
+// server/controllers/admin/updateVorC.controller.ts
+var updateVorc = async (c) => {
+  try {
+    let body;
+    try {
+      body = await c.req.json();
+    } catch {
+      return ErrorResponse(c, "Invalid JSON format", 400);
+    }
+    const { username, name, password, confirmPassword, role } = body;
+    console.log(username, name, password, confirmPassword);
+    if (!username) {
+      return ErrorResponse(c, "Username is required to identify user", 400);
+    }
+    const user = await Admin.findOne({
+      username,
+      role: { $in: ["volunteer", "coordinator"] }
+    });
+    if (!user) {
+      return ErrorResponse(c, "User not found", 404);
+    }
+    if (name?.trim()) {
+      user.name = name.trim();
+    }
+    if (role && ["volunteer", "coordinator"].includes(role)) {
+      user.role = role;
+    }
+    if (password || confirmPassword) {
+      if (!password || !confirmPassword) {
+        return ErrorResponse(c, "Both password and confirmPassword are required", 400);
+      }
+      if (password !== confirmPassword) {
+        return ErrorResponse(c, "Passwords do not match", 400);
+      }
+      if (password.length < 6) {
+        return ErrorResponse(c, "Password must be at least 6 characters long", 400);
+      }
+      user.password = await hashPassword2(password);
+    }
+    await user.save();
+    return SuccessResponse(c, "User updated successfully", 200, {
+      id: user._id,
+      name: user.name,
+      username: user.username,
+      role: user.role
+    });
+  } catch (err) {
+    console.error("Error updating user:", err);
+    return ErrorResponse(c, err.message || "Internal server error", 500);
+  }
 };
 
 // server/routes/admin.routes.ts
 var adminRoute = new Hono2;
 adminRoute.post("/auth/login", loginAdmin);
+adminRoute.post("/auth/logout", logoutAdmin);
 adminRoute.get("/auth/me", adminMe);
+adminRoute.post("/auth/create/volunteer", getAuthUser, checkAdminOrCoordinator, createVolunteer);
+adminRoute.post("/auth/create/vorc", getAuthUser, checkAdmin, createUser);
+adminRoute.get("/auth/get/volunteers", getAuthUser, checkAdminOrCoordinator, getVolunteers);
+adminRoute.get("/auth/get/vorc", getAuthUser, checkAdmin, getVorc);
+adminRoute.put("/auth/update/volunteer", getAuthUser, checkAdminOrCoordinator, updateVolunteer);
+adminRoute.put("/auth/update/uvorc", getAuthUser, checkAdmin, updateVorc);
+adminRoute.delete("/auth/delete/volunteer", getAuthUser, checkAdminOrCoordinator, deleteVolunteer);
+adminRoute.delete("/auth/delete/vorc", getAuthUser, checkAdmin, deleteVorc);
+
+// node_modules/hono/dist/utils/encode.js
+var decodeBase64Url = (str) => {
+  return decodeBase64(str.replace(/_|-/g, (m) => ({ _: "/", "-": "+" })[m] ?? m));
+};
+var encodeBase64Url = (buf) => encodeBase64(buf).replace(/\/|\+/g, (m) => ({ "/": "_", "+": "-" })[m] ?? m);
+var encodeBase64 = (buf) => {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0, len = bytes.length;i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+};
+var decodeBase64 = (str) => {
+  const binary = atob(str);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  const half = binary.length / 2;
+  for (let i = 0, j = binary.length - 1;i <= half; i++, j--) {
+    bytes[i] = binary.charCodeAt(i);
+    bytes[j] = binary.charCodeAt(j);
+  }
+  return bytes;
+};
+
+// node_modules/hono/dist/utils/jwt/jwa.js
+var AlgorithmTypes = /* @__PURE__ */ ((AlgorithmTypes2) => {
+  AlgorithmTypes2["HS256"] = "HS256";
+  AlgorithmTypes2["HS384"] = "HS384";
+  AlgorithmTypes2["HS512"] = "HS512";
+  AlgorithmTypes2["RS256"] = "RS256";
+  AlgorithmTypes2["RS384"] = "RS384";
+  AlgorithmTypes2["RS512"] = "RS512";
+  AlgorithmTypes2["PS256"] = "PS256";
+  AlgorithmTypes2["PS384"] = "PS384";
+  AlgorithmTypes2["PS512"] = "PS512";
+  AlgorithmTypes2["ES256"] = "ES256";
+  AlgorithmTypes2["ES384"] = "ES384";
+  AlgorithmTypes2["ES512"] = "ES512";
+  AlgorithmTypes2["EdDSA"] = "EdDSA";
+  return AlgorithmTypes2;
+})(AlgorithmTypes || {});
+
+// node_modules/hono/dist/helper/adapter/index.js
+var knownUserAgents = {
+  deno: "Deno",
+  bun: "Bun",
+  workerd: "Cloudflare-Workers",
+  node: "Node.js"
+};
+var getRuntimeKey = () => {
+  const global2 = globalThis;
+  const userAgentSupported = typeof navigator !== "undefined" && typeof navigator.userAgent === "string";
+  if (userAgentSupported) {
+    for (const [runtimeKey, userAgent] of Object.entries(knownUserAgents)) {
+      if (checkUserAgentEquals(userAgent)) {
+        return runtimeKey;
+      }
+    }
+  }
+  if (typeof global2?.EdgeRuntime === "string") {
+    return "edge-light";
+  }
+  if (global2?.fastly !== undefined) {
+    return "fastly";
+  }
+  if (global2?.process?.release?.name === "node") {
+    return "node";
+  }
+  return "other";
+};
+var checkUserAgentEquals = (platform) => {
+  const userAgent = navigator.userAgent;
+  return userAgent.startsWith(platform);
+};
+
+// node_modules/hono/dist/utils/jwt/types.js
+var JwtAlgorithmNotImplemented = class extends Error {
+  constructor(alg) {
+    super(`${alg} is not an implemented algorithm`);
+    this.name = "JwtAlgorithmNotImplemented";
+  }
+};
+var JwtTokenInvalid = class extends Error {
+  constructor(token) {
+    super(`invalid JWT token: ${token}`);
+    this.name = "JwtTokenInvalid";
+  }
+};
+var JwtTokenNotBefore = class extends Error {
+  constructor(token) {
+    super(`token (${token}) is being used before it's valid`);
+    this.name = "JwtTokenNotBefore";
+  }
+};
+var JwtTokenExpired = class extends Error {
+  constructor(token) {
+    super(`token (${token}) expired`);
+    this.name = "JwtTokenExpired";
+  }
+};
+var JwtTokenIssuedAt = class extends Error {
+  constructor(currentTimestamp, iat) {
+    super(`Invalid "iat" claim, must be a valid number lower than "${currentTimestamp}" (iat: "${iat}")`);
+    this.name = "JwtTokenIssuedAt";
+  }
+};
+var JwtTokenIssuer = class extends Error {
+  constructor(expected, iss) {
+    super(`expected issuer "${expected}", got ${iss ? `"${iss}"` : "none"} `);
+    this.name = "JwtTokenIssuer";
+  }
+};
+var JwtHeaderInvalid = class extends Error {
+  constructor(header) {
+    super(`jwt header is invalid: ${JSON.stringify(header)}`);
+    this.name = "JwtHeaderInvalid";
+  }
+};
+var JwtHeaderRequiresKid = class extends Error {
+  constructor(header) {
+    super(`required "kid" in jwt header: ${JSON.stringify(header)}`);
+    this.name = "JwtHeaderRequiresKid";
+  }
+};
+var JwtTokenSignatureMismatched = class extends Error {
+  constructor(token) {
+    super(`token(${token}) signature mismatched`);
+    this.name = "JwtTokenSignatureMismatched";
+  }
+};
+var CryptoKeyUsage = /* @__PURE__ */ ((CryptoKeyUsage2) => {
+  CryptoKeyUsage2["Encrypt"] = "encrypt";
+  CryptoKeyUsage2["Decrypt"] = "decrypt";
+  CryptoKeyUsage2["Sign"] = "sign";
+  CryptoKeyUsage2["Verify"] = "verify";
+  CryptoKeyUsage2["DeriveKey"] = "deriveKey";
+  CryptoKeyUsage2["DeriveBits"] = "deriveBits";
+  CryptoKeyUsage2["WrapKey"] = "wrapKey";
+  CryptoKeyUsage2["UnwrapKey"] = "unwrapKey";
+  return CryptoKeyUsage2;
+})(CryptoKeyUsage || {});
+
+// node_modules/hono/dist/utils/jwt/utf8.js
+var utf8Encoder = new TextEncoder;
+var utf8Decoder = new TextDecoder;
+
+// node_modules/hono/dist/utils/jwt/jws.js
+async function signing(privateKey, alg, data) {
+  const algorithm2 = getKeyAlgorithm(alg);
+  const cryptoKey = await importPrivateKey(privateKey, algorithm2);
+  return await crypto.subtle.sign(algorithm2, cryptoKey, data);
+}
+async function verifying(publicKey, alg, signature, data) {
+  const algorithm2 = getKeyAlgorithm(alg);
+  const cryptoKey = await importPublicKey(publicKey, algorithm2);
+  return await crypto.subtle.verify(algorithm2, cryptoKey, signature, data);
+}
+function pemToBinary(pem) {
+  return decodeBase64(pem.replace(/-+(BEGIN|END).*/g, "").replace(/\s/g, ""));
+}
+async function importPrivateKey(key, alg) {
+  if (!crypto.subtle || !crypto.subtle.importKey) {
+    throw new Error("`crypto.subtle.importKey` is undefined. JWT auth middleware requires it.");
+  }
+  if (isCryptoKey(key)) {
+    if (key.type !== "private" && key.type !== "secret") {
+      throw new Error(`unexpected key type: CryptoKey.type is ${key.type}, expected private or secret`);
+    }
+    return key;
+  }
+  const usages = [CryptoKeyUsage.Sign];
+  if (typeof key === "object") {
+    return await crypto.subtle.importKey("jwk", key, alg, false, usages);
+  }
+  if (key.includes("PRIVATE")) {
+    return await crypto.subtle.importKey("pkcs8", pemToBinary(key), alg, false, usages);
+  }
+  return await crypto.subtle.importKey("raw", utf8Encoder.encode(key), alg, false, usages);
+}
+async function importPublicKey(key, alg) {
+  if (!crypto.subtle || !crypto.subtle.importKey) {
+    throw new Error("`crypto.subtle.importKey` is undefined. JWT auth middleware requires it.");
+  }
+  if (isCryptoKey(key)) {
+    if (key.type === "public" || key.type === "secret") {
+      return key;
+    }
+    key = await exportPublicJwkFrom(key);
+  }
+  if (typeof key === "string" && key.includes("PRIVATE")) {
+    const privateKey = await crypto.subtle.importKey("pkcs8", pemToBinary(key), alg, true, [
+      CryptoKeyUsage.Sign
+    ]);
+    key = await exportPublicJwkFrom(privateKey);
+  }
+  const usages = [CryptoKeyUsage.Verify];
+  if (typeof key === "object") {
+    return await crypto.subtle.importKey("jwk", key, alg, false, usages);
+  }
+  if (key.includes("PUBLIC")) {
+    return await crypto.subtle.importKey("spki", pemToBinary(key), alg, false, usages);
+  }
+  return await crypto.subtle.importKey("raw", utf8Encoder.encode(key), alg, false, usages);
+}
+async function exportPublicJwkFrom(privateKey) {
+  if (privateKey.type !== "private") {
+    throw new Error(`unexpected key type: ${privateKey.type}`);
+  }
+  if (!privateKey.extractable) {
+    throw new Error("unexpected private key is unextractable");
+  }
+  const jwk = await crypto.subtle.exportKey("jwk", privateKey);
+  const { kty } = jwk;
+  const { alg, e, n } = jwk;
+  const { crv, x, y } = jwk;
+  return { kty, alg, e, n, crv, x, y, key_ops: [CryptoKeyUsage.Verify] };
+}
+function getKeyAlgorithm(name) {
+  switch (name) {
+    case "HS256":
+      return {
+        name: "HMAC",
+        hash: {
+          name: "SHA-256"
+        }
+      };
+    case "HS384":
+      return {
+        name: "HMAC",
+        hash: {
+          name: "SHA-384"
+        }
+      };
+    case "HS512":
+      return {
+        name: "HMAC",
+        hash: {
+          name: "SHA-512"
+        }
+      };
+    case "RS256":
+      return {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: {
+          name: "SHA-256"
+        }
+      };
+    case "RS384":
+      return {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: {
+          name: "SHA-384"
+        }
+      };
+    case "RS512":
+      return {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: {
+          name: "SHA-512"
+        }
+      };
+    case "PS256":
+      return {
+        name: "RSA-PSS",
+        hash: {
+          name: "SHA-256"
+        },
+        saltLength: 32
+      };
+    case "PS384":
+      return {
+        name: "RSA-PSS",
+        hash: {
+          name: "SHA-384"
+        },
+        saltLength: 48
+      };
+    case "PS512":
+      return {
+        name: "RSA-PSS",
+        hash: {
+          name: "SHA-512"
+        },
+        saltLength: 64
+      };
+    case "ES256":
+      return {
+        name: "ECDSA",
+        hash: {
+          name: "SHA-256"
+        },
+        namedCurve: "P-256"
+      };
+    case "ES384":
+      return {
+        name: "ECDSA",
+        hash: {
+          name: "SHA-384"
+        },
+        namedCurve: "P-384"
+      };
+    case "ES512":
+      return {
+        name: "ECDSA",
+        hash: {
+          name: "SHA-512"
+        },
+        namedCurve: "P-521"
+      };
+    case "EdDSA":
+      return {
+        name: "Ed25519",
+        namedCurve: "Ed25519"
+      };
+    default:
+      throw new JwtAlgorithmNotImplemented(name);
+  }
+}
+function isCryptoKey(key) {
+  const runtime = getRuntimeKey();
+  if (runtime === "node" && !!crypto.webcrypto) {
+    return key instanceof crypto.webcrypto.CryptoKey;
+  }
+  return key instanceof CryptoKey;
+}
+
+// node_modules/hono/dist/utils/jwt/jwt.js
+var encodeJwtPart = (part) => encodeBase64Url(utf8Encoder.encode(JSON.stringify(part)).buffer).replace(/=/g, "");
+var encodeSignaturePart = (buf) => encodeBase64Url(buf).replace(/=/g, "");
+var decodeJwtPart = (part) => JSON.parse(utf8Decoder.decode(decodeBase64Url(part)));
+function isTokenHeader(obj) {
+  if (typeof obj === "object" && obj !== null) {
+    const objWithAlg = obj;
+    return "alg" in objWithAlg && Object.values(AlgorithmTypes).includes(objWithAlg.alg) && (!("typ" in objWithAlg) || objWithAlg.typ === "JWT");
+  }
+  return false;
+}
+var sign = async (payload, privateKey, alg = "HS256") => {
+  const encodedPayload = encodeJwtPart(payload);
+  let encodedHeader;
+  if (typeof privateKey === "object" && "alg" in privateKey) {
+    alg = privateKey.alg;
+    encodedHeader = encodeJwtPart({ alg, typ: "JWT", kid: privateKey.kid });
+  } else {
+    encodedHeader = encodeJwtPart({ alg, typ: "JWT" });
+  }
+  const partialToken = `${encodedHeader}.${encodedPayload}`;
+  const signaturePart = await signing(privateKey, alg, utf8Encoder.encode(partialToken));
+  const signature = encodeSignaturePart(signaturePart);
+  return `${partialToken}.${signature}`;
+};
+var verify = async (token, publicKey, algOrOptions) => {
+  const optsIn = typeof algOrOptions === "string" ? { alg: algOrOptions } : algOrOptions || {};
+  const opts = {
+    alg: optsIn.alg ?? "HS256",
+    iss: optsIn.iss,
+    nbf: optsIn.nbf ?? true,
+    exp: optsIn.exp ?? true,
+    iat: optsIn.iat ?? true
+  };
+  const tokenParts = token.split(".");
+  if (tokenParts.length !== 3) {
+    throw new JwtTokenInvalid(token);
+  }
+  const { header, payload } = decode(token);
+  if (!isTokenHeader(header)) {
+    throw new JwtHeaderInvalid(header);
+  }
+  const now = Date.now() / 1000 | 0;
+  if (opts.nbf && payload.nbf && payload.nbf > now) {
+    throw new JwtTokenNotBefore(token);
+  }
+  if (opts.exp && payload.exp && payload.exp <= now) {
+    throw new JwtTokenExpired(token);
+  }
+  if (opts.iat && payload.iat && now < payload.iat) {
+    throw new JwtTokenIssuedAt(now, payload.iat);
+  }
+  if (opts.iss) {
+    if (!payload.iss) {
+      throw new JwtTokenIssuer(opts.iss, null);
+    }
+    if (typeof opts.iss === "string" && payload.iss !== opts.iss) {
+      throw new JwtTokenIssuer(opts.iss, payload.iss);
+    }
+    if (opts.iss instanceof RegExp && !opts.iss.test(payload.iss)) {
+      throw new JwtTokenIssuer(opts.iss, payload.iss);
+    }
+  }
+  const headerPayload = token.substring(0, token.lastIndexOf("."));
+  const verified = await verifying(publicKey, opts.alg, decodeBase64Url(tokenParts[2]), utf8Encoder.encode(headerPayload));
+  if (!verified) {
+    throw new JwtTokenSignatureMismatched(token);
+  }
+  return payload;
+};
+var verifyWithJwks = async (token, options, init) => {
+  const verifyOpts = options.verification || {};
+  const header = decodeHeader(token);
+  if (!isTokenHeader(header)) {
+    throw new JwtHeaderInvalid(header);
+  }
+  if (!header.kid) {
+    throw new JwtHeaderRequiresKid(header);
+  }
+  if (options.jwks_uri) {
+    const response = await fetch(options.jwks_uri, init);
+    if (!response.ok) {
+      throw new Error(`failed to fetch JWKS from ${options.jwks_uri}`);
+    }
+    const data = await response.json();
+    if (!data.keys) {
+      throw new Error('invalid JWKS response. "keys" field is missing');
+    }
+    if (!Array.isArray(data.keys)) {
+      throw new Error('invalid JWKS response. "keys" field is not an array');
+    }
+    if (options.keys) {
+      options.keys.push(...data.keys);
+    } else {
+      options.keys = data.keys;
+    }
+  } else if (!options.keys) {
+    throw new Error('verifyWithJwks requires options for either "keys" or "jwks_uri" or both');
+  }
+  const matchingKey = options.keys.find((key) => key.kid === header.kid);
+  if (!matchingKey) {
+    throw new JwtTokenInvalid(token);
+  }
+  return await verify(token, matchingKey, {
+    alg: matchingKey.alg || header.alg,
+    ...verifyOpts
+  });
+};
+var decode = (token) => {
+  try {
+    const [h, p] = token.split(".");
+    const header = decodeJwtPart(h);
+    const payload = decodeJwtPart(p);
+    return {
+      header,
+      payload
+    };
+  } catch {
+    throw new JwtTokenInvalid(token);
+  }
+};
+var decodeHeader = (token) => {
+  try {
+    const [h] = token.split(".");
+    return decodeJwtPart(h);
+  } catch {
+    throw new JwtTokenInvalid(token);
+  }
+};
+
+// node_modules/hono/dist/utils/jwt/index.js
+var Jwt = { sign, verify, decode, verifyWithJwks };
+
+// node_modules/hono/dist/middleware/jwt/jwt.js
+var verifyWithJwks2 = Jwt.verifyWithJwks;
+var verify2 = Jwt.verify;
+var decode2 = Jwt.decode;
+var sign2 = Jwt.sign;
+
+// server/controllers/user/login.controller.ts
+var import_mongoose27 = __toESM(require_mongoose2(), 1);
+import { createHash as createHash2 } from "crypto";
+var JWT_SECRET = Bun.env.JWT_SECRET || "supersecretkey";
+var hashPassword3 = (password) => createHash2("sha256").update(password).digest("hex");
+var loginUser = async (c) => {
+  try {
+    const payload = await c.req.json();
+    const {
+      username,
+      password,
+      contestId,
+      email,
+      phone,
+      college,
+      dept,
+      participants
+    } = payload;
+    if (!username || !password) {
+      return ErrorResponse(c, "Missing login credentials.", 400);
+    }
+    const user = await user_model_default.findOne({ username });
+    if (!user) {
+      return ErrorResponse(c, "Invalid username or password.", 401);
+    }
+    const hashed = hashPassword3(password);
+    if (hashed !== user.hash) {
+      return ErrorResponse(c, "Invalid username or password.", 401);
+    }
+    const userId = user._id.toString();
+    if (!contestId || !email || !participants || participants.length === 0) {
+      return ErrorResponse(c, "Missing required registration fields.", 400);
+    }
+    if (!import_mongoose27.Types.ObjectId.isValid(contestId)) {
+      return ErrorResponse(c, "Invalid contest ID format.", 400);
+    }
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest) {
+      return ErrorResponse(c, "Contest not found.", 404);
+    }
+    const existingSession = await session_model_default.findOne({ userId, contestId });
+    const existingDetails = await userDetails_model_default.findOne({
+      userId,
+      contestId
+    });
+    if (existingSession?.isFinished) {
+      return ErrorResponse(c, "You have already completed this contest. Further login is not allowed.", 403);
+    }
+    if (existingSession && existingSession.elapsedTime >= contest.durationMinutes * 60 * 1000) {
+      return ErrorResponse(c, "The contest duration has expired. Please contact the event coordinator.", 403);
+    }
+    if (existingDetails && existingSession && existingSession.elapsedTime === 0) {
+      return ErrorResponse(c, "The contest time has ended. Please contact the event coordinator.", 403);
+    }
+    const allUserDetails = await userDetails_model_default.find({ contestId, userId });
+    let matchingUserDetails = null;
+    if (allUserDetails.length > 0) {
+      for (const userDetail of allUserDetails) {
+        const registeredRegNos = userDetail.participants.map((p) => p.regNo.toLowerCase());
+        const allMatch = participants.every((p) => registeredRegNos.includes(p.regNo.toLowerCase()));
+        if (allMatch) {
+          matchingUserDetails = userDetail;
+          break;
+        }
+        if (userDetail.participants.length === 1 && participants.length === 2) {
+          const existingRegNo = userDetail.participants[0].regNo.toLowerCase();
+          const newOnes = participants.filter((p) => p.regNo.toLowerCase() !== existingRegNo);
+          if (newOnes.length === 1) {
+            const existingRegistrations = await userDetails_model_default.find({
+              contestId
+            });
+            const conflictingEntry = existingRegistrations.find((u) => u.participants.some((p) => newOnes.some((ip) => ip.regNo.toLowerCase() === p.regNo.toLowerCase())));
+            if (conflictingEntry && conflictingEntry.userId.toString() !== userId) {
+              return ErrorResponse(c, `Participant ${newOnes[0].regNo} is already registered by another account.`, 403);
+            }
+            userDetail.participants.push(...newOnes);
+            await userDetail.save();
+            matchingUserDetails = userDetail;
+            break;
+          }
+        }
+      }
+      if (!matchingUserDetails) {
+        return ErrorResponse(c, "These participant credentials are already registered under another account.", 403);
+      }
+    } else {
+      const existingRegistrations = await userDetails_model_default.find({ contestId });
+      const conflictingEntry = existingRegistrations.find((u) => u.participants.some((p) => participants.some((ip) => ip.regNo.toLowerCase() === p.regNo.toLowerCase())));
+      if (conflictingEntry && conflictingEntry.userId.toString() !== userId) {
+        return ErrorResponse(c, "These participant credentials are already registered by another account.", 403);
+      }
+    }
+    const token = await sign2({
+      id: userId,
+      username: user.username,
+      contestId,
+      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60
+    }, JWT_SECRET);
+    setCookie(c, "userAuthToken", token, {
+      httpOnly: true,
+      secure: Bun.env.NODE_ENV === "production",
+      sameSite: "Lax",
+      maxAge: 24 * 60 * 60,
+      path: "/"
+    });
+    let registration = matchingUserDetails;
+    if (!matchingUserDetails) {
+      registration = new userDetails_model_default({
+        userId,
+        contestId,
+        email,
+        phone,
+        college,
+        dept,
+        participants
+      });
+      await registration.save();
+    }
+    return SuccessResponse(c, "Login successful.", 200, {
+      user: {
+        username: user.username,
+        id: userId,
+        registrationId: registration?._id.toString()
+      },
+      contest: {
+        id: contest._id.toString(),
+        name: contest.name,
+        durationMinutes: contest.durationMinutes
+      }
+    });
+  } catch (err) {
+    console.error("Login Error:", err);
+    return ErrorResponse(c, err.message || "Failed to process login.", 500);
+  }
+};
+
+// server/controllers/user/startSession.controller.ts
+var import_mongoose28 = __toESM(require_mongoose2(), 1);
+var JWT_SECRET2 = Bun.env.JWT_SECRET || "supersecretkey";
+var startSession = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token)
+      return ErrorResponse(c, "Missing authentication cookie", 401);
+    const payload = await verify2(token, JWT_SECRET2);
+    console.log("play", payload);
+    const userId = payload.id;
+    const username = payload.username;
+    const user = await user_model_default.findById(userId);
+    if (!user)
+      return ErrorResponse(c, "User not found", 404);
+    const contestId = user.contestId;
+    if (!contestId)
+      return ErrorResponse(c, "No contest linked to this user", 400);
+    if (!import_mongoose28.Types.ObjectId.isValid(contestId))
+      return ErrorResponse(c, "Invalid contest ID format", 400);
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest)
+      return ErrorResponse(c, "Invalid contest", 404);
+    const now = new Date;
+    let session = await session_model_default.findOne({ userId, contestId });
+    if (session) {
+      const remainingTime = contest.durationMinutes * 60000 - session.elapsedTime;
+      if (remainingTime <= 0)
+        return ErrorResponse(c, "Contest time over", 403);
+      session.lastActive = now;
+      await session.save();
+      return SuccessResponse(c, "Resumed session", 200, {
+        sessionId: session._id,
+        remainingTime,
+        user: { username },
+        contest
+      });
+    }
+    session = await session_model_default.create({
+      userId,
+      contestId,
+      lastActive: now,
+      elapsedTime: 0
+    });
+    return SuccessResponse(c, "New session started", 200, {
+      sessionId: session._id,
+      remainingTime: contest.durationMinutes * 60000,
+      user: { username },
+      contest
+    });
+  } catch (err) {
+    const errorMessage = err.message === "jwt expired" ? "Authentication session expired, please log in." : err.message || "Failed to start session";
+    const status = err.name === "CastError" || err.name === "ValidationError" ? 400 : 500;
+    return ErrorResponse(c, errorMessage, status);
+  }
+};
+
+// server/controllers/user/me.controller.ts
+var JWT_SECRET3 = Bun.env.JWT_SECRET || "supersecretkey";
+var getMe = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token) {
+      return ErrorResponse(c, "Unauthorized: Missing token", 401);
+    }
+    let payload;
+    try {
+      payload = await verify2(token, JWT_SECRET3);
+    } catch (err) {
+      return ErrorResponse(c, "Invalid or expired token", 401);
+    }
+    const user = await user_model_default.findById(payload.id).select("-hash");
+    if (!user) {
+      return ErrorResponse(c, "User not found", 404);
+    }
+    return SuccessResponse(c, "User fetched successfully", 200, { user });
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to fetch user", 500);
+  }
+};
+
+// server/controllers/user/getSession.controller.ts
+var JWT_SECRET4 = Bun.env.JWT_SECRET || "supersecretkey";
+var getSession = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token)
+      return ErrorResponse(c, "Missing authentication cookie", 401);
+    const payload = await verify2(token, JWT_SECRET4);
+    const userId = payload.id;
+    if (!userId)
+      return ErrorResponse(c, "Invalid authentication token", 401);
+    const user = await user_model_default.findById(userId);
+    if (!user)
+      return ErrorResponse(c, "User not found", 404);
+    const contestId = user.contestId;
+    if (!contestId)
+      return ErrorResponse(c, "No contest linked to this user", 400);
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest)
+      return ErrorResponse(c, "Contest not found", 404);
+    const session = await session_model_default.findOne({ userId, contestId });
+    if (!session)
+      return ErrorResponse(c, "No active session found. Please start again.", 404);
+    const now = new Date;
+    const contestDurationMs = contest.durationMinutes * 60000;
+    const elapsedSinceLastActive = now.getTime() - session.lastActive.getTime();
+    const correctedElapsed = Math.min(session.elapsedTime + elapsedSinceLastActive, contestDurationMs);
+    const remainingTime = Math.max(0, contestDurationMs - correctedElapsed);
+    if (correctedElapsed !== session.elapsedTime) {
+      session.elapsedTime = correctedElapsed;
+      session.lastActive = now;
+      await session.save();
+    }
+    if (remainingTime <= 0) {
+      return ErrorResponse(c, "Contest time over", 403);
+    }
+    return SuccessResponse(c, "Fetched existing session", 200, {
+      sessionId: session._id,
+      remainingTime,
+      user: { username: user.username },
+      contest
+    });
+  } catch (err) {
+    const errorMessage = err?.message === "jwt expired" ? "Authentication session expired, please log in again." : err?.message || "Failed to fetch session";
+    const status = err?.name === "CastError" || err?.name === "ValidationError" ? 400 : 500;
+    return ErrorResponse(c, errorMessage, status);
+  }
+};
+
+// server/controllers/user/problems.controller.ts
+var JWT_SECRET5 = Bun.env.JWT_SECRET || "supersecretkey";
+var getContestProblems = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token)
+      return ErrorResponse(c, "Missing authentication cookie", 401);
+    const payload = await verify2(token, JWT_SECRET5);
+    const userId = payload.id;
+    if (!userId)
+      return ErrorResponse(c, "Invalid token payload", 401);
+    const session = await session_model_default.findOne({ userId }).populate("contestId");
+    if (!session)
+      return ErrorResponse(c, "No active session found", 403);
+    const contestId = session.contestId?._id;
+    if (!contestId)
+      return ErrorResponse(c, "Contest not linked to session", 400);
+    const contest = await contest_model_default.findById(contestId).populate({
+      path: "questions",
+      populate: {
+        path: "testcases",
+        model: "TestCase"
+      }
+    }).lean();
+    if (!contest)
+      return ErrorResponse(c, "Contest not found", 404);
+    const problems = contest.questions.map((q) => ({
+      id: q._id,
+      name: q.name,
+      points: q.points,
+      arguments: q.arguments,
+      statement: q.statement,
+      testcases: q.testcases?.filter((t) => !t.isHidden && !t.hidden)
+    }));
+    return SuccessResponse(c, "Contest problems fetched successfully", 200, {
+      contestId: contest._id,
+      contestName: contest.name,
+      languages: contest.languages || [],
+      problems
+    });
+  } catch (err) {
+    const message = err.message === "jwt expired" ? "Authentication expired, please log in again." : err.message || "Failed to fetch contest problems";
+    return ErrorResponse(c, message, 500);
+  }
+};
+
+// server/controllers/user/updateElapsedTime.controller.ts
+var JWT_SECRET6 = Bun.env.JWT_SECRET || "supersecretkey";
+var updateElapsedTime = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token)
+      return ErrorResponse(c, "Missing authentication cookie", 401);
+    const payload = await verify2(token, JWT_SECRET6);
+    const userId = payload.id;
+    const { contestId, elapsedTime } = await c.req.json();
+    if (!contestId)
+      return ErrorResponse(c, "Contest ID required", 400);
+    if (typeof elapsedTime !== "number" || elapsedTime < 0)
+      return ErrorResponse(c, "Invalid elapsedTime", 400);
+    const session = await session_model_default.findOne({ userId, contestId }).populate("contestId");
+    if (!session)
+      return ErrorResponse(c, "Session not found", 404);
+    const contest = session.contestId;
+    const totalDurationMs = contest.durationMinutes * 60000;
+    const newElapsedTime = Math.min(Math.max(session.elapsedTime, elapsedTime), totalDurationMs);
+    session.elapsedTime = newElapsedTime;
+    session.lastActive = new Date;
+    await session.save();
+    const remainingTime = Math.max(0, totalDurationMs - newElapsedTime);
+    return SuccessResponse(c, "Elapsed time updated successfully", 200, {
+      sessionId: session._id,
+      elapsedTime: newElapsedTime,
+      remainingTime
+    });
+  } catch (err) {
+    const message = err.message === "jwt expired" ? "Authentication session expired, please log in." : err.message || "Failed to update elapsed time";
+    return ErrorResponse(c, message, 500);
+  }
+};
+
+// server/controllers/user/getUserSubmission.controller.ts
+var import_mongoose29 = __toESM(require_mongoose2(), 1);
+var JWT_SECRET7 = Bun.env.JWT_SECRET || "supersecretkey";
+var getUserSubmissions = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token) {
+      return ErrorResponse(c, "Unauthorized: Missing token", 401);
+    }
+    let payload;
+    try {
+      payload = await verify2(token, JWT_SECRET7);
+    } catch (err) {
+      return ErrorResponse(c, "Invalid or expired token", 401);
+    }
+    const userId = payload.id;
+    if (!import_mongoose29.default.Types.ObjectId.isValid(userId)) {
+      return ErrorResponse(c, "Invalid user id", 400);
+    }
+    const user = await user_model_default.findById(userId).select("-hash");
+    if (!user) {
+      return ErrorResponse(c, "User not found", 404);
+    }
+    const submissions = await submission_model_default.find({ userId }, { problemId: 1, createdAt: 1 }).sort({ createdAt: -1 });
+    const submissionList = submissions.map((s) => ({
+      problemId: s.problemId?.toString(),
+      createdAt: s.createdAt
+    }));
+    const questionIds = [
+      ...new Set(submissions.map((s) => s.problemId).filter(Boolean).map((id) => id.toString()))
+    ];
+    const latestSubmissions = {};
+    submissions.forEach((s) => {
+      const pid = s.problemId?.toString();
+      if (!pid)
+        return;
+      if (!latestSubmissions[pid]) {
+        latestSubmissions[pid] = {
+          problemId: pid,
+          latest: s.createdAt
+        };
+      }
+    });
+    return SuccessResponse(c, "User submissions fetched successfully", 200, {
+      contestId: user._id,
+      questions: questionIds,
+      submissions: submissionList,
+      latestSubmissions: Object.values(latestSubmissions)
+    });
+  } catch (err) {
+    console.error("Error fetching submission problem IDs:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch user problem IDs", 500);
+  }
+};
+
+// server/controllers/user/finish.controller.ts
+var import_mongoose30 = __toESM(require_mongoose2(), 1);
+var JWT_SECRET8 = Bun.env.JWT_SECRET || "supersecretkey";
+var finishSession = async (c) => {
+  try {
+    const token = getCookie(c, "userAuthToken");
+    if (!token)
+      return ErrorResponse(c, "Missing authentication cookie", 401);
+    const payload = await verify2(token, JWT_SECRET8);
+    const userId = payload.id;
+    const user = await user_model_default.findById(userId);
+    if (!user)
+      return ErrorResponse(c, "User not found", 404);
+    const contestId = user.contestId;
+    if (!contestId)
+      return ErrorResponse(c, "No contest linked to this user", 400);
+    if (!import_mongoose30.Types.ObjectId.isValid(contestId))
+      return ErrorResponse(c, "Invalid contest ID format", 400);
+    const contest = await contest_model_default.findById(contestId);
+    if (!contest)
+      return ErrorResponse(c, "Invalid contest", 404);
+    let session = await session_model_default.findOne({ userId, contestId });
+    if (!session)
+      return ErrorResponse(c, "Session not found", 404);
+    if (session.isFinished) {
+      deleteCookie(c, "userAuthToken");
+      return SuccessResponse(c, "Session already finished", 200, {
+        sessionId: session._id,
+        totalElapsedTime: session.elapsedTime,
+        finishedAt: session.finishedAt
+      });
+    }
+    const now = new Date;
+    const lastActive = new Date(session.lastActive || now);
+    const sinceLastActive = now.getTime() - lastActive.getTime();
+    let updatedElapsedTime = session.elapsedTime || 0;
+    if (sinceLastActive > 0) {
+      updatedElapsedTime += sinceLastActive;
+    }
+    const contestDurationMs = contest.durationMinutes * 60000;
+    if (updatedElapsedTime > contestDurationMs) {
+      updatedElapsedTime = contestDurationMs;
+    }
+    session.elapsedTime = updatedElapsedTime;
+    session.lastActive = now;
+    session.isFinished = true;
+    session.finishedAt = now;
+    await session.save();
+    deleteCookie(c, "userAuthToken");
+    return SuccessResponse(c, "Session finished", 200, {
+      sessionId: session._id,
+      totalElapsedTime: updatedElapsedTime,
+      finishedAt: session.finishedAt
+    });
+  } catch (err) {
+    const errorMessage = err.message === "jwt expired" ? "Authentication session expired, please log in." : err.message || "Failed to finish session";
+    const status = err.name === "CastError" || err.name === "ValidationError" ? 400 : 500;
+    return ErrorResponse(c, errorMessage, status);
+  }
+};
+
+// server/controllers/user/getContestSubmissions.controller.ts
+var import_mongoose31 = __toESM(require_mongoose2(), 1);
+var getContestUserSubmissionSummary = async (c) => {
+  try {
+    const contestId = c.req.param("contestId");
+    if (!contestId || !import_mongoose31.default.Types.ObjectId.isValid(contestId)) {
+      return ErrorResponse(c, "Invalid or missing contest ID", 400);
+    }
+    const contestObjectId = new import_mongoose31.default.Types.ObjectId(contestId);
+    const pageParam = c.req.query("page");
+    const limitParam = c.req.query("limit");
+    let page = Number.parseInt(pageParam || "1", 10);
+    let limit = Number.parseInt(limitParam || "20", 10);
+    if (Number.isNaN(page) || page < 1)
+      page = 1;
+    if (Number.isNaN(limit) || limit < 1 || limit > 200)
+      limit = 20;
+    const skip = (page - 1) * limit;
+    const result = await submission_model_default.aggregate([
+      {
+        $match: {
+          contestId: contestObjectId
+        }
+      },
+      {
+        $group: {
+          _id: {
+            userId: "$userId",
+            problemId: "$problemId"
+          },
+          bestPointsForProblem: { $max: "$awardedPoints" },
+          attemptsForProblem: { $sum: 1 },
+          lastSubmissionAt: { $max: "$createdAt" },
+          acceptedCountForProblem: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.userId",
+          submissionCount: { $sum: "$attemptsForProblem" },
+          lastSubmissionAt: { $max: "$lastSubmissionAt" },
+          totalPoints: { $sum: "$bestPointsForProblem" },
+          acceptedCount: { $sum: "$acceptedCountForProblem" },
+          problemsSolvedCount: {
+            $sum: {
+              $cond: [
+                { $gt: ["$bestPointsForProblem", 0] },
+                1,
+                0
+              ]
+            }
+          },
+          problemsSolved: {
+            $addToSet: {
+              $cond: [
+                { $gt: ["$bestPointsForProblem", 0] },
+                "$_id.problemId",
+                null
+              ]
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          problemsSolved: {
+            $setDifference: ["$problemsSolved", [null]]
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "userdetails",
+          localField: "_id",
+          foreignField: "userId",
+          as: "userDetails"
+        }
+      },
+      {
+        $unwind: {
+          path: "$userDetails",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $sort: {
+          totalPoints: -1,
+          problemsSolvedCount: -1,
+          submissionCount: 1,
+          lastSubmissionAt: 1
+        }
+      },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          userId: "$_id",
+          submissionCount: 1,
+          lastSubmissionAt: 1,
+          totalPoints: 1,
+          acceptedCount: 1,
+          problemsSolvedCount: 1,
+          problemsSolved: 1,
+          email: "$userDetails.email",
+          phone: "$userDetails.phone",
+          college: "$userDetails.college",
+          dept: "$userDetails.dept",
+          participants: "$userDetails.participants",
+          createdAt: "$userDetails.createdAt"
+        }
+      }
+    ]);
+    return SuccessResponse(c, "Contest user submissions summary fetched successfully", 200, result);
+  } catch (err) {
+    console.error("Error fetching contest user submissions summary:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch contest submissions summary", 500);
+  }
+};
+
+// server/controllers/user/getUserDetailedSubmission.controller.ts
+var import_mongoose32 = __toESM(require_mongoose2(), 1);
+var getContestUserProblemSummary = async (c) => {
+  try {
+    const contestId = c.req.param("contestId");
+    const userId = c.req.param("userId");
+    console.log(contestId, userId);
+    if (!contestId || !import_mongoose32.default.Types.ObjectId.isValid(contestId) || !userId || !import_mongoose32.default.Types.ObjectId.isValid(userId)) {
+      return ErrorResponse(c, "Invalid or missing contestId / userId", 400);
+    }
+    const contestObjectId = new import_mongoose32.default.Types.ObjectId(contestId);
+    const userObjectId = new import_mongoose32.default.Types.ObjectId(userId);
+    const userDetails = await userDetails_model_default.findOne({
+      contestId: contestObjectId,
+      userId: userObjectId
+    }).populate("userId", "name email username").lean();
+    if (!userDetails) {
+      return ErrorResponse(c, "User is not registered for this contest", 404);
+    }
+    const submissions = await submission_model_default.find({
+      userId: userObjectId,
+      contestId: contestObjectId
+    }).populate({
+      path: "problemId",
+      select: "name points statement arguments isCompleted status contest"
+    }).lean();
+    if (!submissions.length) {
+      return SuccessResponse(c, "No submissions found for this user in this contest", 200, {
+        contestId,
+        userId,
+        userDetails,
+        problems: []
+      });
+    }
+    const problemIds = submissions.map((sub) => sub.problemId ? sub.problemId._id?.toString?.() || sub.problemId.toString() : null).filter(Boolean);
+    const uniqueProblemIds = [...new Set(problemIds)].map((id) => new import_mongoose32.default.Types.ObjectId(id));
+    const testcases = await testcase_model_default.find({
+      problemId: { $in: uniqueProblemIds }
+    }).select("_id problemId points").lean();
+    const testcasesByProblem = {};
+    for (const tc of testcases) {
+      const key = tc.problemId.toString();
+      if (!testcasesByProblem[key])
+        testcasesByProblem[key] = [];
+      testcasesByProblem[key].push({
+        _id: tc._id,
+        points: tc.points
+      });
+    }
+    const problemsSummary = submissions.map((sub) => {
+      const problem = sub.problemId || {};
+      const problemKey = problem._id?.toString?.() || "";
+      const tcList = testcasesByProblem[problemKey] || [];
+      const testcasePointsArray = tcList.map((tc) => tc.points);
+      const testcasePointsSum = testcasePointsArray.reduce((sum, val) => sum + (typeof val === "number" ? val : 0), 0);
+      const assignedPoints = typeof problem.points === "number" ? problem.points : testcasePointsSum;
+      const awardedPoints = typeof sub.awardedPoints === "number" ? sub.awardedPoints : 0;
+      const pointsByTestcaseId = {};
+      for (const tc of tcList) {
+        pointsByTestcaseId[tc._id.toString()] = tc.points;
+      }
+      let passedTestcasePoints = [];
+      if (Array.isArray(sub.results)) {
+        passedTestcasePoints = sub.results.filter((r) => r.passed).map((r) => {
+          if (typeof r.pointsAwarded === "number") {
+            return r.pointsAwarded;
+          }
+          const key = r.testcase?.toString?.();
+          return key && pointsByTestcaseId[key] ? pointsByTestcaseId[key] : 0;
+        }).filter((p) => typeof p === "number" && Number.isFinite(p));
+      }
+      return {
+        submissionId: sub._id,
+        problemId: problem._id,
+        problem: {
+          id: problem._id,
+          name: problem.name,
+          statement: problem.statement,
+          arguments: problem.arguments || [],
+          isCompleted: problem.isCompleted,
+          status: problem.status,
+          assignedPoints,
+          testcasePointsSum
+        },
+        language: sub.language,
+        status: sub.status,
+        totalTests: sub.totalTests,
+        passedTests: sub.passedTests,
+        maxPoints: sub.maxPoints ?? assignedPoints,
+        testcasePoints: testcasePointsArray,
+        passedTestcasePoints,
+        awardedPoints,
+        code: sub.code,
+        createdAt: sub.createdAt,
+        updatedAt: sub.updatedAt
+      };
+    });
+    return SuccessResponse(c, "Contest user problem summary fetched successfully", 200, {
+      contestId,
+      userId,
+      userDetails,
+      problems: problemsSummary
+    });
+  } catch (err) {
+    console.error("Error fetching contest user problem summary:", err);
+    return ErrorResponse(c, err.message || "Failed to fetch contest user problem summary", 500);
+  }
+};
+
+// server/models/feedback.model.ts
+var import_mongoose33 = __toESM(require_mongoose2(), 1);
+var contestFeedbackSchema = new import_mongoose33.default.Schema({
+  contestId: {
+    type: String,
+    default: null
+  },
+  answers: {
+    type: [Number],
+    required: true
+  },
+  feedback: {
+    type: String,
+    trim: true,
+    default: ""
+  }
+}, {
+  timestamps: true
+});
+var ContestFeedback = import_mongoose33.default.model("ContestFeedback", contestFeedbackSchema);
+var feedback_model_default = ContestFeedback;
+
+// server/controllers/user/feedback.controller.ts
+var submitContestFeedback = async (c) => {
+  try {
+    const body = await c.req.json();
+    const { contestId, answers, feedback } = body;
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return ErrorResponse(c, "answers must be a non-empty array", 400);
+    }
+    const doc = await feedback_model_default.create({
+      contestId: contestId || null,
+      answers,
+      feedback: feedback || ""
+    });
+    return SuccessResponse(c, "Feedback submitted successfully", 201, {
+      feedback: doc
+    });
+  } catch (err) {
+    return ErrorResponse(c, err.message || "Failed to submit feedback", 500);
+  }
+};
+
+// server/routes/user.routes.ts
+var userRoute = new Hono2;
+userRoute.post("login", loginUser);
+userRoute.get("me", getMe);
+userRoute.get("session/get", getSession);
+userRoute.post("feedback", submitContestFeedback);
+userRoute.put("session/update-elapsed", updateElapsedTime);
+userRoute.post("session/start", startSession);
+userRoute.get("session/problems", getContestProblems);
+userRoute.get("submissions", getUserSubmissions);
+userRoute.get(":contestId/submissions", getContestUserSubmissionSummary);
+userRoute.get(":contestId/:userId/problems", getContestUserProblemSummary);
+userRoute.post("contest/finish", finishSession);
 
 // server/routes/index.ts
 var apiRoute = new Hono2;
 apiRoute.route("/admin", adminRoute);
-apiRoute.get("/books", (c) => {
-  return c.json([
-    { id: 1, name: "john wick", author: "shadesofprakash" },
-    {
-      id: 2,
-      name: "john wick 2",
-      author: "shadesofprakash"
-    }
-  ]);
-});
+apiRoute.route("/contest", ContestRoutes);
+apiRoute.route("/user", userRoute);
 
 // node_modules/hono/dist/adapter/bun/serve-static.js
 import { stat } from "fs/promises";
-import { join } from "path";
+import { join as join6 } from "path";
 
 // node_modules/hono/dist/utils/compress.js
 var COMPRESSIBLE_CONTENT_TYPE_REGEX = /^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:javascript|json|xml|xml-dtd|ecmascript|dart|postscript|rtf|tar|toml|vnd\.dart|vnd\.ms-fontobject|vnd\.ms-opentype|wasm|x-httpd-php|x-javascript|x-ns-proxy-autoconfig|x-sh|x-tar|x-virtualbox-hdd|x-virtualbox-ova|x-virtualbox-ovf|x-virtualbox-vbox|x-virtualbox-vdi|x-virtualbox-vhd|x-virtualbox-vmdk|x-www-form-urlencoded)|font\/(?:otf|ttf)|image\/(?:bmp|vnd\.adobe\.photoshop|vnd\.microsoft\.icon|vnd\.ms-dds|x-icon|x-ms-bmp)|message\/rfc822|model\/gltf-binary|x-shader\/x-fragment|x-shader\/x-vertex|[^;\s]+?\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
@@ -64696,7 +66875,7 @@ var DEFAULT_DOCUMENT = "index.html";
 var serveStatic = (options) => {
   const root = options.root ?? "./";
   const optionPath = options.path;
-  const join = options.join ?? defaultJoin;
+  const join6 = options.join ?? defaultJoin;
   return async (c, next) => {
     if (c.finalized) {
       return next();
@@ -64715,17 +66894,17 @@ var serveStatic = (options) => {
         return next();
       }
     }
-    let path = join(root, !optionPath && options.rewriteRequestPath ? options.rewriteRequestPath(filename) : filename);
-    if (options.isDir && await options.isDir(path)) {
-      path = join(path, DEFAULT_DOCUMENT);
+    let path9 = join6(root, !optionPath && options.rewriteRequestPath ? options.rewriteRequestPath(filename) : filename);
+    if (options.isDir && await options.isDir(path9)) {
+      path9 = join6(path9, DEFAULT_DOCUMENT);
     }
     const getContent = options.getContent;
-    let content = await getContent(path, c);
+    let content = await getContent(path9, c);
     if (content instanceof Response) {
       return c.newResponse(content.body, content);
     }
     if (content) {
-      const mimeType = options.mimes && getMimeType(path, options.mimes) || getMimeType(path);
+      const mimeType = options.mimes && getMimeType(path9, options.mimes) || getMimeType(path9);
       c.header("Content-Type", mimeType || "application/octet-stream");
       if (options.precompressed && (!mimeType || COMPRESSIBLE_CONTENT_TYPE_REGEX.test(mimeType))) {
         const acceptEncodingSet = new Set(c.req.header("Accept-Encoding")?.split(",").map((encoding) => encoding.trim()));
@@ -64733,7 +66912,7 @@ var serveStatic = (options) => {
           if (!acceptEncodingSet.has(encoding)) {
             continue;
           }
-          const compressedContent = await getContent(path + ENCODINGS[encoding], c);
+          const compressedContent = await getContent(path9 + ENCODINGS[encoding], c);
           if (compressedContent) {
             content = compressedContent;
             c.header("Content-Encoding", encoding);
@@ -64742,10 +66921,10 @@ var serveStatic = (options) => {
           }
         }
       }
-      await options.onFound?.(path, c);
+      await options.onFound?.(path9, c);
       return c.body(content);
     }
-    await options.onNotFound?.(path, c);
+    await options.onNotFound?.(path9, c);
     await next();
     return;
   };
@@ -64754,14 +66933,14 @@ var serveStatic = (options) => {
 // node_modules/hono/dist/adapter/bun/serve-static.js
 var serveStatic2 = (options) => {
   return async function serveStatic2(c, next) {
-    const getContent = async (path) => {
-      const file = Bun.file(path);
+    const getContent = async (path9) => {
+      const file = Bun.file(path9);
       return await file.exists() ? file : null;
     };
-    const isDir = async (path) => {
+    const isDir = async (path9) => {
       let isDir2;
       try {
-        const stats = await stat(path);
+        const stats = await stat(path9);
         isDir2 = stats.isDirectory();
       } catch {}
       return isDir2;
@@ -64769,7 +66948,7 @@ var serveStatic2 = (options) => {
     return serveStatic({
       ...options,
       getContent,
-      join,
+      join: join6,
       isDir
     })(c, next);
   };
@@ -64862,10 +67041,17 @@ var upgradeWebSocket = defineWebSocketHelper((c, events) => {
 
 // server/index.ts
 var app = new Hono2;
-app.use("/*", serveStatic2({
-  root: "./client/dist"
+app.use("/api/*", serveStatic2({
+  root: "./public",
+  rewriteRequestPath: (path9) => path9.replace("/api", ""),
+  onNotFound: (path9, c) => {
+    console.log(`DEBUG: File not found by serveStatic: ${path9}`);
+  }
 }));
 app.route("/api", apiRoute);
+app.get("/api/nothing", (c) => {
+  return c.json({ user: "something" });
+});
 var port = Number(process.env.PORT) || 4000;
 connectDB().then(() => {
   Bun.serve({

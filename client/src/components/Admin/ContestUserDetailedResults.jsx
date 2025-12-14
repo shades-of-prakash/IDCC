@@ -294,7 +294,6 @@ const ContestUserDetailedResults = () => {
                                 </span>
                             </div>
 
-                            {/* Scrollable problem buttons */}
                             <div className="flex-1 overflow-x-auto scroll-2px">
                                 <div className="flex flex-nowrap">
                                     {[...problems].map((p, idx) => {
@@ -363,7 +362,7 @@ const ContestUserDetailedResults = () => {
                                 </div>
 
                                 <div
-                                    className="text-base p-4 h-[calc(100%-3rem)] overflow-y-auto leading-snug
+                                    className="admin text-base p-4 h-[calc(100%-3rem)] overflow-y-auto leading-snug
                                                prose prose-neutral max-w-none
                                                [&_p]:mb-3
                                                [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6

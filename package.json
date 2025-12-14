@@ -18,6 +18,7 @@
         "bcryptjs": "^3.0.2",
         "dockernode": "^0.1.0",
         "dockerode": "^4.0.9",
+        "exceljs": "^4.4.0",
         "hono": "^4.9.8",
         "jsonwebtoken": "^9.0.2",
         "lucide-react": "^0.555.0",

@@ -6,6 +6,7 @@ import GuestGuard from "../guards/GuestGuard";
 import AdminLayout from "../layouts/AdminLayout";
 import Loader from "../components/Loader";
 import { ContestProvider } from "../contexts/ContestContext";
+import { EditorImagesProvider } from "../contexts/EditorImagesContext";
 
 const ContestUserDetailedResults = lazy(
     () => import("../components/Admin/ContestUserDetailedResults"),
@@ -23,6 +24,8 @@ const Logiq404 = lazy(() => import("../pages/Logiq404"));
 const TestCaseManager = lazy(
     () => import("../components/Admin/TestCaseManager"),
 );
+import AdminRouteGuard from "../guards/AdminProtectedRoute";
+const Feedback = lazy(() => import("../components/Admin/Feedback"));
 
 const AdminRoutes = () => {
     return (
@@ -49,14 +52,29 @@ const AdminRoutes = () => {
                                     </Suspense>
                                 }
                             />
-                            <Route path="results" element={<Results />} />
+                            <Route
+                                path="results"
+                                element={
+                                    <AdminRouteGuard>
+                                        <Results />
+                                    </AdminRouteGuard>
+                                }
+                            />
                             <Route
                                 path="results/:id"
-                                element={<ContestResults />}
+                                element={
+                                    <AdminRouteGuard>
+                                        <ContestResults />
+                                    </AdminRouteGuard>
+                                }
                             />
                             <Route
                                 path="results/:contestId/:userId"
-                                element={<ContestUserDetailedResults />}
+                                element={
+                                    <AdminRouteGuard>
+                                        <ContestUserDetailedResults />
+                                    </AdminRouteGuard>
+                                }
                             />
 
                             <Route
@@ -79,8 +97,13 @@ const AdminRoutes = () => {
 
                             <Route
                                 path="statement/:problemId"
-                                element={<ProblemEditor />}
+                                element={
+                                    <EditorImagesProvider>
+                                        <ProblemEditor />
+                                    </EditorImagesProvider>
+                                }
                             />
+                            <Route path="feedback" element={<Feedback />} />
 
                             <Route
                                 path="editor"
@@ -102,7 +125,9 @@ const AdminRoutes = () => {
                                             <Loader text="Loading Problem..." />
                                         }
                                     >
-                                        <AddProblem />
+                                        <AdminRouteGuard>
+                                            <AddProblem />
+                                        </AdminRouteGuard>
                                     </Suspense>
                                 }
                             />

@@ -41,9 +41,9 @@ const UserRoutes = () => {
                             <Route
                                 path="instructions"
                                 element={
-                                    // <UserGuard>
-                                    <Instructions />
-                                    // </UserGuard>
+                                    <UserGuard>
+                                        <Instructions />
+                                    </UserGuard>
                                 }
                             />
 

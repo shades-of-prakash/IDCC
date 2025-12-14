@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const ContestSchema = new mongoose.Schema(
     {
-        name: { type: String, required: true, trim: true },
+        name: { type: String, required: true, trim: true, unique: true },
         conductedBy: { type: String, default: "IDCC" },
         numberOfProblems: { type: Number, required: true },
         durationMinutes: { type: Number, required: true },
@@ -14,6 +14,10 @@ const ContestSchema = new mongoose.Schema(
             default: [],
         },
         instructions: {
+            type: [String],
+            default: [],
+        },
+        feedbackQuestions: {
             type: [String],
             default: [],
         },

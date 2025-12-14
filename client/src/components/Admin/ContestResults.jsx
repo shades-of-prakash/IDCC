@@ -1,18 +1,45 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../utils/fetch";
 import Loader from "../Loader";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, Search, X } from "lucide-react";
 
 const PAGE_SIZE = 25;
 
 const ContestResults = () => {
     const { id: contestId } = useParams();
     const navigate = useNavigate();
-
     const loaderRef = useRef(null);
 
+    /* ===============================
+       SEARCH (WITH DEBOUNCE)
+    =============================== */
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search.trim());
+        }, 400); // debounce delay (ms)
+
+        return () => clearTimeout(handler);
+    }, [search]);
+
+    /* ===============================
+       EXPORT (SEARCH AWARE)
+    =============================== */
+    const handleDownload = () => {
+        const params = new URLSearchParams({
+            search: debouncedSearch,
+        }).toString();
+
+        window.location.href = `/api/user/contest/${contestId}/results/export?${params}`;
+    };
+
+    /* ===============================
+       DATA FETCH
+    =============================== */
     const {
         data,
         isLoading,
@@ -22,241 +49,225 @@ const ContestResults = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useInfiniteQuery({
-        queryKey: ["contestuserResults", contestId],
+        queryKey: ["contestuserResults", contestId, debouncedSearch],
         queryFn: ({ pageParam = 1 }) =>
             apiFetch(
-                `/api/user/${contestId}/submissions?page=${pageParam}&limit=${PAGE_SIZE}`,
+                `/api/user/${contestId}/submissions?page=${pageParam}&limit=${PAGE_SIZE}&search=${encodeURIComponent(
+                    debouncedSearch,
+                )}`,
             ),
-        getNextPageParam: (lastPage, allPages) => {
-            if (!Array.isArray(lastPage)) return undefined;
-            if (lastPage.length === PAGE_SIZE) {
-                return allPages.length + 1;
-            }
-            return undefined;
-        },
+        getNextPageParam: (lastPage, allPages) =>
+            Array.isArray(lastPage) && lastPage.length === PAGE_SIZE
+                ? allPages.length + 1
+                : undefined,
         enabled: !!contestId,
     });
 
     const users = data?.pages.flat() ?? [];
 
+    /* ===============================
+       INFINITE SCROLL
+    =============================== */
     useEffect(() => {
-        if (!loaderRef.current) return;
-        if (!hasNextPage) return;
+        if (!loaderRef.current || !hasNextPage) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
-                const first = entries[0];
-                if (
-                    first.isIntersecting &&
-                    hasNextPage &&
-                    !isFetchingNextPage
-                ) {
+                if (entries[0].isIntersecting && !isFetchingNextPage) {
                     fetchNextPage();
                 }
             },
-            {
-                root: null,
-                rootMargin: "200px",
-                threshold: 0.1,
-            },
+            { rootMargin: "200px" },
         );
 
         observer.observe(loaderRef.current);
-
-        return () => {
-            observer.disconnect();
-        };
+        return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     return (
-        <div className="w-full h-full flex flex-col bg-white overflow-hidden">
-            {/* 🔵 STICKY HEADER WITH BACK BUTTON */}
-            <div className="h-16 px-3 flex items-center gap-3 border-b bg-white sticky top-0 z-20">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="flex items-center gap-1 px-3 py-3 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                </button>
+        <div className="w-full h-full flex flex-col bg-gray-50 overflow-hidden">
+            {/* ================= HEADER ================= */}
+            <div className="bg-white border-b sticky top-0 z-20">
+                <div className="px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 rounded-md border border-gray-200 hover:bg-gray-100 transition"
+                        >
+                            <ArrowLeft className="w-4 h-4 text-gray-600" />
+                        </button>
 
-                <div className="flex flex-col">
-                    <h1 className="text-lg font-semibold">Contest Results</h1>
-                    <span className="text-sm text-gray-600">
-                        Showing participants, total marks and their submission
-                        count
-                    </span>
+                        <div>
+                            <h1 className="text-xl font-semibold text-gray-900">
+                                Contest Results
+                            </h1>
+                            <p className="text-sm text-gray-500">
+                                Participants, scores, and submission counts
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* COMMAND BAR */}
+                    <div className="flex items-center gap-3">
+                        {/* SEARCH */}
+                        <div className="relative w-80">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search name, ID, email or phone"
+                                className="w-full pl-10 pr-9 py-2 rounded-md border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-none"
+                            />
+                            {search && (
+                                <button
+                                    onClick={() => setSearch("")}
+                                    className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* EXPORT */}
+                        <button
+                            onClick={handleDownload}
+                            className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium hover:bg-gray-100 transition"
+                        >
+                            <Download className="w-4 h-4" />
+                            Export Excel
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* 🔥 BODY SCROLLABLE AREA – only vertical here */}
-            <div className="flex-1 overflow-y-auto px-3 py-3">
+            {/* ================= CONTENT ================= */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
                 {isLoading && (
-                    <div className="p-4">
-                        <Loader text="Loading submissions..." />
+                    <div className="flex justify-center py-20">
+                        <Loader text="Fetching contest results..." />
                     </div>
                 )}
 
                 {isError && (
-                    <div className="p-4 text-red-600">
-                        Failed to load results: {error?.message}
+                    <div className="max-w-lg mx-auto p-6 bg-red-50 border border-red-200 rounded-lg text-center">
+                        <p className="font-medium text-red-600">
+                            Failed to load results
+                        </p>
+                        <p className="text-sm text-red-500 mt-1">
+                            {error?.message}
+                        </p>
                     </div>
                 )}
 
                 {!isLoading && !isError && (
-                    <div className="relative w-full overflow-x-auto rounded-lg border border-gray-300">
-                        {/* 👇 table fills wrapper; wrapper handles horizontal scroll */}
+                    <div className="relative w-full overflow-x-auto rounded-lg border border-gray-300 bg-white shadow-sm">
                         <table className="min-w-full text-sm table-fixed">
-                            <thead className="bg-gray-100 border-b border-gray-300 sticky top-0 z-10">
-                                <tr>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
-                                        S.No
-                                    </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
+                            <thead className="bg-gray-100 border-b sticky top-0 z-10">
+                                <tr className="text-xs font-semibold uppercase text-gray-600">
+                                    <th className="px-4 py-4 text-left">#</th>
+                                    <th className="px-4 py-4 text-left">
                                         Name
                                     </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
-                                        ID
-                                    </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
+                                    <th className="px-4 py-4 text-left">ID</th>
+                                    <th className="px-4 py-4 text-left">
                                         Name
                                     </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
-                                        ID
-                                    </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
+                                    <th className="px-4 py-4 text-left">ID</th>
+                                    <th className="px-4 py-4 text-left">
                                         Email
                                     </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
+                                    <th className="px-4 py-4 text-left">
                                         Contact
                                     </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
+                                    <th className="px-4 py-4 text-left">
                                         College
                                     </th>
-                                    <th className="px-4 py-4 text-left text-xs font-semibold uppercase">
-                                        Department
+                                    <th className="px-4 py-4 text-left">
+                                        Dept
                                     </th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold uppercase">
-                                        Total Marks
+                                    <th className="px-4 py-4 text-center">
+                                        Marks
                                     </th>
-                                    <th className="px-4 py-4 text-center text-xs font-semibold uppercase">
-                                        Submissions
+                                    <th className="px-4 py-4 text-center">
+                                        Subs
                                     </th>
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-gray-200 text-gray-800">
-                                {users.length === 0 ? (
+                            <tbody className="divide-y divide-gray-300">
+                                {users.length === 0 && (
                                     <tr>
                                         <td
                                             colSpan={11}
-                                            className="text-center px-4 py-6 text-gray-500"
+                                            className="py-10 text-center text-gray-500"
                                         >
-                                            No submissions found for this
-                                            contest.
+                                            No results match your search
                                         </td>
                                     </tr>
-                                ) : (
-                                    users.map((entry, index) => {
-                                        const {
-                                            userId,
-                                            submissionCount,
-                                            totalPoints,
-                                            email,
-                                            phone,
-                                            college,
-                                            dept,
-                                            participants = [],
-                                        } = entry;
-
-                                        const p1 = participants[0] || {};
-                                        const p2 = participants[1] || {};
-
-                                        return (
-                                            <tr
-                                                key={userId || index}
-                                                onClick={() =>
-                                                    navigate(`${userId}`)
-                                                }
-                                                className="hover:bg-gray-100 cursor-pointer transition"
-                                            >
-                                                <td className="px-4 py-4">
-                                                    {index + 1}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[150px] truncate"
-                                                    title={p1.name || ""}
-                                                >
-                                                    {p1.name || "-"}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[120px] truncate"
-                                                    title={p1.regNo || ""}
-                                                >
-                                                    {p1.regNo || "-"}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[150px] truncate"
-                                                    title={p2.name || ""}
-                                                >
-                                                    {p2.name || "-"}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[120px] truncate"
-                                                    title={p2.regNo || ""}
-                                                >
-                                                    {p2.regNo || "-"}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[200px] overflow-hidden whitespace-nowrap text-ellipsis"
-                                                    title={email}
-                                                >
-                                                    {email}
-                                                </td>
-
-                                                <td className="px-4 py-4">
-                                                    {phone}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[180px] overflow-hidden whitespace-nowrap text-ellipsis"
-                                                    title={college}
-                                                >
-                                                    {college}
-                                                </td>
-
-                                                <td
-                                                    className="px-4 py-4 max-w-[150px] truncate"
-                                                    title={dept}
-                                                >
-                                                    {dept}
-                                                </td>
-
-                                                <td className="px-4 py-4 text-center">
-                                                    <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-semibold text-xs">
-                                                        {totalPoints ?? 0}
-                                                    </span>
-                                                </td>
-
-                                                <td className="px-4 py-4 text-center">
-                                                    <span className="px-3 py-1 rounded-full bg-gray-200 text-gray-900 font-semibold text-xs">
-                                                        {submissionCount}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
                                 )}
 
+                                {users.map((row, i) => {
+                                    const p1 = row.participants?.[0] || {};
+                                    const p2 = row.participants?.[1] || {};
+
+                                    return (
+                                        <tr
+                                            key={row.userId}
+                                            onClick={() =>
+                                                navigate(`${row.userId}`)
+                                            }
+                                            className={`cursor-pointer transition ${
+                                                i % 2 === 0
+                                                    ? "bg-white"
+                                                    : "bg-gray-50"
+                                            } hover:bg-neutral-200/60`}
+                                        >
+                                            <td className="px-4 py-4 font-medium">
+                                                {i + 1}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {p1.name || "-"}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {p1.regNo || "-"}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {p2.name || "-"}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {p2.regNo || "-"}
+                                            </td>
+                                            <td className="px-4 py-4 truncate">
+                                                {row.email}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.phone}
+                                            </td>
+                                            <td className="px-4 py-4 truncate">
+                                                {row.college}
+                                            </td>
+                                            <td className="px-4 py-4 truncate">
+                                                {row.dept}
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 text-xs font-semibold">
+                                                    {row.totalPoints ?? 0}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <span className="px-3 py-1 rounded-full bg-gray-200 text-gray-900 text-xs font-semibold">
+                                                    {row.submissionCount}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+
                                 <tr>
-                                    <td colSpan={11} className="h-1">
+                                    <td colSpan={11}>
                                         <div
                                             ref={loaderRef}
-                                            className="w-full flex justify-center items-center py-1.5"
+                                            className="py-5 flex justify-center"
                                         >
                                             {isFetchingNextPage && (
                                                 <Loader text="Loading more..." />

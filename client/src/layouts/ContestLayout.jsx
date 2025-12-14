@@ -10,7 +10,10 @@ import Loader from "../components/Loader";
 import Logo from "../assets/images/logo.webp";
 import { toast } from "sonner";
 import InfoCard from "../components/InfoCard";
-import DeleteContestPopup from "../components/Admin/DeleteContestPopup"; // ⬅️ NEW IMPORT
+import DeleteContestPopup from "../components/Admin/DeleteContestPopup";
+
+// NEW IMPORT
+import ContestHoverCard from "../components/Admin/ContestHoverCard";
 
 const Contest = () => {
     const [showModal, setShowModal] = useState(false);
@@ -119,7 +122,6 @@ const Contest = () => {
         setOpenDropdown(null);
     };
 
-    // Called when popup confirms deletion
     const handleConfirmDelete = () => {
         if (!selectedContest?._id) return;
         deleteContestMutation.mutate(selectedContest._id);
@@ -143,7 +145,7 @@ const Contest = () => {
                         <InfoCard
                             title="No Contests Found"
                             className="border border-gray-200 rounded-md"
-                            description="Looks like there are no contests available right now. You can create a new one using the create contest button above."
+                            description="Looks like there are no contests available right now. Create one using the button above."
                         />
                     </div>
                 )}
@@ -164,7 +166,7 @@ const Contest = () => {
             {!isLoading && data?.data?.length > 0 && (
                 <div className="h-[calc(100%-4rem)] p-2 relative">
                     <div className="bg-white rounded-md overflow-hidden relative flex flex-col h-full">
-                        <div className="flex-1 max-h-fit border border-gray-300 rounded-md overflow-y-auto">
+                        <div className="w-fit rounded-md border border-gray-300  overflow-auto">
                             <table className="min-w-fit text-sm text-gray-700">
                                 <thead className="bg-gray-100 text-gray-800 border-b border-gray-300 text-sm font-semibold sticky top-0">
                                     <tr>
@@ -190,7 +192,7 @@ const Contest = () => {
                                             Running
                                         </th>
                                         <th className="px-4 py-3 text-center w-[10%]">
-                                            Banner
+                                            Icon
                                         </th>
                                         <th className="px-4 py-3 text-center w-[10%]">
                                             Status
@@ -207,17 +209,19 @@ const Contest = () => {
                                         return (
                                             <tr
                                                 key={contest._id}
-                                                className="hover:bg-gray-50 transition-colors relative"
+                                                className="hover:bg-gray-50 transition-colors"
                                             >
                                                 <td className="px-4 py-3 text-center text-gray-500">
                                                     {index + 1}
                                                 </td>
+
                                                 <td className="px-4 py-3">
                                                     {contest.name}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {contest.conductedBy}
                                                 </td>
+
                                                 <td className="px-4 py-3">
                                                     {languages.length > 0 ? (
                                                         <div className="flex flex-wrap gap-1">
@@ -240,12 +244,15 @@ const Contest = () => {
                                                         </span>
                                                     )}
                                                 </td>
+
                                                 <td className="px-4 py-3 text-center">
                                                     {contest.numberOfProblems}
                                                 </td>
+
                                                 <td className="px-4 py-3 text-center">
                                                     {contest.durationMinutes}
                                                 </td>
+
                                                 <td className="px-4 py-3 text-center">
                                                     <div className="flex gap-2 items-center px-3 py-1 border border-gray-300 rounded-md text-xs font-medium">
                                                         <div
@@ -254,29 +261,33 @@ const Contest = () => {
                                                                     ? "bg-green-600"
                                                                     : "bg-gray-400"
                                                             }`}
-                                                        ></div>
+                                                        />
                                                         {contest.isRunning
                                                             ? "Running"
                                                             : "Inactive"}
                                                     </div>
                                                 </td>
+
+                                                {/* ICON WITH HOVER CARD */}
                                                 <td className="px-4 py-3 text-center">
-                                                    {contest.iconImage ? (
-                                                        <img
-                                                            src={`/api${
-                                                                contest.iconImage
-                                                            }`}
-                                                            alt="banner"
-                                                            className="h-12 w-12 object-contain rounded-md mx-auto border"
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={Logo}
-                                                            alt="banner"
-                                                            className="h-14 w-14 object-contain rounded-md mx-auto border"
-                                                        />
-                                                    )}
+                                                    <ContestHoverCard
+                                                        iconSrc={
+                                                            contest.iconImage
+                                                                ? `${contest.iconImage}`
+                                                                : undefined
+                                                        }
+                                                        bannerSrc={
+                                                            contest.bannerImage
+                                                                ? `${contest.bannerImage}`
+                                                                : undefined
+                                                        }
+                                                        name={contest.name}
+                                                        conductedBy={
+                                                            contest.conductedBy
+                                                        }
+                                                    />
                                                 </td>
+
                                                 <td className="px-4 py-3 text-center">
                                                     <span
                                                         className={`px-3 py-2 border rounded-full text-xs font-medium ${
@@ -291,10 +302,9 @@ const Contest = () => {
                                                     </span>
                                                 </td>
 
-                                                {/* Actions */}
+                                                {/* ACTIONS */}
                                                 <td className="text-center px-2">
                                                     <div className="max-w-fit flex rounded-md border border-gray-300">
-                                                        {/* Add Questions */}
                                                         <div className="p-2 border-r border-gray-300">
                                                             <Link
                                                                 to={`add/${contest._id}`}
@@ -305,7 +315,6 @@ const Contest = () => {
                                                             </Link>
                                                         </div>
 
-                                                        {/* Play / Pause */}
                                                         <div
                                                             onClick={() =>
                                                                 toggleRunningMutation.mutate(
@@ -329,7 +338,6 @@ const Contest = () => {
                                                             )}
                                                         </div>
 
-                                                        {/* Create Users */}
                                                         <div
                                                             onClick={() =>
                                                                 handleCreateUsers(
@@ -343,7 +351,6 @@ const Contest = () => {
                                                             />
                                                         </div>
 
-                                                        {/* Edit */}
                                                         <div
                                                             onClick={() =>
                                                                 handleEditClick(
@@ -355,7 +362,6 @@ const Contest = () => {
                                                             <Edit size={16} />
                                                         </div>
 
-                                                        {/* Delete */}
                                                         <div
                                                             onClick={() =>
                                                                 handleDeleteClick(
@@ -378,7 +384,6 @@ const Contest = () => {
                 </div>
             )}
 
-            {/* Edit Modal */}
             {showEditModal && selectedContest && (
                 <EditContestModal
                     isOpen={showEditModal}
@@ -387,7 +392,6 @@ const Contest = () => {
                 />
             )}
 
-            {/* Delete Popup as separate component */}
             {selectedContest && (
                 <DeleteContestPopup
                     isOpen={showDeletePopup}
@@ -398,7 +402,6 @@ const Contest = () => {
                 />
             )}
 
-            {/* Create Users */}
             {showCreateUsers && selectedContest && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-0">
                     <CreateUsers

@@ -2,13 +2,17 @@ import Contest from "../../models/contest.model.js";
 import Problem from "../../models/problem.model.js";
 import User from "../../models/user.model.js";
 import Session from "../../models/session.model.js";
+import Submission from "../../models/submission.model.js"; // <-- adjust if needed
+import UserDetails from "../../models/userDetails.model.js"; // <-- adjust if needed
+
 import * as fs from "fs";
 import * as path from "path";
 import mongoose from "mongoose";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 import { Context } from "hono";
 
-const UPLOADS_PATH = path.join("uploads", "contests");
+// Base uploads directory: <project-root>/uploads
+const UPLOADS_BASE = path.join(process.cwd(), "uploads");
 
 export const deleteContest = async (c: Context) => {
     try {
@@ -27,30 +31,39 @@ export const deleteContest = async (c: Context) => {
             return ErrorResponse(c, "Contest not found", 404);
         }
 
-        if (contest.bannerImage) {
-            const filename = path.basename(contest.bannerImage);
-            const filePath = path.join(UPLOADS_PATH, filename);
+        /** ---------- DELETE FILES (banner, icon, problems, testcases) ---------- **/
+        // All assets for this contest live in: uploads/<contestId>/**
+        const contestUploadDir = path.join(UPLOADS_BASE, contestId);
 
-            if (fs.existsSync(filePath)) {
-                try {
-                    fs.unlinkSync(filePath);
-                    console.log(`Deleted banner image: ${filePath}`);
-                } catch (err) {
-                    console.error("Failed to delete banner image:", err);
-                }
+        if (fs.existsSync(contestUploadDir)) {
+            try {
+                // Recursively delete uploads/<contestId>/...
+                fs.rmSync(contestUploadDir, { recursive: true, force: true });
+                console.log(`Deleted uploads directory: ${contestUploadDir}`);
+            } catch (err) {
+                console.error("Failed to delete uploads directory:", err);
             }
+        } else {
+            console.log(
+                `No uploads directory found for contest: ${contestUploadDir}`,
+            );
         }
 
+        /** ---------- DELETE RELATED DOCUMENTS ---------- **/
         const deletedProblems = await Problem.deleteMany({ contestId });
 
         const deletedUsers = await User.deleteMany({ contestId });
 
         const deletedSessions = await Session.deleteMany({ contestId });
 
+        const deletedSubmissions = await Submission.deleteMany({ contestId });
+
+        const deletedUserDetails = await UserDetails.deleteMany({ contestId });
+
         await Contest.findByIdAndDelete(contestId);
 
         console.log(
-            `Contest deleted: ${contestId} | Problems: ${deletedProblems.deletedCount}, Users: ${deletedUsers.deletedCount}, Sessions: ${deletedSessions.deletedCount}`,
+            `Contest deleted: ${contestId} | Problems: ${deletedProblems.deletedCount}, Users: ${deletedUsers.deletedCount}, Sessions: ${deletedSessions.deletedCount}, Submissions: ${deletedSubmissions.deletedCount}, UserDetails: ${deletedUserDetails.deletedCount}`,
         );
 
         return SuccessResponse(
@@ -62,6 +75,8 @@ export const deleteContest = async (c: Context) => {
                 deletedProblems: deletedProblems.deletedCount,
                 deletedUsers: deletedUsers.deletedCount,
                 deletedSessions: deletedSessions.deletedCount,
+                deletedSubmissions: deletedSubmissions.deletedCount,
+                deletedUserDetails: deletedUserDetails.deletedCount,
             },
         );
     } catch (err: any) {

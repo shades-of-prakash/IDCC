@@ -7,4 +7,3 @@ export const apiRoute = new Hono();
 apiRoute.route("/admin", adminRoute);
 apiRoute.route("/contest", ContestRoutes);
 apiRoute.route("/user", userRoute);
-

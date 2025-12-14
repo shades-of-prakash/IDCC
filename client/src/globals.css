@@ -218,3 +218,57 @@ blockquote code {
     background: #bfbfbf;
     border-radius: 1px;
 }
+
+/* ADMIN TABLES - Same styling as ProseMirror tables */
+.admin table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 350px;
+    width: 70%;
+    margin: 6px auto;
+}
+
+.admin th p {
+    background: #f5f5f5;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* cell borders */
+.admin th,
+.admin td {
+    border-right: 1px solid #bbb;
+    border-bottom: 1px solid #bbb;
+    padding: 8px;
+    text-align: center; /* CENTER ALL TEXT */
+}
+
+/* left border */
+.admin th:first-child,
+.admin td:first-child {
+    border-left: 1px solid #bbb;
+}
+
+/* header styling */
+.admin th {
+    background: #f5f5f5;
+    border-top: 1px solid #bbb;
+    font-weight: 500;
+}
+
+/* corners */
+.admin tr:first-child th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.admin tr:first-child th:last-child {
+    border-top-right-radius: 8px;
+}
+
+.admin tr:last-child td:first-child {
+    border-bottom-left-radius: 8px;
+}
+
+.admin tr:last-child td:last-child {
+    border-bottom-right-radius: 8px;
+}
