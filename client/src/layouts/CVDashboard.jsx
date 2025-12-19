@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AuthContext } from "../contexts/adminAuthContext";
 import { apiFetch } from "../utils/fetch";
+import Icon from "../assets/images/logo.webp";
 import {
     Braces,
     Ellipsis,
@@ -200,11 +201,11 @@ const CVDashboard = () => {
             </div>
 
             {/* Table */}
-            <div className="w-full p-3 h-[calc(100%-4rem)] overflow-hidden">
+            <div className="w-full p-3 h-[calc(100%-4rem)]  overflow-hidden">
                 {problems.length > 0 ? (
-                    <div className="overflow-y-auto rounded-md border border-gray-300">
+                    <div className="w-full h-full overflow-auto rounded-md border border-gray-300">
                         <table className="w-full text-sm text-left rtl:text-right">
-                            <thead className="bg-neutral-200/50 sticky top-0 z-20">
+                            <thead className="bg-gray-100  sticky top-0 z-20">
                                 <tr className="border-b border-gray-300">
                                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                                         SNO
@@ -218,6 +219,13 @@ const CVDashboard = () => {
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                                         Conducted By
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                                        Problems
+                                    </th>
+
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                                        Duration
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                                         Actions
@@ -239,10 +247,27 @@ const CVDashboard = () => {
                                         </td>
 
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {problem.contestName || "—"}
+                                            <div className="flex items-center gap-3 ">
+                                                <div className="h-10 w-10 border object-scale-down  border-gray-300 overflow-hidden bg-red-900  rounded-md">
+                                                    <img
+                                                        src={Icon}
+                                                        alt=""
+                                                        className="w-full  h-full"
+                                                    />
+                                                </div>
+                                                <span>
+                                                    {problem.contestName || "—"}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {problem.conductedBy || "—"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {problem.numberOfProblems || "—"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {problem.durationMinutes || "—"}m
                                         </td>
 
                                         <td className="p-3.5 whitespace-nowrap text-right text-sm text-gray-700">

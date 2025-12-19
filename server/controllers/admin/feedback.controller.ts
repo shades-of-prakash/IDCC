@@ -12,7 +12,7 @@ const QUESTIONS = [
 
 export const getFeedbackDashboard = async (c: Context) => {
     try {
-        const contestId = c.req.query("contestId");
+        const contestId = c.req.param("contestId");
 
         const filter: any = {};
         if (contestId) filter.contestId = contestId;

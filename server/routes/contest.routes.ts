@@ -36,6 +36,7 @@ import { addProblemCompleteStatus } from "../controllers/contest/makeCompleted.c
 import { makeContestRunning } from "../controllers/contest/makecontestrunning.controller";
 import { submitCode } from "../controllers/contest/submitcode.controller";
 import { updateContest } from "../controllers/contest/update.controller";
+import { executeCode } from "../controllers/contest/executeCode.controller";
 
 export const ContestRoutes = new Hono();
 
@@ -90,3 +91,4 @@ ContestRoutes.post("admin/unfinalized", unfinalizeProblem);
 
 ContestRoutes.post("/runcode", runCode);
 ContestRoutes.post("/submitcode", submitCode);
+ContestRoutes.post("/debug", executeCode);

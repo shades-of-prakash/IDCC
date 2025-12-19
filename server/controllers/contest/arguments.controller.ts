@@ -1,53 +1,83 @@
 import type { Context } from "hono";
+import mongoose from "mongoose";
 import Problem from "../../models/problem.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
-import mongoose from "mongoose";
 
 export const addProblemArguments = async (c: Context) => {
-  try {
-    const body = await c.req.json();
-    const { problemId, arguments: args } = body;
+    try {
+        const body = await c.req.json();
 
-    if (!problemId) {
-      return ErrorResponse(c, "problemId is required", 400);
-    }
+        const { problemId, output, arguments: args } = body;
 
-    if (!Array.isArray(args) || args.length === 0) {
-      return ErrorResponse(c, "arguments must be a non-empty array", 400);
-    }
+        console.log(problemId, output, args);
 
-    for (const arg of args) {
-      if (!arg.name || !arg.type) {
-        return ErrorResponse(
-          c,
-          "Each argument must have 'name' and 'type'",
-          400,
+        if (!problemId) {
+            return ErrorResponse(c, "problemId is required", 400);
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(problemId)) {
+            return ErrorResponse(c, "Invalid problemId", 400);
+        }
+
+        if (!output || typeof output !== "string") {
+            return ErrorResponse(
+                c,
+                "output is required and must be a string",
+                400,
+            );
+        }
+
+        if (!Array.isArray(args) || args.length === 0) {
+            return ErrorResponse(c, "arguments must be a non-empty array", 400);
+        }
+
+        for (const arg of args) {
+            if (
+                !arg ||
+                typeof arg.name !== "string" ||
+                typeof arg.type !== "string" ||
+                !arg.name.trim() ||
+                !arg.type.trim()
+            ) {
+                return ErrorResponse(
+                    c,
+                    "Each argument must have non-empty 'name' and 'type'",
+                    400,
+                );
+            }
+        }
+
+        const updatedProblem = await Problem.findByIdAndUpdate(
+            problemId,
+            {
+                $set: {
+                    outputType: output,
+                    arguments: args,
+                },
+            },
+            { new: true },
         );
-      }
+
+        if (!updatedProblem) {
+            return ErrorResponse(c, "Problem not found", 404);
+        }
+
+        return SuccessResponse(
+            c,
+            "Function signature updated successfully",
+            200,
+            {
+                problemId: updatedProblem._id,
+                outputType: updatedProblem.output,
+                arguments: updatedProblem.arguments,
+            },
+        );
+    } catch (err: any) {
+        console.error("Error adding problem arguments:", err);
+        return ErrorResponse(
+            c,
+            err.message || "Failed to add problem arguments",
+            500,
+        );
     }
-
-    if (!mongoose.Types.ObjectId.isValid(problemId)) {
-      return ErrorResponse(c, "Invalid problemId", 400);
-    }
-
-    const updatedProblem = await Problem.findByIdAndUpdate(
-      problemId,
-      { $set: { arguments: args } },
-      { new: true },
-    );
-
-    if (!updatedProblem) {
-      return ErrorResponse(c, "Problem not found", 404);
-    }
-
-    return SuccessResponse(
-      c,
-      "Arguments added successfully",
-      200,
-      updatedProblem,
-    );
-  } catch (err: any) {
-    console.error("Error adding arguments:", err);
-    return ErrorResponse(c, err.message || "Failed to add arguments", 500);
-  }
 };

@@ -1,170 +1,31 @@
 import fs from "fs";
 import path from "path";
 import type { Context } from "hono";
-import { spawnSync } from "bun";
 
 import Problem from "../../models/problem.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
 
-type Language = "c" | "cpp" | "java" | "python";
+import {
+    LANGUAGE_CONFIG,
+    getJavaMainClassName,
+    isContainerRunning,
+    execInWorker,
+    buildExecutionScript,
+    createJobDir,
+    cleanupJobDir,
+    type Language,
+} from "../../utils/judge.util.js";
 
-interface LangConfig {
-    filename: string;
-    workerName: string;
-    hostWorkDir: string;
-    containerWorkDir: string;
-}
-
-const LANGUAGE_CONFIG: Record<Language, LangConfig> = {
-    c: {
-        filename: "main.c",
-        workerName: "judge-gcc-worker",
-        hostWorkDir: "/judge/work/gcc",
-        containerWorkDir: "/workspace",
-    },
-    cpp: {
-        filename: "main.cpp",
-        workerName: "judge-cpp-worker",
-        hostWorkDir: "/judge/work/cpp",
-        containerWorkDir: "/workspace",
-    },
-    java: {
-        // default / fallback, will be overridden dynamically
-        filename: "Main.java",
-        workerName: "judge-java-worker",
-        hostWorkDir: "/judge/work/java",
-        containerWorkDir: "/workspace",
-    },
-    python: {
-        filename: "main.py",
-        workerName: "judge-python-worker",
-        hostWorkDir: "/judge/work/python",
-        containerWorkDir: "/workspace",
-    },
-};
-
-// --- Java helper: extract main public class name ---
-function getJavaMainClassName(code: string): string {
-    // Very simple heuristic: first `public class ClassName`
-    const match = code.match(/public\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/);
-    return match?.[1] ?? "Main"; // fallback to Main if nothing found
-}
-
-// --- Helper: check if worker container is running ---
-function isContainerRunning(name: string) {
-    const result = spawnSync({
-        cmd: ["docker", "inspect", "-f", "{{.State.Running}}", name],
-        stdout: "pipe",
-        stderr: "pipe",
-    });
-
-    const stdout = result.stdout?.toString().trim() ?? "";
-    const stderr = result.stderr?.toString().trim() ?? "";
-
-    if (!result.success) {
-        return {
-            running: false,
-            error: stderr || `docker inspect failed for ${name}`,
-        };
-    }
-
-    return {
-        running: stdout === "true",
-        error: "",
-    };
-}
-
-function execInWorker(worker: string, workdir: string, script: string) {
-    const cmd = [
-        "docker",
-        "exec",
-        "-e",
-        `WORKDIR=${workdir}`,
-        worker,
-        "sh",
-        "-c",
-        script,
-    ];
-
-    const result = spawnSync({
-        cmd,
-        stdout: "pipe",
-        stderr: "pipe",
-    });
-
-    return {
-        success: result.success,
-        stdout: result.stdout?.toString() ?? "",
-        stderr: result.stderr?.toString() ?? "",
-    };
-}
-
-function buildScript(
-    language: Language,
-    count: number,
-    root: string,
-    options?: { javaMainClass?: string },
-) {
-    // IMPORTANT: removed `|| true` so with `set -e` we stop on first failing run
-    const loop = (run: string) => `
-BASE="${root}/$WORKDIR"
-i=0
-while [ "$i" -lt ${count} ]; do
-  ${run} < "$BASE/in_$i.txt" > "$BASE/out_$i.txt" 2> "$BASE/err_$i.txt"
-  i=$((i + 1))
-done
-`;
-
-    switch (language) {
-        case "c":
-            return `
-set -e
-BASE="${root}/$WORKDIR"
-
-# compile C, capture compile errors into a file inside the job dir
-gcc "$BASE/main.c" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt"
-
-${loop("$BASE/main")}
-`;
-        case "cpp":
-            return `
-set -e
-BASE="${root}/$WORKDIR"
-
-# compile C++, capture compile errors into a file inside the job dir
-g++ "$BASE/main.cpp" -O0 -o "$BASE/main" 2> "$BASE/compile_err.txt"
-
-${loop("$BASE/main")}
-`;
-        case "java": {
-            const mainClass = options?.javaMainClass || "Main";
-
-            return `
-set -e
-BASE="${root}/$WORKDIR"
-
-# compile Java, capture compile errors
-javac "$BASE/${mainClass}.java" 2> "$BASE/compile_err.txt"
-
-${loop(`java -cp "$BASE" ${mainClass}`)}
-`;
-        }
-        case "python":
-            return `
-set -e
-BASE="${root}/$WORKDIR"
-
-${loop('python3 "$BASE/main.py"')}
-`;
-    }
-}
+import {
+    outputsMatch,
+    canonicalToDisplayString,
+    userOutputToDisplayString,
+} from "../../utils/output.util.js";
 
 export const runCode = async (c: Context) => {
     try {
         const body = await c.req.json();
         const { language, code, problem, testcases, userTestcases = [] } = body;
-
-        console.log("s", language);
 
         if (!language || !code) {
             return ErrorResponse(c, "Language and code are required", 400);
@@ -179,39 +40,36 @@ export const runCode = async (c: Context) => {
             return ErrorResponse(c, "Unsupported language", 400);
         }
 
-        const problemData = await Problem.findById(problem).lean();
+        const problemData: any = await Problem.findById(problem).lean();
         if (!problemData) {
             return ErrorResponse(c, "Problem not found", 404);
         }
 
-        const visible = Array.isArray(testcases)
+        const outputType =
+            typeof problemData.outputType === "string" &&
+            problemData.outputType.trim()
+                ? problemData.outputType
+                : "string";
+
+        const visibleTests = Array.isArray(testcases)
             ? testcases
             : problemData.visibleTests || [];
 
         const allTests = [
-            ...visible.map((t: any) => ({
+            ...visibleTests.map((t: any) => ({
                 ...t,
                 __source: "visible" as const,
             })),
             ...userTestcases.map((t: any) => ({
                 rawInput: t.rawInput || "",
-                __source: "custom" as const,
                 output: null,
+                __source: "custom" as const,
             })),
         ];
 
-        if (allTests.length === 0) {
-            return ErrorResponse(c, "No testcases found", 400);
-        }
-
-        fs.mkdirSync(config.hostWorkDir, { recursive: true });
-        const tempDir = fs.mkdtempSync(path.join(config.hostWorkDir, "job_"));
-        const workdirName = path.basename(tempDir);
-
-        fs.chmodSync(tempDir, 0o777);
+        const { tempDir, workdirName } = createJobDir(config.hostWorkDir);
 
         try {
-            // --- Decide filename (Java is dynamic) ---
             let sourceFilename = config.filename;
             let javaMainClass: string | undefined;
 
@@ -220,10 +78,8 @@ export const runCode = async (c: Context) => {
                 sourceFilename = `${javaMainClass}.java`;
             }
 
-            // Write source code
-            fs.writeFileSync(path.join(tempDir, sourceFilename), code);
+            fs.writeFileSync(path.join(tempDir, sourceFilename), code, "utf8");
 
-            // Write inputs
             allTests.forEach((tc, i) => {
                 fs.writeFileSync(
                     path.join(tempDir, `in_${i}.txt`),
@@ -232,102 +88,63 @@ export const runCode = async (c: Context) => {
                 );
             });
 
-            // Build script for inside container
-            const script = buildScript(
+            const script = buildExecutionScript(
                 language as Language,
                 allTests.length,
                 config.containerWorkDir,
-                language === "java" ? { javaMainClass } : undefined,
+                { javaMainClass, stopOnError: true },
             );
 
-            // 🔍 Check if worker container is running before exec
-            const status = isContainerRunning(config.workerName);
-            if (!status.running) {
-                console.error(
-                    `Worker container ${config.workerName} is not running`,
-                    status.error,
-                );
-                return ErrorResponse(
-                    c,
-                    `Something went worng!,Execution worker "${config.workerName}" is not running`,
-                    500,
-                );
+            if (!isContainerRunning(config.workerName).running) {
+                return ErrorResponse(c, "Execution worker not running", 500);
             }
 
-            // Actually execute in worker
-            const { stderr } = execInWorker(
-                config.workerName,
-                workdirName,
-                script,
-            );
-            // we won't fan-out container stderr to each testcase anymore
+            execInWorker(config.workerName, workdirName, script);
 
-            // Read outputs/errors back from host-mounted tempDir
             const compileErrPath = path.join(tempDir, "compile_err.txt");
             const compileErr = fs.existsSync(compileErrPath)
                 ? fs.readFileSync(compileErrPath, "utf8").trim()
                 : "";
 
-            // Build raw per-test results
-            const rawResults = allTests.map((tc, i) => {
+            const results = allTests.map((tc, i) => {
                 const outPath = path.join(tempDir, `out_${i}.txt`);
                 const errPath = path.join(tempDir, `err_${i}.txt`);
 
-                const outExists = fs.existsSync(outPath);
-                const errExists = fs.existsSync(errPath);
-
-                const out = outExists
+                const rawOut = fs.existsSync(outPath)
                     ? fs.readFileSync(outPath, "utf8").trim()
                     : "";
 
-                const runErr = errExists
+                const runErr = fs.existsSync(errPath)
                     ? fs.readFileSync(errPath, "utf8").trim()
                     : "";
 
-                // error priority: runtime error > compile error
-                const err = (runErr || compileErr).trim();
-
-                const expected =
-                    typeof tc.output === "string" ? tc.output.trim() : null;
-
+                // Testcase output is already structured (e.g., [["s"]])
+                // Just compare user's parsed output with it directly
                 const passed =
-                    expected !== null && !err ? out === expected : null;
+                    tc.output != null &&
+                    !compileErr &&
+                    !runErr &&
+                    outputsMatch(rawOut, tc.output, outputType);
 
                 return {
                     input: tc.rawInput ?? "",
-                    output: out,
-                    expected,
+                    // Return RAW user output as-is (not constructed)
+                    output: rawOut,
+                    // Display expected output as JSON string
+                    expected: canonicalToDisplayString(tc.output),
                     passed,
-                    error: err || null,
+                    error: runErr || compileErr || null,
                     source: tc.__source,
                 };
             });
-
-            // ONE-FAIL-ONLY LOGIC:
-            // If any testcase (or compile) produced an error,
-            // return ONLY that failing testcase (the first one with error)
-            const firstErrorIndex = rawResults.findIndex((r) => !!r.error);
-
-            let results = rawResults;
-            let stoppedEarly = false;
-            let stoppedAt: number | null = null;
-
-            if (firstErrorIndex !== -1) {
-                results = [rawResults[firstErrorIndex]];
-                stoppedAt = firstErrorIndex;
-                stoppedEarly = firstErrorIndex < allTests.length - 1;
-            }
 
             return SuccessResponse(c, "Success", 200, {
                 results,
                 total: results.length,
                 passed: results.filter((r) => r.passed).length,
-                stoppedEarly,
-                stoppedAt,
             });
         } finally {
-            // Clean up host temp dir
-            fs.rmSync(tempDir, { recursive: true, force: true });
+            cleanupJobDir(tempDir);
         }
     } catch (err) {
         console.error(err);

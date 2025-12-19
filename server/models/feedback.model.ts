@@ -1,19 +1,18 @@
-// models/contestFeedback.model.js
 import mongoose from "mongoose";
 
 const contestFeedbackSchema = new mongoose.Schema(
     {
-        // Optional: if you pass a contestId from frontend/route
         contestId: {
-            type: String,
-            default: null,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Contest",
+            required: true,
         },
-        // Array of ratings like [3, 4, 5, 4, 3, 5]
+
         answers: {
             type: [Number],
             required: true,
         },
-        // Additional feedback text (optional)
+
         feedback: {
             type: String,
             trim: true,
@@ -21,7 +20,7 @@ const contestFeedbackSchema = new mongoose.Schema(
         },
     },
     {
-        timestamps: true, // createdAt, updatedAt
+        timestamps: true,
     },
 );
 

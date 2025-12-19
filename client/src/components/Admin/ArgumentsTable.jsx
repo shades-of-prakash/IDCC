@@ -20,6 +20,26 @@ const visibilityOptions = [
     { label: "Hidden", value: "hidden" },
 ];
 
+const formatValueForDisplay = (val) => {
+    if (val === null || val === undefined) return "";
+
+    // empty string
+    if (val === "") return '""';
+
+    // string or char
+    if (typeof val === "string") {
+        return `"${val}"`;
+    }
+
+    // array or object
+    if (Array.isArray(val) || typeof val === "object") {
+        return JSON.stringify(val);
+    }
+
+    // number / boolean
+    return String(val);
+};
+
 const fetchTestcases = async (problemId) => {
     const res = await fetch("/api/contest/admin/problem/get/testcases", {
         method: "POST",
@@ -93,7 +113,7 @@ const removeTestcaseRequest = async (testcaseId) => {
     return res.json();
 };
 
-const TableHeader = ({ argumentsList }) => (
+const TableHeader = ({ argumentsList, OutputType }) => (
     <thead className="bg-neutral-200/50 font-medium uppercase text-xs text-black sticky top-0">
         <tr className="border-b border-gray-300">
             <th className="p-3 text-left">S.NO</th>
@@ -107,7 +127,14 @@ const TableHeader = ({ argumentsList }) => (
                 </th>
             ))}
 
-            <th className="p-3 text-left">Output</th>
+            <th className="p-3 text-left">
+                Output
+                {OutputType && (
+                    <span className="pl-1.5 text-[10px] text-gray-500">
+                        ({OutputType})
+                    </span>
+                )}
+            </th>
             <th className="p-3 text-left">Points</th>
             <th className="p-3 text-left">Visibility</th>
             <th className="p-3 text-left">Actions</th>
@@ -119,56 +146,128 @@ const TestcaseDisplayRow = ({
     index,
     testcase,
     argumentsList,
+    OutputType,
     onEdit,
     onDelete,
     canEdit,
     canDelete,
-}) => (
-    <tr key={testcase._id || index} className="border-t hover:bg-gray-50">
-        <td className="text-center">{index + 1}</td>
+}) => {
+    // Validate testcase data
+    const validationErrors = [];
 
-        {argumentsList.map((arg) => (
-            <td key={arg.name} className="p-2.5 text-base">
-                {JSON.stringify(
-                    testcase.input ? testcase.input[arg.name] : undefined,
-                )}
-            </td>
-        ))}
+    // Validate input arguments
+    argumentsList.forEach((arg) => {
+        const val = testcase.input ? testcase.input[arg.name] : undefined;
+        if (!validateValueAgainstType(val, arg.type)) {
+            validationErrors.push(`Invalid ${arg.name}: expected ${arg.type}`);
+        }
+    });
+    const parseOutputValue = (val) => {
+        if (val === undefined || val === null) return val;
+        if (typeof val !== "string") return val;
 
-        <td className="p-2.5 text-base">{JSON.stringify(testcase.output)}</td>
+        const trimmed = val.trim();
+        if (trimmed === "") return val;
 
-        <td className="p-2.5 text-base">
-            {typeof testcase.points === "number" ? testcase.points : "—"}
-        </td>
+        try {
+            return JSON.parse(trimmed);
+        } catch {
+            return val;
+        }
+    };
 
-        <td className="p-2.5">{testcase.isHidden ? "Hidden" : "Visible"}</td>
+    // Validate output
+    const parsedOutput = parseOutputValue(testcase.output);
 
-        <td className="p-2.5 text-blue-600 cursor-pointer">
-            <div className="flex max-w-fit rounded-md border border-gray-300 h-full">
-                <button
-                    className="p-2.5 text-green-700 border-r border-gray-300"
-                    onClick={onEdit}
-                    disabled={!canEdit}
-                >
-                    <SquarePen size={16} />
-                </button>
+    if (OutputType && !validateValueAgainstType(parsedOutput, OutputType)) {
+        validationErrors.push(`Invalid output: expected ${OutputType}`);
+    }
 
-                <button
-                    className="p-2.5 text-red-600 disabled:opacity-60"
-                    onClick={onDelete}
-                    disabled={!canDelete}
-                >
-                    <Trash2 size={16} />
-                </button>
-            </div>
-        </td>
-    </tr>
-);
+    const hasErrors = validationErrors.length > 0;
+
+    return (
+        <>
+            <tr
+                key={testcase._id || index}
+                className={`border-t hover:bg-gray-50 ${hasErrors ? "bg-red-50" : ""}`}
+            >
+                <td className="text-center">{index + 1}</td>
+
+                {argumentsList.map((arg) => (
+                    <td key={arg.name} className="p-2.5 text-base">
+                        {JSON.stringify(
+                            testcase.input
+                                ? testcase.input[arg.name]
+                                : undefined,
+                        )}
+                    </td>
+                ))}
+
+                <td className="p-2.5 text-base font-mono whitespace-pre-wrap">
+                    {testcase.output === ""
+                        ? '""'
+                        : typeof testcase.output === "string"
+                          ? formatValueForDisplay(testcase.output)
+                          : JSON.stringify(testcase.output)}
+                </td>
+
+                <td className="p-2.5 text-base">
+                    {typeof testcase.points === "number"
+                        ? testcase.points
+                        : "—"}
+                </td>
+
+                <td className="p-2.5">
+                    {testcase.isHidden ? "Hidden" : "Visible"}
+                </td>
+
+                <td className="p-2.5 text-blue-600 cursor-pointer">
+                    <div className="flex max-w-fit rounded-md border border-gray-300 h-full">
+                        <button
+                            className="p-2.5 text-green-700 border-r border-gray-300"
+                            onClick={onEdit}
+                            disabled={!canEdit}
+                        >
+                            <SquarePen size={16} />
+                        </button>
+
+                        <button
+                            className="p-2.5 text-red-600 disabled:opacity-60"
+                            onClick={onDelete}
+                            disabled={!canDelete}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </td>
+            </tr>
+
+            {hasErrors && (
+                <tr>
+                    <td
+                        colSpan={argumentsList.length + 5}
+                        className="p-2 text-sm text-red-700 bg-red-50"
+                    >
+                        <div className="flex gap-2 items-start p-1">
+                            <CircleAlert size={14} className="mt-0.5" />
+                            <div className="space-y-1">
+                                {validationErrors.map((err, i) => (
+                                    <div key={i}>{err}</div>
+                                ))}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+};
 
 const EditRow = ({
     row,
     index,
     argumentsList,
+    OutputType,
     errors,
     onChangeValue,
     onChangeOutput,
@@ -238,7 +337,7 @@ const EditRow = ({
         </tr>
 
         {errors && (
-            <RowError errors={errors} colSpan={argumentsList.length + 4} />
+            <RowError errors={errors} colSpan={argumentsList.length + 5} />
         )}
     </>
 );
@@ -246,6 +345,7 @@ const EditRow = ({
 const AddRow = ({
     row,
     argumentsList,
+    OutputType,
     errors,
     onChangeValue,
     onChangeOutput,
@@ -319,7 +419,7 @@ const AddRow = ({
         </tr>
 
         {errors && (
-            <RowError errors={errors} colSpan={argumentsList.length + 4} />
+            <RowError errors={errors} colSpan={argumentsList.length + 5} />
         )}
     </>
 );
@@ -403,7 +503,7 @@ const DeleteConfirmModal = ({ open, onCancel, onConfirm, isPending }) => {
     );
 };
 
-const ArgumentsTable = ({ argumentsList, problemId }) => {
+const ArgumentsTable = ({ argumentsList, problemId, OutputType }) => {
     const [rows, setRows] = useState([]);
     const [rowErrors, setRowErrors] = useState({});
     const [editIndex, setEditIndex] = useState(null);
@@ -441,8 +541,14 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
     });
 
     const parseJSON = (val) => {
+        if (val === null || val === undefined) return val;
+        if (typeof val !== "string") return val;
+
+        const trimmed = val.trim();
+        if (trimmed === "") return val;
+
         try {
-            return JSON.parse(val);
+            return JSON.parse(trimmed);
         } catch {
             return val;
         }
@@ -463,11 +569,17 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
             }),
         );
 
+        const outputDefault = OutputType ? getDefaultValue(OutputType) : "";
+        const outputValue =
+            typeof outputDefault === "string"
+                ? outputDefault
+                : JSON.stringify(outputDefault);
+
         setRows([
             {
                 id: Date.now() + Math.random(),
                 values: defaults,
-                output: "",
+                output: outputValue,
                 points: "",
                 visibility: { label: "Visible", value: "visible" },
             },
@@ -514,6 +626,7 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
     const addTestcase = (row) => {
         const errors = {};
 
+        // Validate input arguments
         argumentsList.forEach((arg) => {
             const val = parseJSON(row.values[arg.name]);
             if (!validateValueAgainstType(val, arg.type)) {
@@ -521,7 +634,22 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
             }
         });
 
-        if (!row.output) errors["output"] = "Output cannot be empty";
+        // Validate output
+        if (
+            !row.output ||
+            (typeof row.output === "string" && row.output.trim() === "")
+        ) {
+            errors["output"] = "Output cannot be empty";
+        } else if (OutputType) {
+            try {
+                const parsedOutput = parseJSON(row.output);
+                if (!validateValueAgainstType(parsedOutput, OutputType)) {
+                    errors["output"] = `Output must be a ${OutputType}`;
+                }
+            } catch (e) {
+                errors["output"] = `Invalid format for ${OutputType}`;
+            }
+        }
 
         const pointsNum = Number(row.points);
         if (
@@ -546,10 +674,12 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
             ]),
         );
 
+        const parsedOutput = parseJSON(row.output);
+
         const payload = {
             problemId,
             input: inputObject,
-            output: row.output,
+            output: parsedOutput,
             isHidden: row.visibility.value === "hidden",
             points: pointsNum,
         };
@@ -580,7 +710,10 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
         const rowObj = {
             id: Date.now() + Math.random(),
             values: {},
-            output: tc.output ?? "",
+            output:
+                typeof tc.output === "string"
+                    ? tc.output
+                    : JSON.stringify(tc.output),
             points:
                 typeof tc.points === "number"
                     ? tc.points.toString()
@@ -604,6 +737,7 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
     const saveEdit = (row) => {
         const errors = {};
 
+        // Validate input arguments
         argumentsList.forEach((arg) => {
             const val = parseJSON(row.values[arg.name]);
             if (!validateValueAgainstType(val, arg.type)) {
@@ -611,7 +745,22 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
             }
         });
 
-        if (!row.output) errors["output"] = "Output cannot be empty";
+        // Validate output
+        if (
+            !row.output ||
+            (typeof row.output === "string" && row.output.trim() === "")
+        ) {
+            errors["output"] = "Output cannot be empty";
+        } else if (OutputType) {
+            try {
+                const parsedOutput = parseJSON(row.output);
+                if (!validateValueAgainstType(parsedOutput, OutputType)) {
+                    errors["output"] = `Output must be a ${OutputType}`;
+                }
+            } catch (e) {
+                errors["output"] = `Invalid format for ${OutputType}`;
+            }
+        }
 
         const pointsNum = Number(row.points);
         if (
@@ -636,11 +785,13 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
             ]),
         );
 
+        const parsedOutput = parseJSON(row.output);
+
         const payload = {
             _id: row._id,
             problemId,
             input: inputObject,
-            output: String(row.output),
+            output: parsedOutput,
             isHidden: row.visibility.value === "hidden",
             points: pointsNum,
         };
@@ -742,7 +893,10 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
                                 <col className="w-36" /> {/* actions */}
                             </colgroup>
 
-                            <TableHeader argumentsList={argumentsList} />
+                            <TableHeader
+                                argumentsList={argumentsList}
+                                OutputType={OutputType}
+                            />
 
                             <tbody>
                                 {/* No testcases yet but arguments exist */}
@@ -777,6 +931,7 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
                                                 row={row}
                                                 index={i}
                                                 argumentsList={argumentsList}
+                                                OutputType={OutputType}
                                                 errors={rowErrors[row.id]}
                                                 onChangeValue={updateRowValue}
                                                 onChangeOutput={updateRowOutput}
@@ -799,6 +954,7 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
                                             index={i}
                                             testcase={tc}
                                             argumentsList={argumentsList}
+                                            OutputType={OutputType}
                                             onEdit={() => startEdit(i)}
                                             onDelete={() =>
                                                 removeTestcase(tc._id)
@@ -821,6 +977,7 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
                                             key={row.id}
                                             row={row}
                                             argumentsList={argumentsList}
+                                            OutputType={OutputType}
                                             errors={rowErrors[row.id]}
                                             onChangeValue={updateRowValue}
                                             onChangeOutput={updateRowOutput}
@@ -841,7 +998,6 @@ const ArgumentsTable = ({ argumentsList, problemId }) => {
                 </div>
             </div>
 
-            {/* DELETE CONFIRM POPUP */}
             <DeleteConfirmModal
                 open={!!deleteTarget}
                 onCancel={() => setDeleteTarget(null)}

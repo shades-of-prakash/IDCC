@@ -57,4 +57,4 @@ adminRoute.delete(
 );
 
 adminRoute.delete("/auth/delete/vorc", getAuthUser, checkAdmin, deleteVorc);
-adminRoute.get("/feedback", getAuthUser, checkAdmin, getFeedbackDashboard);
+adminRoute.get("/feedback/contest/:contestId", getFeedbackDashboard);

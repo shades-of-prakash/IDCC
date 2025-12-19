@@ -4,16 +4,58 @@ import TestCase from "../../models/testcase.model.js";
 import Problem from "../../models/problem.model.js";
 import Contest from "../../models/contest.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
+import generateRawInput from "../../utils/generateRawInput.js";
+
+// ✅ Add validation helper
+const validateTypeMatch = (value: any, type: string): boolean => {
+    if (value === null) return true;
+
+    // Parse nested array types (e.g., "array<string>", "array<array<number>>")
+    let depth = 0;
+    let innerType = type;
+    while (innerType.startsWith("array<")) {
+        depth++;
+        innerType = innerType.slice(6, -1);
+    }
+
+    const validatePrimitive = (val: any): boolean => {
+        if (val === null) return true;
+        if (innerType === "string") return typeof val === "string";
+        if (innerType === "char")
+            return typeof val === "string" && val.length <= 1;
+        if (innerType === "number")
+            return typeof val === "number" && !isNaN(val);
+        if (innerType === "boolean") return typeof val === "boolean";
+        return false;
+    };
+
+    const validateArray = (val: any, currentDepth: number): boolean => {
+        if (val === null) return true;
+        if (!Array.isArray(val)) return false;
+
+        if (currentDepth === depth) {
+            return val.every((element: any) => validatePrimitive(element));
+        }
+
+        return val.every((inner: any) =>
+            validateArray(inner, currentDepth + 1),
+        );
+    };
+
+    if (depth > 0) {
+        return validateArray(value, 1);
+    }
+
+    return validatePrimitive(value);
+};
 
 export const addTestCase = async (c: Context) => {
     try {
         const body = await c.req.json();
-
-        console.log("addTestCase body:", body);
-
         const { problemId, input, output, isHidden, points } = body;
 
-        // Validate problemId
+        /* ---------------- validations ---------------- */
+
         if (!problemId || !mongoose.Types.ObjectId.isValid(problemId)) {
             return ErrorResponse(c, "Invalid problemId", 400);
         }
@@ -36,13 +78,9 @@ export const addTestCase = async (c: Context) => {
             );
         }
 
-        // 🔥 Validate points (0–10)
-        if (points === undefined || points === null) {
-            return ErrorResponse(c, "points is required", 400);
-        }
-
         const numericPoints = Number(points);
         if (
+            points === undefined ||
             Number.isNaN(numericPoints) ||
             numericPoints < 0 ||
             numericPoints > 10
@@ -54,12 +92,22 @@ export const addTestCase = async (c: Context) => {
             );
         }
 
-        // Validate output
-        if (typeof output !== "string") {
-            return ErrorResponse(c, "output must be a string", 400);
+        // ✅ Output validation
+        if (output === undefined || output === null) {
+            return ErrorResponse(c, "output is required", 400);
         }
 
-        // Validate input structure
+        // ✅ Validate output type if outputType is defined
+        if (problem.outputType && problem.outputType.trim() !== "") {
+            if (!validateTypeMatch(output, problem.outputType)) {
+                return ErrorResponse(
+                    c,
+                    `output must be of type ${problem.outputType}`,
+                    400,
+                );
+            }
+        }
+
         if (
             typeof input !== "object" ||
             input === null ||
@@ -68,54 +116,37 @@ export const addTestCase = async (c: Context) => {
             return ErrorResponse(c, "input must be an object", 400);
         }
 
-        // Validate arguments
         if (!Array.isArray(problem.arguments)) {
             return ErrorResponse(c, "Problem arguments not defined", 400);
         }
 
-        for (const argDef of problem.arguments as any[]) {
-            const { name, type } = argDef;
+        /* -------- argument validation -------- */
+
+        for (const arg of problem.arguments as any[]) {
+            const { name, type } = arg;
 
             if (!(name in input)) {
                 return ErrorResponse(c, `Missing argument '${name}'`, 400);
             }
 
-            const value = input[name];
+            const val = input[name];
 
-            if (type === "number" && typeof value !== "number") {
-                return ErrorResponse(c, `'${name}' must be a number`, 400);
-            }
-
-            if (type === "string" && typeof value !== "string") {
-                return ErrorResponse(c, `'${name}' must be a string`, 400);
-            }
-
-            if (type === "boolean" && typeof value !== "boolean") {
-                return ErrorResponse(c, `'${name}' must be a boolean`, 400);
-            }
-
-            if (type.endsWith("[]") && !Array.isArray(value)) {
-                return ErrorResponse(c, `'${name}' must be an array`, 400);
+            // ✅ Use the same validation for input arguments
+            if (!validateTypeMatch(val, type)) {
+                return ErrorResponse(
+                    c,
+                    `'${name}' must be of type ${type}`,
+                    400,
+                );
             }
         }
 
-        // 🔹 Generate rawInput from arguments
-        const lines: string[] = (problem.arguments as any[]).map(
-            (argDef: any) => {
-                const { name } = argDef;
-                const value = input[name];
+        /* ---------------- generate raw input ---------------- */
 
-                if (Array.isArray(value)) return value.join(" ");
-                if (typeof value === "object" && value !== null)
-                    return JSON.stringify(value);
+        const rawInput = generateRawInput(input, problem.arguments as any[]);
 
-                return String(value);
-            },
-        );
+        /* ---------------- save ---------------- */
 
-        const rawInput = lines.join("\n") + "\n";
-
-        // CREATE NEW TESTCASE ONLY
         const testCase = await TestCase.create({
             problemId,
             input,
@@ -127,7 +158,7 @@ export const addTestCase = async (c: Context) => {
 
         return SuccessResponse(c, "Testcase added successfully", 201, testCase);
     } catch (err: any) {
-        console.error("Error adding testcase:", err);
-        return ErrorResponse(c, err.message || "Failed to add testcase", 500);
+        console.error("addTestCase error:", err);
+        return ErrorResponse(c, err.message, 500);
     }
 };

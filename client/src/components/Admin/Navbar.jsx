@@ -73,7 +73,7 @@ const Navbar = () => {
                         <img
                             src={getAvatar(admin?.id || "guest")}
                             alt="avatar"
-                            className="w-8 h-8 rounded-md"
+                            className="w-8 h-8 rounded-lg"
                         />
                         <span className="font-medium text-base">
                             {username}
@@ -88,19 +88,16 @@ const Navbar = () => {
 
                     {open && (
                         <div className="absolute right-0 mt-1 w-48  overflow-hidden max-h-fit bg-white border border-gray-300 rounded-lg shadow-lg z-50">
-                            {/* Name */}
-                            <div className="px-4 py-3 text-sm text-gray-700 flex items-center gap-2 border-b border-gray-200">
-                                <User className="w-4 h-4 text-gray-500" />
+                            <div className="px-4 py-3 text-sm text-black flex items-center gap-2 border-b border-gray-200">
+                                <User className="w-4 h-4 " />
                                 <span className="font-medium">{username}</span>
                             </div>
 
-                            {/* Role */}
-                            <div className="px-4 py-3 text-sm text-gray-700 flex items-center gap-2 border-b border-gray-200">
-                                <ShieldCheck className="w-4 h-4 text-gray-500" />
-                                <span className="text-gray-600">{role}</span>
+                            <div className="px-4 py-3 text-sm  text-black flex items-center gap-2 border-b border-gray-200">
+                                <ShieldCheck className="w-4 h-4" />
+                                <span className="">{role}</span>
                             </div>
 
-                            {/* Logout */}
                             <button
                                 onClick={handleLogout}
                                 disabled={isPending}

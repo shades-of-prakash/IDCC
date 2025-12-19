@@ -2,11 +2,34 @@ import mongoose from "mongoose";
 
 const ProblemSchema = new mongoose.Schema(
     {
-        name: { type: String, required: true, trim: true },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-        arguments: { type: Array },
+        outputType: {
+            type: String,
+            default: null,
+        },
 
-        statement: { type: String, default: "" },
+        arguments: [
+            {
+                name: {
+                    type: String,
+                    trim: true,
+                },
+                type: {
+                    type: String,
+                    trim: true,
+                },
+            },
+        ],
+
+        statement: {
+            type: String,
+            default: "",
+        },
 
         testcases: [
             {

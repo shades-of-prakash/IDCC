@@ -16,8 +16,8 @@ import { useUserSubmissions } from "../../contexts/userSubmissionContext";
 import TabWarningPopup from "./TabWarningPopup";
 import { useFinish } from "../../contexts/finishContext";
 
-const MAX_WARNINGS = 3; // show popup on first 3 switches
-const MAX_TAB_SWITCHES = 4; // 4th time => auto submit + finish
+const MAX_WARNINGS = 3;
+const MAX_TAB_SWITCHES = 4;
 
 const SECRET = 13;
 

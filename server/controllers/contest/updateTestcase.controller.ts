@@ -4,58 +4,79 @@ import TestCase from "../../models/testcase.model.js";
 import Problem from "../../models/problem.model.js";
 import Contest from "../../models/contest.model.js";
 import { SuccessResponse, ErrorResponse } from "../../utils/response.js";
+import generateRawInput from "../../utils/generateRawInput.js";
+
+// ✅ Same validation helper (can be extracted to a separate util file)
+const validateTypeMatch = (value: any, type: string): boolean => {
+    if (value === null) return true;
+
+    let depth = 0;
+    let innerType = type;
+    while (innerType.startsWith("array<")) {
+        depth++;
+        innerType = innerType.slice(6, -1);
+    }
+
+    const validatePrimitive = (val: any): boolean => {
+        if (val === null) return true;
+        if (innerType === "string") return typeof val === "string";
+        if (innerType === "char")
+            return typeof val === "string" && val.length <= 1;
+        if (innerType === "number")
+            return typeof val === "number" && !isNaN(val);
+        if (innerType === "boolean") return typeof val === "boolean";
+        return false;
+    };
+
+    const validateArray = (val: any, currentDepth: number): boolean => {
+        if (val === null) return true;
+        if (!Array.isArray(val)) return false;
+
+        if (currentDepth === depth) {
+            return val.every((element: any) => validatePrimitive(element));
+        }
+
+        return val.every((inner: any) =>
+            validateArray(inner, currentDepth + 1),
+        );
+    };
+
+    if (depth > 0) {
+        return validateArray(value, 1);
+    }
+
+    return validatePrimitive(value);
+};
 
 export const updateTestCase = async (c: Context) => {
     try {
         const { id } = c.req.param();
         const body = await c.req.json();
-
-        console.log("updateTestCase id:", id);
-        console.log("updateTestCase body:", body);
-
         const { problemId, input, output, isHidden, points } = body;
 
-        if (!id) {
-            return ErrorResponse(c, "Testcase id is required", 400);
-        }
+        /* ---------------- validations ---------------- */
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return ErrorResponse(c, "Invalid testcase id", 400);
         }
 
         const testCase = await TestCase.findById(id);
-
         if (!testCase) {
             return ErrorResponse(c, "Testcase not found", 404);
         }
 
-        // 🔍 Determine which problemId to use (existing or new one from body)
-        let problemIdToCheck: any = testCase.problemId;
+        const effectiveProblemId = problemId ?? testCase.problemId;
 
-        if (problemId) {
-            if (!mongoose.Types.ObjectId.isValid(problemId)) {
-                return ErrorResponse(c, "Invalid problemId", 400);
-            }
-            problemIdToCheck = problemId;
+        if (!mongoose.Types.ObjectId.isValid(effectiveProblemId)) {
+            return ErrorResponse(c, "Invalid problemId", 400);
         }
 
-        // 🔥 Load problem & contest to enforce isRunning rule
-        const problem = await Problem.findById(problemIdToCheck);
-
+        const problem = await Problem.findById(effectiveProblemId);
         if (!problem) {
             return ErrorResponse(c, "Problem not found", 404);
         }
 
-        if (!problem.contestId) {
-            return ErrorResponse(
-                c,
-                "Problem is not linked to any contest",
-                400,
-            );
-        }
-
         const contest = await Contest.findById(problem.contestId);
-
         if (!contest) {
             return ErrorResponse(c, "Contest not found", 404);
         }
@@ -68,7 +89,8 @@ export const updateTestCase = async (c: Context) => {
             );
         }
 
-        // 🔥 points is required on update as well (schema requires it)
+        /* ---------------- points ---------------- */
+
         if (points === undefined || points === null) {
             return ErrorResponse(c, "points is required", 400);
         }
@@ -79,21 +101,12 @@ export const updateTestCase = async (c: Context) => {
             numericPoints < 0 ||
             numericPoints > 10
         ) {
-            return ErrorResponse(
-                c,
-                "points must be a number between 0 and 10",
-                400,
-            );
+            return ErrorResponse(c, "points must be between 0 and 10", 400);
         }
 
-        // ✅ Safe to update fields now
+        /* ---------------- input ---------------- */
 
-        if (problemId) {
-            testCase.problemId = problemId;
-        }
-
-        // we’ll use effectiveInput to generate rawInput
-        let effectiveInput: any = testCase.input;
+        let effectiveInput = testCase.input;
 
         if (input !== undefined) {
             if (
@@ -108,30 +121,22 @@ export const updateTestCase = async (c: Context) => {
                 return ErrorResponse(c, "Problem arguments not defined", 400);
             }
 
-            // validate dynamic arguments
-            for (const argDef of problem.arguments as any[]) {
-                const { name, type } = argDef;
+            for (const arg of problem.arguments as any[]) {
+                const { name, type } = arg;
 
                 if (!(name in input)) {
                     return ErrorResponse(c, `Missing argument '${name}'`, 400);
                 }
 
-                const value = input[name];
+                const val = input[name];
 
-                if (type === "number" && typeof value !== "number") {
-                    return ErrorResponse(c, `'${name}' must be a number`, 400);
-                }
-
-                if (type === "string" && typeof value !== "string") {
-                    return ErrorResponse(c, `'${name}' must be a string`, 400);
-                }
-
-                if (type === "boolean" && typeof value !== "boolean") {
-                    return ErrorResponse(c, `'${name}' must be a boolean`, 400);
-                }
-
-                if (type.endsWith("[]") && !Array.isArray(value)) {
-                    return ErrorResponse(c, `'${name}' must be an array`, 400);
+                // ✅ Use the same validation for input arguments
+                if (!validateTypeMatch(val, type)) {
+                    return ErrorResponse(
+                        c,
+                        `'${name}' must be of type ${type}`,
+                        400,
+                    );
                 }
             }
 
@@ -139,51 +144,35 @@ export const updateTestCase = async (c: Context) => {
             effectiveInput = input;
         }
 
-        if (output !== undefined) {
-            if (typeof output !== "string") {
-                return ErrorResponse(c, "output must be a string", 400);
+        /* ---------------- output ---------------- */
+
+        if (output !== undefined && output !== null) {
+            // ✅ Validate output type if outputType is defined
+            if (problem.outputType && problem.outputType.trim() !== "") {
+                if (!validateTypeMatch(output, problem.outputType)) {
+                    return ErrorResponse(
+                        c,
+                        `output must be of type ${problem.outputType}`,
+                        400,
+                    );
+                }
             }
+
             testCase.output = output;
         }
+
+        /* ---------------- misc ---------------- */
 
         if (typeof isHidden === "boolean") {
             testCase.isHidden = isHidden;
         }
 
-        // update points
         testCase.points = numericPoints;
 
-        // 🔹 Regenerate rawInput based on latest input + problem.arguments
-        if (!Array.isArray(problem.arguments)) {
-            return ErrorResponse(c, "Problem arguments not defined", 400);
-        }
-
-        if (
-            typeof effectiveInput !== "object" ||
-            effectiveInput === null ||
-            Array.isArray(effectiveInput)
-        ) {
-            return ErrorResponse(c, "Stored testcase input is invalid", 400);
-        }
-
-        const lines: string[] = (problem.arguments as any[]).map(
-            (argDef: any) => {
-                const { name } = argDef;
-                const value = effectiveInput[name];
-
-                if (Array.isArray(value)) {
-                    return value.join(" ");
-                }
-
-                if (typeof value === "object" && value !== null) {
-                    return JSON.stringify(value);
-                }
-
-                return String(value);
-            },
+        testCase.rawInput = generateRawInput(
+            effectiveInput,
+            problem.arguments as any[],
         );
-
-        testCase.rawInput = lines.join("\n") + "\n";
 
         await testCase.save();
 
@@ -194,11 +183,7 @@ export const updateTestCase = async (c: Context) => {
             testCase,
         );
     } catch (err: any) {
-        console.error("Error updating testcase:", err);
-        return ErrorResponse(
-            c,
-            err.message || "Failed to update testcase",
-            500,
-        );
+        console.error("updateTestCase error:", err);
+        return ErrorResponse(c, err.message, 500);
     }
 };

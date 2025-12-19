@@ -13,11 +13,10 @@ export const getProblemsByUser = async (c: Context) => {
             return ErrorResponse(c, "adminId is required", 400);
         }
 
-        // Excluding status so that it is NOT sent in the response
         const problems = await Problem.find({ submittedBy: adminId })
             .select("-hiddenTests -visibleTests -status")
-            .lean()
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         const problemsWithContest = await Promise.all(
             problems.map(async (problem) => {
@@ -28,11 +27,11 @@ export const getProblemsByUser = async (c: Context) => {
                         problem.contestId,
                     );
 
-                    const contest = await Contest.findById(
-                        contestObjectId,
-                    ).select(
-                        "name conductedBy numberOfProblems durationMinutes",
-                    );
+                    const contest = await Contest.findById(contestObjectId)
+                        .select(
+                            "name conductedBy numberOfProblems durationMinutes iconImage",
+                        )
+                        .lean();
 
                     if (contest) {
                         contestData = {
@@ -40,6 +39,7 @@ export const getProblemsByUser = async (c: Context) => {
                             conductedBy: contest.conductedBy,
                             numberOfProblems: contest.numberOfProblems,
                             durationMinutes: contest.durationMinutes,
+                            iconImage: contest.iconImage || null,
                         };
                     }
                 }
@@ -50,8 +50,6 @@ export const getProblemsByUser = async (c: Context) => {
                 };
             }),
         );
-
-        console.log(problemsWithContest, "problems with contest details");
 
         return SuccessResponse(
             c,

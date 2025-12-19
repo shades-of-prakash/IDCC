@@ -49,21 +49,27 @@ const AdminLogin = () => {
 
     return (
         <div className="w-screen h-dvh flex items-center justify-center">
-            <div className="bg-white z-[999] w-[450px] h-[600px] rounded-md border border-neutral-800/30 flex flex-col items-center justify-center gap-6">
+            <div className="bg-white z-[999] w-[450px] h-[600px] rounded-md  flex flex-col items-center justify-center gap-6">
                 {/* Logo and Title */}
                 <div className="w-full flex flex-col gap-4 items-center justify-center">
-                    <img
-                        src={Logo}
-                        alt="logo-idcc"
-                        className="w-10 h-14"
-                        fetchPriority="high"
-                    />
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-3xl font-semibold">IDCC</span>
-                        <span className="text-gray-700 text-sm">
-                            Select your role and log in to continue.
-                        </span>
+                    <div className="flex flex-col items-center gap-3">
+                        <img
+                            src={Logo}
+                            alt="logo-idcc"
+                            className="w-10 h-14"
+                            fetchPriority="high"
+                        />
+                        <div className="flex flex-col gap-1.5 items-center">
+                            <span className="text-4xl font-semibold">
+                                Logiq
+                            </span>
+                            <span className="text-xs font-bold">BY IDCC</span>
+                        </div>
                     </div>
+                    <span className="text-gray-700 text-base">
+                        {/* Select your role and log in to continue.*/}
+                        Restricted: Authorized access only.
+                    </span>
                 </div>
 
                 <form
@@ -79,8 +85,10 @@ const AdminLogin = () => {
                             type="text"
                             value={username}
                             required
+                            autoComplete="off"
                             onChange={(e) => setUsername(e.target.value)}
-                            className="p-2 border text-black border-neutral-800/30 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                            className="p-2 border border-gray-300 rounded-md
+                                       focus:outline-none focus:ring-2 focus:ring-black focus:border-gray-300"
                         />
                     </div>
 
@@ -94,8 +102,10 @@ const AdminLogin = () => {
                                 type={showPassword ? "text" : "password"}
                                 value={password}
                                 required
+                                autoComplete="off"
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="p-2 w-full border text-black border-neutral-800/30 rounded focus:outline-none focus:ring-1 focus:ring-black pr-10"
+                                className="p-2 w-full border border-gray-300 rounded-md
+                                           focus:outline-none focus:ring-2 focus:ring-black   focus:border-gray-300"
                             />
                             <button
                                 type="button"
@@ -114,11 +124,11 @@ const AdminLogin = () => {
 
                     <div className="w-full flex flex-col gap-2 relative">
                         <label className="text-sm font-medium text-gray-700">
-                            Password
+                            Role
                         </label>
                         <div>
                             <CustomSelect
-                                className="py-2"
+                                className="py-2.5"
                                 options={roleOptions}
                                 value={role}
                                 onChange={setRole}
@@ -129,7 +139,7 @@ const AdminLogin = () => {
                     </div>
 
                     {error && (
-                        <div className="w-full text-center text-red-600 text-sm bg-red-50 border border-red-200 px-3 py-2 rounded">
+                        <div className="w-full text-center text-red-600 text-sm bg-red-50 border border-red-200 px-3 py-2 rounded-md">
                             {error}
                         </div>
                     )}
@@ -138,7 +148,7 @@ const AdminLogin = () => {
                     <button
                         type="submit"
                         disabled={loginLoading}
-                        className="w-full px-4 py-3 rounded bg-black text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="text-lg w-full px-4 py-2.5 mt-3 rounded-md bg-black text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         <span>Login</span>
                     </button>

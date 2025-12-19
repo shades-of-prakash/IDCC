@@ -7,29 +7,23 @@ const TestCaseSchema = new mongoose.Schema(
             ref: "Problem",
             required: true,
         },
-
         rawInput: {
             type: String,
             required: true,
         },
-
         input: {
             type: mongoose.Schema.Types.Mixed,
-            required: false,
             default: null,
         },
-
         output: {
-            type: String,
-            required: true,
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
         },
-
         points: {
             type: Number,
             required: true,
             min: 0,
         },
-
         isHidden: {
             type: Boolean,
             default: false,

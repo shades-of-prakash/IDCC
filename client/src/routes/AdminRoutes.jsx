@@ -7,7 +7,6 @@ import AdminLayout from "../layouts/AdminLayout";
 import Loader from "../components/Loader";
 import { ContestProvider } from "../contexts/ContestContext";
 import { EditorImagesProvider } from "../contexts/EditorImagesContext";
-
 const ContestUserDetailedResults = lazy(
     () => import("../components/Admin/ContestUserDetailedResults"),
 );
@@ -26,6 +25,7 @@ const TestCaseManager = lazy(
 );
 import AdminRouteGuard from "../guards/AdminProtectedRoute";
 const Feedback = lazy(() => import("../components/Admin/Feedback"));
+const ProblemPreview = lazy(() => import("../components/Admin/Problempreview"));
 
 const AdminRoutes = () => {
     return (
@@ -104,6 +104,11 @@ const AdminRoutes = () => {
                                 }
                             />
                             <Route path="feedback" element={<Feedback />} />
+
+                            <Route
+                                path="preview/:problemId"
+                                element={<ProblemPreview />}
+                            />
 
                             <Route
                                 path="editor"

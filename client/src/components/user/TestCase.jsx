@@ -277,17 +277,23 @@ const TestCase = ({
     const buildRawInputForCase = (inputObj = {}) => {
         const args = visible?.arguments || [];
 
-        const parts = args.map((arg, index) => {
-            const name = arg.name || `arg${index + 1}`;
+        const seen = new Set();
+        const parts = [];
+
+        for (const arg of args) {
+            const name = arg.name;
             const raw = inputObj[name];
 
-            if (raw === null || raw === undefined) return "";
+            if (raw === null || raw === undefined) continue;
 
             const str = String(raw).trim();
-            return str;
-        });
 
-        // join by space and end with newline
+            if (seen.has(str)) continue;
+            seen.add(str);
+
+            parts.push(str);
+        }
+
         return parts.join(" ") + "\n";
     };
 
@@ -747,16 +753,17 @@ const RunResult = ({ isRunning, result }) => {
                     </pre>
                 </div>
 
-                {typeof active.expected !== "undefined" && (
-                    <div>
-                        <span className="font-semibold text-neutral-700">
-                            Expected:
-                        </span>
-                        <pre className="bg-neutral-50 border border-neutral-200 rounded-md p-2 mt-1 whitespace-pre-wrap">
-                            {active.expected ?? "—"}
-                        </pre>
-                    </div>
-                )}
+                {active.source !== "custom" &&
+                    typeof active.expected !== "undefined" && (
+                        <div>
+                            <span className="font-semibold text-neutral-700">
+                                Expected:
+                            </span>
+                            <pre className="bg-neutral-50 border border-neutral-200 rounded-md p-2 mt-1 whitespace-pre-wrap">
+                                {active.expected ?? "—"}
+                            </pre>
+                        </div>
+                    )}
             </div>
         </div>
     );

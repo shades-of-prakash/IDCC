@@ -25,6 +25,8 @@ const TestCaseManager = () => {
         enabled: !!problemId,
     });
 
+    console.log(problemData);
+
     if (!problemId || isError) {
         return (
             <InfoCard
@@ -80,6 +82,7 @@ const TestCaseManager = () => {
                     <ArgumentsTable
                         argumentsList={problemData.arguments}
                         problemId={problemData._id}
+                        OutputType={problemData.outputType}
                     />
                 </div>
             </div>
@@ -88,9 +91,9 @@ const TestCaseManager = () => {
                 <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
                     <div className="w-[450px] h-[450px] rounded-md overflow-hidden">
                         <ConfigureArguments
-                            // onSaved={handleArgumentsSaved}
                             initialArgs={problemData.arguments}
                             problemId={problemData._id}
+                            problemOutputType={problemData.outputType}
                             submittedBy={problemData.submittedBy}
                             close={() => setShowargconfig(false)}
                         />

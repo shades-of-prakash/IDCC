@@ -6,6 +6,8 @@ export default defineConfig({
     plugins: [react(), svgr()],
     assetsInclude: ["**/*.lottie"],
     server: {
+        host: true,
+        port: 5173,
         proxy: {
             "/api": {
                 target: "http://localhost:4000",

@@ -16,6 +16,7 @@ const questions = [
 
 export default function ContestFeedback() {
     const { id: contestId } = useParams();
+    console.log("contest", contestId);
     const navigate = useNavigate();
 
     const [answers, setAnswers] = useState(Array(questions.length).fill(0));
