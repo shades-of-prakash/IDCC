@@ -131,7 +131,11 @@ export const runCode = async (c: Context) => {
                     // Return RAW user output as-is (not constructed)
                     output: rawOut,
                     // Display expected output as JSON string
-                    expected: canonicalToDisplayString(tc.output),
+                    expected:
+                        tc.output == null
+                            ? ""
+                            : canonicalToDisplayString(tc.output),
+
                     passed,
                     error: runErr || compileErr || null,
                     source: tc.__source,

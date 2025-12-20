@@ -1,13 +1,20 @@
 /* =========================================================
-   Output Utility - Parse User Output Only
-   Testcase output is already structured, just parse user output
-   ========================================================= */
+   Output Utility – Production-Safe Judge Comparison
+========================================================= */
 
 type Canonical = string | number | boolean | null | Canonical[] | Canonical[][];
 
 /* -----------------------------
-   Type parser
-   ----------------------------- */
+   Helpers
+----------------------------- */
+
+function normalizePythonLiterals(s: string) {
+    return s
+        .replace(/\bNone\b/g, "null")
+        .replace(/\bTrue\b/g, "true")
+        .replace(/\bFalse\b/g, "false");
+}
+
 function parseType(type: string) {
     let depth = 0;
     while (type.startsWith("array<")) {
@@ -17,87 +24,96 @@ function parseType(type: string) {
     return { depth, innerType: type };
 }
 
-/* -----------------------------
-   Cast primitive
-   ----------------------------- */
-function cast(val: string, type: string): any {
-    const trimmed = val.trim();
-    if (type === "number") return Number(trimmed);
-    if (type === "boolean") return trimmed === "true";
-    if (type === "char") return trimmed;
-    return trimmed;
+function castPrimitive(val: string, type: string): Canonical {
+    const v = val.trim();
+
+    if (type === "number") {
+        const n = Number(v);
+        return Number.isNaN(n) ? null : n;
+    }
+
+    if (type === "boolean") {
+        return v.toLowerCase() === "true" || v === "1";
+    }
+
+    if (type === "char") {
+        return v.length ? v[0] : "";
+    }
+
+    return v;
 }
 
 /* -----------------------------
-   Parse User Output to Match outputType Structure
-   Handles Python [1,2,3] and C/C++/Java "1 2 3" formats
-   ----------------------------- */
-function parseUserOutput(rawOutput: string, outputType: string): Canonical {
-    const cleaned = rawOutput.trim();
+   User Output Parser
+----------------------------- */
 
-    if (cleaned === "") {
-        const { depth } = parseType(outputType);
-        if (depth === 1) return [];
-        if (depth === 2) return [];
+function parseUserOutput(raw: string, outputType: string): Canonical {
+    const cleaned = raw.trim();
+    const { depth, innerType } = parseType(outputType);
+
+    // ===== EMPTY OUTPUT =====
+    if (!cleaned) {
+        if (depth > 0) return [];
         return "";
     }
 
-    const { depth, innerType } = parseType(outputType);
+    let text = normalizePythonLiterals(cleaned);
 
-    // Check if output looks like Python-style JSON
-    const isPythonStyle = cleaned.startsWith("[");
+    // Strip wrapping [] for C/C++ like "[1 2 3]"
+    if (!text.startsWith("[") && text.startsWith("[") && text.endsWith("]")) {
+        text = text.slice(1, -1);
+    }
 
-    // ===== PRIMITIVE (depth 0) =====
+    const isJsonLike = text.startsWith("[");
+
+    /* ===== PRIMITIVE ===== */
     if (depth === 0) {
-        return cast(cleaned, innerType);
+        return castPrimitive(text, innerType);
     }
 
-    // ===== 1D ARRAY (depth 1) =====
+    /* ===== 1D ARRAY ===== */
     if (depth === 1) {
-        if (isPythonStyle) {
+        if (isJsonLike) {
             try {
-                // Python: [1,2,3] or ['a','b','c']
-                const parsed = JSON.parse(cleaned.replace(/'/g, '"'));
-                if (Array.isArray(parsed)) {
-                    return parsed.map((v) => cast(String(v), innerType));
+                const arr = JSON.parse(text.replace(/'/g, '"'));
+                if (Array.isArray(arr)) {
+                    return arr.map((v) => castPrimitive(String(v), innerType));
                 }
-            } catch (e) {
-                // Fall through to whitespace split
-            }
+            } catch {}
         }
-        // C/C++/Java: "1 2 3" or "a b c"
-        return cleaned
-            .split(/[\s\n]+/)
-            .filter((v) => v)
-            .map((v) => cast(v, innerType));
+
+        return text
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .map((v) => castPrimitive(v, innerType));
     }
 
-    // ===== 2D ARRAY (depth 2) =====
+    /* ===== 2D ARRAY ===== */
     if (depth === 2) {
-        if (isPythonStyle) {
+        if (isJsonLike) {
             try {
-                // Python: [[1,2],[3,4]] or [['a','b'],['c','d']]
-                const parsed = JSON.parse(cleaned.replace(/'/g, '"'));
-                if (Array.isArray(parsed)) {
-                    return parsed.map((row) => {
-                        if (!Array.isArray(row)) return [];
-                        return row.map((v) => cast(String(v), innerType));
-                    });
+                const mat = JSON.parse(text.replace(/'/g, '"'));
+                if (Array.isArray(mat)) {
+                    return mat.map((row) =>
+                        Array.isArray(row)
+                            ? row.map((v) =>
+                                  castPrimitive(String(v), innerType),
+                              )
+                            : [],
+                    );
                 }
-            } catch (e) {
-                // Fall through to line-based split
-            }
+            } catch {}
         }
-        // C/C++/Java: "1 2\n3 4" or "a b\nc d"
-        return cleaned
-            .split("\n")
-            .filter((line) => line.trim())
+
+        return text
+            .split(/\n+/)
+            .filter((l) => l.trim())
             .map((line) =>
                 line
                     .trim()
-                    .split(/\s+/)
-                    .filter((v) => v)
-                    .map((v) => cast(v, innerType)),
+                    .split(/[\s,]+/)
+                    .filter(Boolean)
+                    .map((v) => castPrimitive(v, innerType)),
             );
     }
 
@@ -105,91 +121,64 @@ function parseUserOutput(rawOutput: string, outputType: string): Canonical {
 }
 
 /* -----------------------------
-   Compare User Output with Testcase Output
-   Testcase output is already structured correctly
-   ----------------------------- */
+   Comparison Logic
+----------------------------- */
+
+function deepEqual(a: Canonical, b: Canonical, floatTolerance = 1e-6): boolean {
+    if (typeof a !== typeof b) return false;
+
+    if (typeof a === "number" && typeof b === "number") {
+        return Math.abs(a - b) <= floatTolerance;
+    }
+
+    if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) return false;
+        return a.every((v, i) => deepEqual(v, b[i], floatTolerance));
+    }
+
+    return a === b;
+}
+
 export function outputsMatch(
     userRaw: string,
-    testcaseOutput: Canonical,
+    expected: Canonical,
     outputType: string,
 ): boolean {
     try {
         const parsedUser = parseUserOutput(userRaw, outputType);
-        return JSON.stringify(parsedUser) === JSON.stringify(testcaseOutput);
+        return deepEqual(parsedUser, expected);
     } catch (e) {
-        console.error("Error comparing outputs:", e);
+        console.error("Output comparison error:", e);
         return false;
     }
 }
 
-/* =========================================================
-   DISPLAY HELPERS - Return Clean String for UI
-   Primitives show without quotes, arrays/objects as JSON
-   ========================================================= */
+/* -----------------------------
+   Display Helpers
+----------------------------- */
 
-export function canonicalToDisplayString(canonical: Canonical): string {
-    if (canonical == null) return "";
+export function canonicalToDisplayString(val: Canonical): string {
+    if (val == null) return "";
 
-    // For primitives (string, number, boolean), return as-is without JSON.stringify
     if (
-        typeof canonical === "string" ||
-        typeof canonical === "number" ||
-        typeof canonical === "boolean"
+        typeof val === "string" ||
+        typeof val === "number" ||
+        typeof val === "boolean"
     ) {
-        return String(canonical);
+        return String(val);
     }
 
-    // For arrays and objects, use JSON.stringify
-    return JSON.stringify(canonical);
+    return JSON.stringify(val);
 }
 
 export function userOutputToDisplayString(
-    rawOutput: string,
+    raw: string,
     outputType: string,
 ): string {
     try {
-        const parsed = parseUserOutput(rawOutput, outputType);
-
-        // Return primitive values without quotes
-        if (
-            typeof parsed === "string" ||
-            typeof parsed === "number" ||
-            typeof parsed === "boolean"
-        ) {
-            return String(parsed);
-        }
-
-        // Return arrays/objects as JSON
-        return JSON.stringify(parsed);
-    } catch (e) {
-        // If parsing fails, return raw output as-is
-        return rawOutput;
+        const parsed = parseUserOutput(raw, outputType);
+        return canonicalToDisplayString(parsed);
+    } catch {
+        return raw;
     }
-}
-
-/* -----------------------------
-   LEGACY: Keep for backward compatibility
-   ----------------------------- */
-export function normalizeExpectedOutput(
-    expected: any,
-    outputType: string,
-): Canonical {
-    // Testcase output is already structured, just return as-is
-    return expected;
-}
-
-export function expectedToDisplayString(expected: Canonical): string {
-    if (expected == null) return "";
-
-    // For primitives, return without quotes
-    if (
-        typeof expected === "string" ||
-        typeof expected === "number" ||
-        typeof expected === "boolean"
-    ) {
-        return String(expected);
-    }
-
-    // For arrays/objects, return as JSON
-    return JSON.stringify(expected);
 }
