@@ -37,6 +37,7 @@ import { makeContestRunning } from "../controllers/contest/makecontestrunning.co
 import { submitCode } from "../controllers/contest/submitcode.controller";
 import { updateContest } from "../controllers/contest/update.controller";
 import { executeCode } from "../controllers/contest/executeCode.controller";
+import { getPreviewById } from "../controllers/contest/getPreview.controller";
 
 export const ContestRoutes = new Hono();
 
@@ -61,6 +62,7 @@ ContestRoutes.post("images/cleanup", cleanupUnusedImages);
 ContestRoutes.post("users/create", createUsers);
 ContestRoutes.get("admin/problems", getProblemsByAdminAndContest);
 ContestRoutes.get("admin/all/problems", getProblemsByUser);
+ContestRoutes.get("admin/preview/:problemId", getPreviewById);
 
 ContestRoutes.put("admin/problem/update/:problemId", upsertProblem);
 ContestRoutes.delete("admin/problem/delete/:problemId", deleteProblem);

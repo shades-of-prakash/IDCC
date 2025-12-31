@@ -5,29 +5,26 @@ import { useSession } from "../contexts/SessionContext";
 import Loader from "../components/Loader";
 
 export const GuestGuard = ({ children }) => {
-  const { user, isLoading: userLoading } = useUser();
-  const { session, loading: sessionLoading } = useSession();
-  const navigate = useNavigate();
+    const { user, isLoading: userLoading } = useUser();
+    const { session, loading: sessionLoading } = useSession();
+    const navigate = useNavigate();
 
-  const loading = userLoading || sessionLoading;
+    const loading = userLoading || sessionLoading;
 
-  useEffect(() => {
-    if (loading) return;
+    useEffect(() => {
+        if (loading) return;
 
-    if (user) {
-      // Redirect based on session presence
-      const target = session
-        ? `/user/${session._id || session.sessionId}/playground`
-        : `/user/instructions`;
+        if (user) {
+            const target = session ? `/user/playground` : `/user/instructions`;
 
-      if (window.location.pathname !== target) {
-        navigate(target, { replace: true });
-      }
-    }
-  }, [loading, user, session, navigate]);
+            if (window.location.pathname !== target) {
+                navigate(target, { replace: true });
+            }
+        }
+    }, [loading, user, session, navigate]);
 
-  if (loading) return <Loader />;
-  if (user) return null; // hide guest content while redirecting
+    if (loading) return <Loader />;
+    if (user) return null;
 
-  return <>{children}</>;
+    return <>{children}</>;
 };
